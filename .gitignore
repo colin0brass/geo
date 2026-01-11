@@ -1,0 +1,5 @@
+__pycache__/
+.vscode/
+.venv/
+output/
+era5_cache/

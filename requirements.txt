@@ -1,0 +1,8 @@
+cdsapi
+matplotlib
+numpy
+pandas
+pyyaml
+pytest
+xarray
+cdsapi

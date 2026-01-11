@@ -1,0 +1,66 @@
+polar_single:
+  page:
+    width_cm: 33.87
+    height_cm: 19.05
+    title_fontsize: 16
+    title_colour: blue
+    label_fontsize: 12
+    label_left: 0.05
+    label_right: 0.93
+    label_bottom: 0.03
+    dpi: 300
+  figure:
+    fig_width_in: 13.34
+    fig_height_in: 7.5
+    xtick_fontsize: 12
+    xtick_pad: -3
+    temp_label_fontsize: 10
+    temp_label_colour: gray
+    temp_label_vspace: 0.04
+    temp_step: 10.0
+    ytick_fontsize: 10
+    ytick_colour: gray
+  colourbar:
+    fontsize: 14
+    width: 0.07
+    height: 0.8
+    left_c: 0.72
+    left_f: 0.80
+    bottom: 0.10
+
+polar_subplot:
+  page:
+    width_cm: 33.87
+    height_cm: 19.05
+    title_fontsize: 12
+    title_colour: blue
+    label_fontsize: 10
+    label_left: 0.05
+    label_right: 0.93
+    label_bottom: 0.03
+    dpi: 300
+  figure:
+    fig_width_in: 13.34
+    fig_height_in: 7.5
+    xtick_fontsize: 9
+    xtick_pad: -3
+    temp_label_fontsize: 7
+    temp_label_colour: gray
+    temp_label_vspace: 0.04
+    temp_step: 10.0
+    ytick_fontsize: 6
+    ytick_colour: black
+  subplot:
+    left: 0.03
+    right: 0.91
+    hspace: 0.45
+    wspace: 0.13
+    top: 0.90
+    bottom: 0.10
+  colourbar:
+    fontsize: 12
+    width: 0.045
+    height: 0.8
+    left_c: 0.89
+    left_f: 0.93
+    bottom: 0.10
