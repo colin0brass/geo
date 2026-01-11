@@ -144,7 +144,7 @@ def main() -> None:
     vis = Visualizer(df_overall, out_dir=args.out_dir, t_min_c = t_min_c, t_max_c = t_max_c, settings_file=args.settings)
     plot_file = args.out_dir / f"Overall_noon_temps_polar_{start_year}_{end_year}.png"
     title = f"Mid-Day Temperatures ({start_year}-{end_year})"
-    credit = "Analysis & visualisation by Colin Osborne"
+    credit = "Mid-Day Temperature Analysis & Visualisation by Colin Osborne"
     data_source = "Data from: ERA5 via CDS"
 
     show_main = args.show.lower() in ("main", "all")
