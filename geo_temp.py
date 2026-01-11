@@ -39,7 +39,7 @@ def read_data_file(in_file: Path) -> pd.DataFrame:
     Returns:
         DataFrame with parsed dates.
     """
-    df = pd.read_csv(in_file, parse_dates=['date', 'utc_time_used', 'local_noon'])
+    df = pd.read_csv(in_file, parse_dates=['date', 'utc_time_used', 'local_noon'], index_col=0)
     return df
 
 def save_data_file(df: pd.DataFrame, out_file: Path) -> None:
@@ -51,7 +51,7 @@ def save_data_file(df: pd.DataFrame, out_file: Path) -> None:
         out_file: Output file path.
     """
     out_file.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(out_file)
+    df.to_csv(out_file, index=False)
     print(f"Saved data to {out_file}")
 
 def main() -> None:
