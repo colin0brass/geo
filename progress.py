@@ -47,6 +47,27 @@ class ConsoleProgressHandler:
         """Initialize progress bar for the year."""
         # Increment year counter for this location
         self._current_year_num += 1
+        self._current_year = year
+        self._current_location_name = location_name
+        self._current_total_months = total_months
+        
+        # Display initial progress bar immediately
+        bar_width = 12
+        bar = '░' * bar_width
+        
+        # Get current place number from context if available
+        place_prefix = ""
+        if hasattr(self, '_current_location_num') and hasattr(self, '_total_locations'):
+            place_prefix = f"Place {self._current_location_num}/{self._total_locations} "
+        
+        # Get year number context
+        year_prefix = ""
+        if hasattr(self, '_current_year_num') and hasattr(self, '_total_years') and self._total_years > 0:
+            year_prefix = f"Year {self._current_year_num}/{self._total_years} "
+        
+        # Pad location name to 30 characters for alignment
+        padded_name = f"{location_name:<30}"
+        print(f"\r  {place_prefix}{padded_name} - {year_prefix}{year}: [{bar}] 0/{total_months} months", end='', flush=True)
     
     def on_month_complete(self, location_name: str, year: int, month_num: int, total_months: int) -> None:
         """Update progress bar for the current year."""

@@ -242,6 +242,80 @@ class CDS:
 
         return ds
     
+    def get_year_daily_noon_data(
+        self,
+        location: Location,
+        year: int,
+        half_box_deg: float = 0.25
+    ) -> pd.DataFrame:
+        """
+        Retrieve and return a DataFrame of daily local noon temperatures for an entire year.
+        This is much more efficient than calling get_month_daily_noon_data 12 times.
+        
+        Args:
+            location (Location): Location object.
+            year (int): Year.
+            half_box_deg (float, optional): Half-size of the grid box in degrees. Defaults to 0.25.
+        Returns:
+            pd.DataFrame: DataFrame with daily local noon temperatures for the entire year.
+        Raises:
+            RuntimeError: If selected times are too far from requested local noon.
+        """
+        tz_local = ZoneInfo(location.tz)
+
+        # Get all days in the year
+        start_d = date(year, 1, 1)
+        end_d = date(year, 12, 31)
+
+        # Build daily local-noon timestamps, convert to UTC
+        days = pd.date_range(start=start_d, end=end_d, freq="D")
+        local_noons = [
+            datetime(d.year, d.month, d.day, 12, 0, 0, tzinfo=tz_local) for d in days.to_pydatetime()
+        ]
+        noon_utc = pd.DatetimeIndex([dt.astimezone(timezone.utc) for dt in local_noons])
+
+        # Cache entire year in one file
+        cache_file = self.cache_dir / f"era5_t2m_{location.name.replace(' ', '_').replace(',', '')}_{year:04d}_noons.nc"
+        nc_file = self._cds_retrieve_era5_date_series(cache_file, location, noon_utc, half_box_deg=half_box_deg)
+        ds = self._open_and_concat([nc_file])
+
+        # Find nearest grid point to location
+        ds_point = ds.sel(
+            latitude=location.lat,
+            longitude=location.lon,
+            method="nearest",
+        )
+
+        if "valid_time" in ds_point.coords:
+            ds_point = ds_point.rename({"valid_time": "time"})
+        da = ds_point["t2m"]
+
+        selected = da.sel(time=noon_utc.tz_convert(None), method="nearest")
+        selected_times = pd.to_datetime(selected["time"].values).tz_localize("UTC")
+        delta = np.abs(selected_times - noon_utc)
+        if (delta > pd.Timedelta("30min")).any():
+            bad = delta[delta > pd.Timedelta("30min")]
+            raise RuntimeError(
+                "Some noon selections were more than 30 minutes away from requested local noon UTC.\n"
+                f"Examples:\n{bad[:5]}"
+            )
+        temp_k = selected.values.astype(np.float64)
+        temp_c = temp_k - 273.15
+        temp_f = temp_c * 9.0 / 5.0 + 32.0
+        df = pd.DataFrame(
+            {
+                "date": [dt.date().isoformat() for dt in local_noons],
+                "local_noon": [dt.isoformat() for dt in local_noons],
+                "utc_time_used": [dt.isoformat() for dt in noon_utc],
+                "temp_C": np.round(temp_c, 3),
+                "temp_F": np.round(temp_f, 3),
+                "grid_lat": float(ds_point["latitude"].values),
+                "grid_lon": float(ds_point["longitude"].values),
+                "place_name": location.name,
+            }
+        )
+        return df
+
     def get_month_daily_noon_data(
         self,
         location: Location,
@@ -350,6 +424,9 @@ class CDS:
     ) -> pd.DataFrame:
         """
         Retrieve and return a DataFrame of daily local noon temperatures for the given location and date range.
+        
+        Optimized to download entire years at once rather than month-by-month, reducing API calls by 12x.
+        
         Args:
             location (Location): Location object.
             start_d (date): Start date.
@@ -358,33 +435,21 @@ class CDS:
         Returns:
             pd.DataFrame: DataFrame with daily local noon temperatures for the date range.
         """
-        """
-        Retrieve and return a DataFrame of daily local noon temperatures for the given location and date range.
-        """
         all_dfs = []
-        months_list = list(self._month_range(start_d, end_d))
         
-        # Group months by year for progress display
-        from collections import defaultdict
-        years_dict = defaultdict(list)
-        for year, month in months_list:
-            years_dict[year].append(month)
+        # Get list of years to process
+        years = list(range(start_d.year, end_d.year + 1))
         
-        for year in sorted(years_dict.keys()):
-            months_in_year = years_dict[year]
-            total_in_year = len(months_in_year)
+        for year in years:
+            if self.progress_manager:
+                self.progress_manager.notify_year_start(location.name, year, 1)
+            
+            # Download entire year at once
+            df_year = self.get_year_daily_noon_data(location, year, half_box_deg)
+            all_dfs.append(df_year)
             
             if self.progress_manager:
-                self.progress_manager.notify_year_start(location.name, year, total_in_year)
-            
-            for idx, month in enumerate(months_in_year, 1):
-                df_month = self.get_month_daily_noon_data(location, year, month, half_box_deg)
-                all_dfs.append(df_month)
-                
-                if self.progress_manager:
-                    self.progress_manager.notify_month_complete(location.name, year, idx, total_in_year)
-            
-            if self.progress_manager:
+                self.progress_manager.notify_month_complete(location.name, year, 1, 1)
                 self.progress_manager.notify_year_complete(location.name, year)
 
         df_all = pd.concat(all_dfs, ignore_index=True)
