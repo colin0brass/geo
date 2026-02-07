@@ -6,15 +6,15 @@
 ---
 
 ## Features
-- Download and cache ERA5 2m temperature data for any location
-- Analyze temperature trends and statistics for custom date ranges
-- Generate polar plots and subplots for visualizing annual temperature cycles
-- Smart grid layout automatically adjusts for 3+ rows to prevent subplot overlap
-- Manual grid specification with automatic batching for large datasets
-- Highly configurable plotting (YAML settings)
-- Efficient caching to avoid redundant downloads
-- Command-line interface and Python API
-- Comprehensive test suite with 73 tests
+- ✨ Download and cache ERA5 2m temperature data for any location
+- 📊 Generate publication-quality polar plots of annual temperature cycles
+- 🌍 **Automatic timezone detection** from coordinates (no manual lookup needed)
+- 🎯 Smart grid layout with automatic batching for large datasets
+- ⚙️ Highly configurable plotting via YAML settings
+- 🚀 Efficient caching to avoid redundant downloads
+- 💻 User-friendly CLI with short options and argument validation
+- 🐍 Clean Python API for programmatic use
+- ✅ Comprehensive test suite with 76 tests
 
 ---
 
@@ -34,44 +34,60 @@ pip install -r requirements.txt
 
 ### 3. Download and plot data (CLI)
 
-**Default usage** (uses Cambridge, UK from config.yaml):
+**Quick start:**
 ```bash
-python geo_temp.py --years 2024 --show main
+# Default place with interactive plots
+python geo_temp.py -y 2024 -s
+
+# List available places
+python geo_temp.py -l
+
+# Show help and version
+python geo_temp.py --help
+python geo_temp.py --version
 ```
 
 **Single location:**
 ```bash
-python geo_temp.py --place "Austin, TX" --years 2020-2025 --show main
+python geo_temp.py -p "Austin, TX" -y 2020-2025 -s main
 ```
 
 **Predefined place list:**
 ```bash
-python geo_temp.py --place-list preferred --years 2024 --show main
+python geo_temp.py --list preferred -y 2024 -s
 ```
 
 **All locations:**
 ```bash
-python geo_temp.py --all --years 2024 --show main
+python geo_temp.py -a -y 2024 -s main
 ```
 
-**Custom location:**
+**Custom location (timezone auto-detected):**
 ```bash
-# Timezone auto-detected from coordinates
-python geo_temp.py --place "Custom Location" --lat 40.7128 --lon -74.0060 --years 2024
-
-# Or specify timezone explicitly if needed
-python geo_temp.py --place "Custom Location" --lat 40.7128 --lon -74.0060 --tz "America/New_York" --years 2024
+python geo_temp.py -p "Custom Location" --lat 40.7128 --lon -74.0060 -y 2024
 ```
 
 **Specify grid layout:**
 ```bash
 # 4 columns by 3 rows = 12 places max per image
-python geo_temp.py --place-list european_capitals --years 2024 --grid 4x3
+python geo_temp.py --list preferred -y 2024 --grid 4x3
 
 # If places exceed grid capacity, multiple images are generated
-python geo_temp.py --all --years 2024 --grid 4x4
+python geo_temp.py -a -y 2024 --grid 4x4
 # Creates: Overall_noon_temps_polar_2024_2024_part1of2.png (16 places)
 #          Overall_noon_temps_polar_2024_2024_part2of2.png (remaining places)
+```
+
+**Advanced options:**
+```bash
+# Dry-run mode (preview without executing)
+python geo_temp.py -a -y 2024 --dry-run
+
+# Verbose logging
+python geo_temp.py -p "Austin, TX" -y 2024 -v
+
+# Quiet mode (errors only)
+python geo_temp.py -a -y 2024 -q
 ```
 
 
@@ -95,18 +111,18 @@ vis.plot_polar(title="Austin 2020 Noon Temps", save_file="output/austin_2020.png
 ---
 
 ## Project Structure
-- `geo_temp.py`: Main CLI and orchestration module
+- `geo_temp.py`: Main entry point and orchestration
+- `cli.py`: Command-line argument parsing, configuration loading, and validation
 - `cds.py`: ERA5 data download, caching, and processing
-- `plot.py`: Polar plotting and visualization utilities
-- `cli.py`: Command-line argument parsing and configuration loading
+- `plot.py`: Polar plotting and visualization (Visualizer class)
 - `data.py`: Data retrieval and I/O operations
 - `orchestrator.py`: Plot coordination and batching
 - `logging_config.py`: Centralized logging configuration
 - `config.yaml`: Application configuration (places, logging)
-- `settings.yaml`: Plotting configuration (YAML)
-- `era5_cache/`: Cached NetCDF files
-- `output/`: Output plots and CSVs
-- `tests/`: Unit tests (test_cds.py, test_visualizer.py, test_cli.py)
+- `settings.yaml`: Plot styling configuration
+- `era5_cache/`: Cached NetCDF files (auto-created)
+- `output/`: Generated plots and CSVs (auto-created)
+- `tests/`: Test suite with 76 tests across 6 modules
 
 ---
 
@@ -142,168 +158,234 @@ pip install -r requirements.txt
 
 ---
 
-## Plotting & Outputs
+## CLI Reference
 
-- Generates polar plots of daily noon temperatures for each location and overall subplots
-- Output files are saved in the `output/` directory
-- Plot appearance is controlled by `settings.yaml`
+### Quick Commands
 
-Example output files:
-- `output/Austin_TX_noon_temps_2020_2025.csv`
-- `output/Austin_TX_noon_temps_polar_2020_2025.png`
-- `output/Overall_noon_temps_polar_2020_2025.png`
+```bash
+# List all available places and place lists
+python geo_temp.py -l
+
+# Show version
+python geo_temp.py --version
+
+# Show help
+python geo_temp.py --help
+```
+
+### Location Options (choose one)
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--place NAME` | `-p` | Single configured or custom place |
+| `--list NAME` | | Predefined place list (e.g., 'preferred') |
+| `--all` | `-a` | All configured places |
+
+### Custom Location
+
+```bash
+python geo_temp.py -p "MyCity" --lat 40.7 --lon -74.0 -y 2024
+# Timezone auto-detected; use --tz to override
+```
+
+### Time Period
+
+| Option | Short | Description | Default |
+|--------|-------|-------------|---------|
+| `--years YEARS` | `-y` | Year or range (e.g., 2024 or 2020-2025) | Previous year |
+
+### Display Options
+
+| Option | Short | Description | Default |
+|--------|-------|-------------|---------|
+| `--show [MODE]` | `-s` | Interactive display: none/main/all | none |
+| `--grid COLSxROWS` | | Manual grid (e.g., 4x3) | auto |
+
+**Note:** `-s` without argument defaults to "all"
+
+### Output Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--out-dir DIR` | output | Output directory for plots |
+| `--cache-dir DIR` | era5_cache | Cache directory for NetCDF files |
+| `--settings FILE` | settings.yaml | Plot settings YAML file |
+
+### Advanced Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--dry-run` | | Preview without downloading/plotting |
+| `--verbose` | `-v` | Enable DEBUG level logging |
+| `--quiet` | `-q` | Suppress output except errors |
 
 ---
 
 ## Configuration
 
-### settings.yaml
-Edit `settings.yaml` to customize plot size, fonts, colorbars, and layout. See comments in the file for details.
-
 ### config.yaml
 
-Application configuration is stored in `config.yaml` with two main sections:
+Stores application configuration with two main sections:
 
-#### Logging Configuration
+#### 1. Logging
 ```yaml
 logging:
   log_file: geo_temp.log
   console_level: WARNING  # DEBUG, INFO, WARNING, ERROR, CRITICAL
 ```
 
-#### Places Configuration
+#### 2. Places
 
-Locations are configured in the `places` section with three main subsections:
-
-#### Places Configuration
-
-Locations are configured in the `places` section with three main subsections:
-
-**1. default_place:** The location used when no CLI arguments are provided
+**default_place:** Used when no location is specified
 ```yaml
 places:
   default_place: Cambridge, UK
 ```
 
-**2. all_places:** All available locations with coordinates and timezones
+**all_places:** All available locations (compact format)
 ```yaml
 places:
   all_places:
-    - name: Your City, Country
-      lat: 40.7128
-      lon: -74.0060
-      # tz: America/New_York  # Optional - auto-detected from coordinates if omitted
+    - {name: "Austin, TX", lat: 30.2672, lon: -97.7431}
+    - {name: "Cambridge, UK", lat: 52.2053, lon: 0.1218}
+    # Add more places...
 ```
 
-**Note:** Timezone is automatically detected from coordinates using the `timezonefinder` package. 
-You can override the auto-detection by explicitly specifying `tz` for edge cases.
+**Note:** Timezones are **automatically detected** from coordinates using `timezonefinder`. Add `tz` field only to override.
 
-**3. place_lists:** Predefined groups of places for convenience
+**place_lists:** Named groups for convenience
 ```yaml
 places:
   place_lists:
     preferred:
       - Austin, TX
-      - Bangalore, India
       - Cambridge, UK
       - San Jose, CA
-      - Trondheim, Norway
-      - Beijing, China
     us_cities:
       - Austin, TX
       - San Diego, CA
-      - San Jose, CA
-    european_capitals:
-      - Paris, France
-      - Berlin, Germany
-      - Madrid, Spain
-      - Rome, Italy
-      - Amsterdam, Netherlands
-      - Vienna, Austria
-      - Stockholm, Sweden
-      - Copenhagen, Denmark
 ```
 
-**Usage examples:**
-```bash
-# Use default place
-python geo_temp.py --years 2024
+### settings.yaml
 
-# Use a specific place
-python geo_temp.py --place "Cambridge, UK" --years 2024
+Controls plot appearance and styling. Edit to customize:
+- Figure size and DPI
+- Fonts (title, labels, radial text)
+- Colors and colormaps
+- Subplot spacing and margins
 
-# Use a predefined place list
-python geo_temp.py --place-list preferred --years 2024
+See comments in the file for detailed options.
 
-# Use all places
-python geo_temp.py --all --years 2024
-```
+---
+
+## Output Files
+
+Generated files are saved in `output/` directory:
+
+**Individual plots:**
+- `Austin_TX_noon_temps_polar_2020_2025.png`
+- `Cambridge_UK_noon_temps_polar_2020_2025.png`
+
+**Combined subplot:**
+- `Overall_noon_temps_polar_2020_2025.png`
+
+**Data files (CSV):**
+- `Austin_TX_noon_temps_2020_2025.csv`
+- Each contains: date, local_noon, utc_time_used, temp_C, temp_F, grid coordinates
 
 ---
 
 ## Testing
 
-Run all tests with:
+Run tests with pytest:
 
 ```bash
-pytest                    # Run all tests
-pytest tests/test_cli.py  # Run specific module
+pytest                    # All tests
+pytest tests/test_cli.py  # Specific module
 pytest -v                 # Verbose output
+pytest -k "timezone"      # Run tests matching pattern
 ```
 
-**Total: 75 tests** across 6 test modules covering all components:
-
-### Test Modules
+**Total: 76 tests** across 6 modules with comprehensive coverage:
 
 | Module | Tests | Coverage |
 |--------|-------|----------|
-| test_cli.py | 46 | CLI parsing, grid layout, place lists |
-| test_logging_config.py | 10 | Logging configuration from config.yaml |
-| test_data.py | 7 | Data I/O and retrieval operations |
-| test_visualizer.py | 7 | Temperature conversion, data fields |
-| test_cds.py | 8 | CDS API, Location dataclass, timezone auto-detection |
+| test_cli.py | 40 | Argument parsing, grid layout, validation |
+| test_logging_config.py | 10 | Logging setup and configuration |
+| test_visualizer.py | 8 | Polar plots, single/multi-subplot layouts |
+| test_cds.py | 8 | CDS API, Location, timezone auto-detection |
+| test_data.py | 7 | Data I/O, retrieval, CSV caching |
 | test_orchestrator.py | 3 | Grid dimension calculations |
 
-### Coverage by Component
-
-- ✅ **cli.py** (46 tests) - Comprehensive coverage of argument parsing, year parsing, place list management, grid layout calculations, and grid string parsing
-- ✅ **logging_config.py** (10 tests) - config.yaml integration, console/file handlers, logging levels, handler management
-- ✅ **data.py** (7 tests) - File I/O, data retrieval, CSV caching, directory creation
-- ✅ **plot.py** (7 tests) - Visualizer utilities, temperature conversion, data field calculations
-- ✅ **cds.py** (8 tests) - CDS API with mocks, Location dataclass, timezone auto-detection, explicit override
-- ✅ **orchestrator.py** (3 tests) - Grid dimension logic (complex integration via E2E)
-
-All tests validate the modular refactoring maintained functionality while improving code organization.
+**Coverage highlights:**
+- ✅ CLI argument parsing and validation (including mutually exclusive groups)
+- ✅ Timezone auto-detection and explicit override
+- ✅ Grid layout calculations (1x1, 2D, custom grids)
+- ✅ Data retrieval with mocked CDS API
+- ✅ Plot generation (single subplot edge case covered)
+- ✅ Configuration loading from YAML
 
 ---
 
-## Advanced Options
+## Advanced Features
 
-### Grid Layout Control
+### Automatic Grid Batching
 
-By default, geo_temp automatically calculates optimal grid layouts (e.g., 3×3 for 9 places, 3×4 for 12 places). For 3+ rows, smart adjustments prevent subplot overlap while maintaining A3 landscape format.
+When places exceed grid capacity, multiple images are automatically generated:
 
-**Manual grid specification:**
 ```bash
---grid COLSxROWS
-```
-Examples:
-- `--grid 4x3`: 4 columns by 3 rows (max 12 places per image)
-- `--grid 5x3`: 5 columns by 3 rows (max 15 places per image)
-
-When the number of selected places exceeds grid capacity, multiple sequential images are automatically generated.
-
-**Smart scaling (default):**
-```bash
---scale-height  # Enable smart subplot sizing for 3+ rows (default)
---no-scale-height  # Disable smart scaling (may cause overlap)
+python geo_temp.py -a -y 2024 --grid 4x4
+# Outputs:
+#   Overall_noon_temps_polar_2024_part1of2.png (16 places)
+#   Overall_noon_temps_polar_2024_part2of2.png (remaining places)
 ```
 
-The smart scaling adjusts:
-- Subplot dimensions (62% height, 83% width for 3+ rows)
-- Font sizes (title, labels, radial labels)
-- Vertical spacing (hspace = 0.25)
-- Margins (top = 0.92, bottom = 0.08)
+### Smart Scaling
+
+For grids with 3+ rows, automatic scaling prevents subplot overlap:
+- **Subplot dimensions:** 62% height, 83% width
+- **Spacing:** hspace=0.25, optimized margins
+- **Fonts:** Scaled proportionally
+- **Format:** Optimized for A3 landscape
+
+No configuration needed—works automatically.
+
+### Dry-Run Mode
+
+Preview operations without execution:
+
+```bash
+python geo_temp.py -a -y 2024 --dry-run
+# Shows: places, years, grid, directories
+# Downloads/creates nothing
+```
+
+---
+
+## Troubleshooting
+
+**Issue:** `ImportError: No module named 'cdsapi'`  
+**Solution:** Install dependencies: `pip install -r requirements.txt`
+
+**Issue:** CDS API authentication error  
+**Solution:** Ensure `~/.cdsapirc` is configured. See [CDS API setup](https://cds.climate.copernicus.eu/api).
+
+**Issue:** Timezone detection fails  
+**Solution:** Specify timezone explicitly: `--tz "America/New_York"`
+
+**Issue:** Plots show as blank  
+**Solution:** Use `-s` or `-s main` to display interactively, or check `output/` directory for saved files.
+
+**Issue:** Tests failing  
+**Solution:** Ensure Python 3.9+ and all dependencies installed. Run `pytest -v` for details.
+
+---
+
+## Version
+
+**Current version:** 1.0.0
+
+Check version: `python geo_temp.py --version`
 
 ---
 

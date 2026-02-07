@@ -50,3 +50,24 @@ def test_visualizer_init_and_error():
 def test_visualizer_temp_c_to_f_edge_cases():
     assert Visualizer.temp_c_to_f(37.5) == 99.5
     assert Visualizer.temp_c_to_f(-273.15) == pytest.approx(-459.67, abs=0.01)
+
+def test_plot_polar_subplots_single_place(tmp_path):
+    """Test plot_polar_subplots with a single place (1x1 grid)."""
+    # Create test data for a single place
+    df = pd.DataFrame({
+        'date': pd.date_range('2025-01-01', periods=365),
+        'temp_C': [20 + 5 * (i % 30) / 30 for i in range(365)],
+        'place_name': ['Test Place'] * 365
+    })
+    vis = Visualizer(df)
+    
+    # Test with single place (1x1 grid) - this was the bug case
+    output_file = tmp_path / "test_single.png"
+    vis.plot_polar_subplots(
+        subplot_field='place_name',
+        title="Test Single",
+        save_file=str(output_file),
+        show_plot=False
+    )
+    assert output_file.exists()
+    assert output_file.stat().st_size > 0

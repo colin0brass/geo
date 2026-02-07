@@ -57,7 +57,7 @@ def test_parse_args_with_place():
 
 
 def test_parse_args_with_place_list():
-    with patch('sys.argv', ['geo_temp.py', '--place-list', 'preferred']):
+    with patch('sys.argv', ['geo_temp.py', '--list', 'preferred']):
         args = parse_args()
         assert args.place_list == 'preferred'
         assert args.place is None

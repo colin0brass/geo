@@ -393,14 +393,14 @@ class Visualizer:
         for row in range(num_rows):
             for col in range(num_cols):
                 plot_idx = row * num_cols + col
-                if num_rows > 1 and num_cols > 1:
+                if num_rows == 1 and num_cols == 1:
+                    ax = axs  # single subplot
+                elif num_rows > 1 and num_cols > 1:
                     ax = axs[row, col]
                 elif num_rows == 1:
                     ax = axs[col]
-                elif num_cols == 1:
+                else:  # num_cols == 1
                     ax = axs[row]
-                else:
-                    ax = axs  # single subplot
                 if plot_idx < num_plots:
                     place = place_list[plot_idx]
                     df_place = self.df[self.df[subplot_field] == place].sort_values('day_of_year')

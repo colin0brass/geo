@@ -20,6 +20,8 @@ from cds import Location
 
 logger = logging.getLogger("geo_temp")
 
+__version__ = "1.0.0"
+
 
 def load_places(yaml_path: Path = Path("config.yaml")) -> tuple[dict, str, dict]:
     """
@@ -50,48 +52,124 @@ def parse_args() -> argparse.Namespace:
     Returns:
         argparse.Namespace: Parsed command-line arguments.
     """
-    parser = argparse.ArgumentParser(description="Generate geographic temperature plots from ERA5 data.")
-    parser.add_argument("--place", type=str, default=None, help="Name of the place to retrieve data for.")
-    parser.add_argument("--lat", type=float, required=False, help="Latitude of the location.")
-    parser.add_argument("--lon", type=float, required=False, help="Longitude of the location.")
-    parser.add_argument("--tz", type=str, required=False, help="Timezone of the location.")
-    parser.add_argument("--place-list", type=str, default=None, help="Name of a predefined place list (e.g., 'preferred', 'us_cities').")
-    parser.add_argument("--all", action="store_true", help="Retrieve data for all locations.")
-    parser.add_argument(
-        "--years",
-        type=str,
-        required=False,
-        default=str(datetime.now().year - 1),
-        help="Year or year range (e.g. 2025 or 2020-2025). Overrides --start-year and --end-year if provided."
+    parser = argparse.ArgumentParser(
+        description="Generate geographic temperature plots from ERA5 data.",
+        epilog="""
+Examples:
+  %(prog)s --years 2024 --show                    # Default place, show all plots
+  %(prog)s --place "Austin, TX" --years 2020-2025  # Specific place
+  %(prog)s --lat 30.27 --lon -97.74 --years 2024  # Custom coordinates
+  %(prog)s --all --years 2024                     # All configured places
+  %(prog)s --list-places                          # List available places
+        """,
+        formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("--cache-dir", type=Path, default=Path("era5_cache"), help="Cache directory for NetCDF files.")
-    parser.add_argument("--out-dir", type=Path, default=Path("output"), help="Output directory for plots.")
-    parser.add_argument("--settings", type=Path, default=Path("settings.yaml"), help="Path to plot settings YAML file.")
-    parser.add_argument(
-        "--show",
+    
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
+    
+    # Location selection (mutually exclusive)
+    location_group = parser.add_argument_group("location selection (choose one)")
+    location_exclusive = location_group.add_mutually_exclusive_group()
+    location_exclusive.add_argument(
+        "-p", "--place",
         type=str,
+        default=None,
+        help="Name of a configured place, or custom place name with --lat/--lon"
+    )
+    location_exclusive.add_argument(
+        "--list",
+        dest="place_list",
+        type=str,
+        default=None,
+        help="Name of a predefined place list (e.g., 'preferred', 'us_cities')"
+    )
+    location_exclusive.add_argument(
+        "-a", "--all",
+        action="store_true",
+        help="Retrieve data for all configured locations"
+    )
+    
+    # Custom location coordinates
+    coord_group = parser.add_argument_group("custom location (use with --place)")
+    coord_group.add_argument("--lat", type=float, help="Latitude of custom location")
+    coord_group.add_argument("--lon", type=float, help="Longitude of custom location")
+    coord_group.add_argument("--tz", type=str, help="Timezone (optional, auto-detected from coordinates if omitted)")
+    
+    # Information
+    info_group = parser.add_argument_group("information")
+    info_group.add_argument(
+        "-l", "--list-places",
+        action="store_true",
+        help="List all available places and place lists, then exit"
+    )
+    
+    # Time period
+    time_group = parser.add_argument_group("time period")
+    current_year = datetime.now().year
+    time_group.add_argument(
+        "-y", "--years",
+        type=str,
+        default=str(current_year - 1),
+        help=f"Year or year range (e.g., 2025 or 2020-2025). Default: {current_year - 1}"
+    )
+    
+    # Output options
+    output_group = parser.add_argument_group("output options")
+    output_group.add_argument(
+        "--cache-dir",
+        type=Path,
+        default=Path("era5_cache"),
+        help="Cache directory for NetCDF files (default: era5_cache)"
+    )
+    output_group.add_argument(
+        "--out-dir",
+        type=Path,
+        default=Path("output"),
+        help="Output directory for plots (default: output)"
+    )
+    output_group.add_argument(
+        "--settings",
+        type=Path,
+        default=Path("settings.yaml"),
+        help="Path to plot settings YAML file (default: settings.yaml)"
+    )
+    
+    # Display options
+    display_group = parser.add_argument_group("display options")
+    display_group.add_argument(
+        "-s", "--show",
+        type=str,
+        nargs='?',
+        const="all",
         choices=["none", "main", "all"],
         default="none",
-        help="Which plots to display: 'none' (default, show no plots), 'main' (show only the main/all subplot), 'all' (show all individual and main plots)"
+        help="Show plots interactively: 'none' (default), 'main' (combined plot only), 'all' (all plots). Use -s without argument for 'all'"
     )
-    parser.add_argument(
-        "--scale-height",
-        action="store_true",
-        default=True,
-        help="Scale figure height for 3+ rows (default: enabled). Use --no-scale-height to disable."
-    )
-    parser.add_argument(
-        "--no-scale-height",
-        dest="scale_height",
-        action="store_false",
-        help="Disable figure height scaling for 3+ rows"
-    )
-    parser.add_argument(
+    display_group.add_argument(
         "--grid",
         type=str,
         default=None,
-        help="Specify grid dimensions as COLSxROWS (e.g., '4x3' for 4 columns by 3 rows). If places exceed grid capacity, multiple images will be generated."
+        help="Grid dimensions as COLSxROWS (e.g., 4x3 for 4 columns × 3 rows)"
     )
+    
+    # Advanced options
+    advanced_group = parser.add_argument_group("advanced options")
+    advanced_group.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Preview operations without downloading data or creating plots"
+    )
+    advanced_group.add_argument(
+        "-q", "--quiet",
+        action="store_true",
+        help="Suppress all console output except errors"
+    )
+    advanced_group.add_argument(
+        "-v", "--verbose",
+        action="store_true",
+        help="Enable verbose output (DEBUG level logging)"
+    )
+    
     return parser.parse_args()
 
 
@@ -160,12 +238,18 @@ def get_place_list(args: argparse.Namespace, places: dict[str, Location], defaul
     
     # --place uses a specific place
     if args.place:
-        if args.place not in places and (args.lat is None or args.lon is None or args.tz is None):
-            logger.error(f"Unknown place '{args.place}'. Please provide lat, lon, and tz.")
-            sys.exit(1)
         if args.place in places:
+            # Use configured place
             return [places[args.place]]
-        return [Location(name=args.place, lat=args.lat, lon=args.lon, tz=args.tz)]
+        # Custom place - require coordinates
+        if args.lat is None or args.lon is None:
+            logger.error(f"Unknown place '{args.place}'. Please provide --lat and --lon for custom locations.")
+            sys.exit(1)
+        # Create custom location (tz will auto-detect if not provided)
+        if args.tz:
+            return [Location(name=args.place, lat=args.lat, lon=args.lon, tz=args.tz)]
+        else:
+            return [Location(name=args.place, lat=args.lat, lon=args.lon)]
     
     # No arguments: use default place
     if default_place in places:
@@ -260,3 +344,29 @@ def calculate_grid_layout(num_places: int, max_cols: int = 4) -> tuple[int, int]
             return (rows, cols)
     
     return (num_rows, num_cols)
+
+
+def list_places_and_exit() -> None:
+    """
+    Print all available places and place lists, then exit.
+    """
+    places, default_place, place_lists = load_places()
+    
+    print("\n=== Available Places ===")
+    print(f"Default place: {default_place}\n")
+    print(f"Total places: {len(places)}\n")
+    
+    # Sort places alphabetically for display
+    for place_name in sorted(places.keys()):
+        loc = places[place_name]
+        print(f"  • {place_name:30s}  ({loc.lat:7.4f}, {loc.lon:8.4f})  {loc.tz}")
+    
+    if place_lists:
+        print("\n=== Place Lists ===")
+        for list_name, places_in_list in sorted(place_lists.items()):
+            print(f"\n  {list_name}:")
+            for place in places_in_list:
+                print(f"    - {place}")
+    
+    print()
+    exit(0)
