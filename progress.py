@@ -11,7 +11,7 @@ from typing import Protocol
 class ProgressHandler(Protocol):
     """Protocol for progress event handlers."""
     
-    def on_location_start(self, location_name: str, location_num: int, total_locations: int) -> None:
+    def on_location_start(self, location_name: str, location_num: int, total_locations: int, total_years: int = 1) -> None:
         """Called when processing starts for a location."""
         ...
     
@@ -31,15 +31,18 @@ class ProgressHandler(Protocol):
 class ConsoleProgressHandler:
     """Console-based progress handler with progress bars."""
     
-    def on_location_start(self, location_name: str, location_num: int, total_locations: int) -> None:
+    def on_location_start(self, location_name: str, location_num: int, total_locations: int, total_years: int = 1) -> None:
         """Display location start message."""
         self._current_location_num = location_num
         self._total_locations = total_locations
+        self._total_years = total_years
     
     def on_year_start(self, location_name: str, year: int, current_year: int, total_years: int) -> None:
         """Display initial progress bar for the year."""
         bar_width = 12
-        bar = '░' * bar_width
+        # Show progress of completed years (before starting this year)
+        filled = int(bar_width * (current_year - 1) / total_years)
+        bar = '█' * filled + '░' * (bar_width - filled)
         
         # Get current place number from context
         place_prefix = ""
@@ -96,8 +99,17 @@ class ProgressManager:
         """Remove all registered handlers."""
         self.handlers.clear()
     
-    def notify_location_start(self, location_name: str, location_num: int, total_locations: int) -> None:
-        """Notify all handlers that location processing started."""
+    def notify_location_start(self, location_name: str, location_num: int, total_locations: int, total_years: int = 1) -> None:
+        """Notify all handlers that location processing started.
+        
+        Args:
+            location_name: Name of the location.
+            location_num: Current location number (1-based).
+            total_locations: Total number of locations to process.
+            total_years: Total number of years to fetch for this location (default 1).
+        """
+        for handler in self.handlers:
+            handler.on_location_start(location_name, location_num, total_locations, total_years)
         for handler in self.handlers:
             handler.on_location_start(location_name, location_num, total_locations)
     
