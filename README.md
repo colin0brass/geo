@@ -36,7 +36,7 @@ pip install -r requirements.txt
 
 **Quick start:**
 ```bash
-# Default place with interactive plots
+# Default place, display plots on screen
 python geo_temp.py -y 2024 -s
 
 # List available places
@@ -198,10 +198,13 @@ python geo_temp.py -p "MyCity" --lat 40.7 --lon -74.0 -y 2024
 
 | Option | Short | Description | Default |
 |--------|-------|-------------|---------|
-| `--show [MODE]` | `-s` | Interactive display: none/main/all | none |
+| `--show [MODE]` | `-s` | Display plots on screen: none/main/all | none |
 | `--grid COLSxROWS` | | Manual grid (e.g., 4x3) | auto |
 
-**Note:** `-s` without argument defaults to "all"
+**Notes:** 
+- `-s` without argument defaults to "all"
+- `--show all` opens all plot windows simultaneously
+- `--show main` opens only the combined subplot window
 
 ### Output Options
 
@@ -374,7 +377,7 @@ python geo_temp.py -a -y 2024 --dry-run
 **Solution:** Specify timezone explicitly: `--tz "America/New_York"`
 
 **Issue:** Plots show as blank  
-**Solution:** Use `-s` or `-s main` to display interactively, or check `output/` directory for saved files.
+**Solution:** Use `-s` or `-s main` to display on screen, or check `output/` directory for saved files.
 
 **Issue:** Tests failing  
 **Solution:** Ensure Python 3.9+ and all dependencies installed. Run `pytest -v` for details.

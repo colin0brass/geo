@@ -106,6 +106,7 @@ class Visualizer:
     def show_saved_plots(plot_files: list[str]) -> None:
         """
         Display saved plot images by loading them from disk.
+        Opens all plots simultaneously in separate windows.
         
         Args:
             plot_files: List of file paths to saved plot images.
@@ -114,17 +115,25 @@ class Visualizer:
             return
         
         if len(plot_files) > 1:
-            logger.info(f"Displaying all {len(plot_files)} batch images...")
+            logger.info(f"Displaying all {len(plot_files)} plots...")
         else:
-            logger.info(f"Displaying main plot...")
+            logger.info(f"Displaying plot...")
         
+        # Create all figures first without blocking
+        figures = []
         for plot_file in plot_files:
             img = mpimg.imread(plot_file)
             fig, ax = plt.subplots(figsize=(13.34, 7.5))
             ax.imshow(img)
             ax.axis('off')
             plt.tight_layout()
-            plt.show()
+            figures.append(fig)
+        
+        # Show all figures at once
+        plt.show()
+        
+        # Close all figures after display
+        for fig in figures:
             plt.close(fig)
     
     def add_dual_colourbars(self, fig: plt.Figure) -> None:

@@ -283,10 +283,13 @@ def plot_all(
         )
         individual_plot_files.append(plot_file)
     
-    # Show all batch images together if requested
+    # Show plots on screen if requested
+    # Combine all plots to show them simultaneously
+    plots_to_show = []
     if show_main:
-        Visualizer.show_saved_plots(batch_plot_files)
-    
-    # Show all individual plots together if requested
+        plots_to_show.extend(batch_plot_files)
     if show_individual:
-        Visualizer.show_saved_plots(individual_plot_files)
+        plots_to_show.extend(individual_plot_files)
+    
+    if plots_to_show:
+        Visualizer.show_saved_plots(plots_to_show)
