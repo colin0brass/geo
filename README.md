@@ -56,6 +56,10 @@ python geo_temp.py --all --years 2024 --show main
 
 **Custom location:**
 ```bash
+# Timezone auto-detected from coordinates
+python geo_temp.py --place "Custom Location" --lat 40.7128 --lon -74.0060 --years 2024
+
+# Or specify timezone explicitly if needed
 python geo_temp.py --place "Custom Location" --lat 40.7128 --lon -74.0060 --tz "America/New_York" --years 2024
 ```
 
@@ -79,7 +83,9 @@ from geo_temp import read_data_file, save_data_file
 from cds import CDS, Location
 from plot import Visualizer
 
-loc = Location(name="Austin, TX", lat=30.2672, lon=-97.7431, tz="America/Chicago")
+# Timezone is auto-detected from coordinates
+loc = Location(name="Austin, TX", lat=30.2672, lon=-97.7431)
+# Or explicitly specify: loc = Location(name="Austin, TX", lat=30.2672, lon=-97.7431, tz="America/Chicago")
 cds = CDS()
 df = cds.get_noon_series(loc, start_d=date(2020,1,1), end_d=date(2020,12,31))
 vis = Visualizer(df)
@@ -118,6 +124,7 @@ vis.plot_polar(title="Austin 2020 Noon Temps", save_file="output/austin_2020.png
 - xarray
 - netcdf4
 - dask
+- timezonefinder
 
 **Installation:**
 
@@ -185,8 +192,11 @@ places:
     - name: Your City, Country
       lat: 40.7128
       lon: -74.0060
-      tz: America/New_York
+      # tz: America/New_York  # Optional - auto-detected from coordinates if omitted
 ```
+
+**Note:** Timezone is automatically detected from coordinates using the `timezonefinder` package. 
+You can override the auto-detection by explicitly specifying `tz` for edge cases.
 
 **3. place_lists:** Predefined groups of places for convenience
 ```yaml
@@ -241,7 +251,7 @@ pytest tests/test_cli.py  # Run specific module
 pytest -v                 # Verbose output
 ```
 
-**Total: 73 tests** across 6 test modules covering all components:
+**Total: 75 tests** across 6 test modules covering all components:
 
 ### Test Modules
 
@@ -251,7 +261,7 @@ pytest -v                 # Verbose output
 | test_logging_config.py | 10 | Logging configuration from config.yaml |
 | test_data.py | 7 | Data I/O and retrieval operations |
 | test_visualizer.py | 7 | Temperature conversion, data fields |
-| test_cds.py | 6 | CDS API interaction, Location dataclass |
+| test_cds.py | 8 | CDS API, Location dataclass, timezone auto-detection |
 | test_orchestrator.py | 3 | Grid dimension calculations |
 
 ### Coverage by Component
@@ -260,7 +270,7 @@ pytest -v                 # Verbose output
 - ✅ **logging_config.py** (10 tests) - config.yaml integration, console/file handlers, logging levels, handler management
 - ✅ **data.py** (7 tests) - File I/O, data retrieval, CSV caching, directory creation
 - ✅ **plot.py** (7 tests) - Visualizer utilities, temperature conversion, data field calculations
-- ✅ **cds.py** (6 tests) - CDS API with mocks, Location dataclass, month range generation
+- ✅ **cds.py** (8 tests) - CDS API with mocks, Location dataclass, timezone auto-detection, explicit override
 - ✅ **orchestrator.py** (3 tests) - Grid dimension logic (complex integration via E2E)
 
 All tests validate the modular refactoring maintained functionality while improving code organization.

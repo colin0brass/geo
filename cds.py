@@ -20,22 +20,46 @@ except ImportError:
 
 import cdsapi
 
+try:
+    from timezonefinder import TimezoneFinder
+    _tf = TimezoneFinder()
+except ImportError:
+    logger.warning("timezonefinder not installed. Timezone must be specified manually.")
+    _tf = None
 
-@dataclass(frozen=True)
+
+@dataclass
 class Location:
     """
     Represents a geographic location with a name, latitude, longitude, and timezone.
+    
+    Timezone is automatically determined from coordinates if not provided.
     
     Attributes:
         name: Name of the location.
         lat: Latitude.
         lon: Longitude.
-        tz: Timezone string (IANA format).
+        tz: Timezone string (IANA format). Auto-detected from lat/lon if None.
     """
     name: str
     lat: float
     lon: float
-    tz: str
+    tz: str | None = None
+    
+    def __post_init__(self):
+        """Automatically detect timezone from coordinates if not provided."""
+        if self.tz is None:
+            if _tf is not None:
+                detected_tz = _tf.timezone_at(lat=self.lat, lng=self.lon)
+                if detected_tz:
+                    object.__setattr__(self, 'tz', detected_tz)
+                    logger.debug(f"Auto-detected timezone for {self.name}: {detected_tz}")
+                else:
+                    logger.error(f"Could not determine timezone for {self.name} at ({self.lat}, {self.lon})")
+                    raise ValueError(f"Unable to determine timezone for coordinates ({self.lat}, {self.lon})")
+            else:
+                logger.error(f"Timezone not provided for {self.name} and timezonefinder not available")
+                raise ValueError("Timezone must be specified when timezonefinder is not installed")
 
 
 class CDS:

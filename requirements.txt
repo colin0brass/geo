@@ -7,3 +7,4 @@ pytest
 xarray
 netcdf4
 dask
+timezonefinder

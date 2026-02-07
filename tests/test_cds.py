@@ -11,6 +11,16 @@ def test_location_dataclass():
     assert loc.lon == 2.0
     assert loc.tz == "UTC"
 
+def test_location_timezone_autodetect():
+    # Test auto-detection for London coordinates
+    loc = Location(name="London", lat=51.5074, lon=-0.1278)
+    assert loc.tz == "Europe/London"
+    
+def test_location_timezone_explicit_override():
+    # Test that explicit timezone overrides auto-detection
+    loc = Location(name="London", lat=51.5074, lon=-0.1278, tz="America/New_York")
+    assert loc.tz == "America/New_York"
+
 def test_cds_month_range():
     cds = CDS(cache_dir=Path("/tmp/era5_cache"))
     months = list(cds._month_range(pd.Timestamp('2025-01-01').date(), pd.Timestamp('2025-03-01').date()))
