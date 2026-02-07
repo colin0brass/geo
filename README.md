@@ -12,7 +12,7 @@
 - 🕐 **Automatic timezone detection** from coordinates (no manual lookup needed)
 - 🎯 Smart grid layout with automatic batching for large datasets
 - ⚙️ Highly configurable plotting via YAML settings
-- 🚀 **Two-tier caching system**: NetCDF files (raw) and CSV data files (processed)
+- 🚀 **Two-tier caching system**: NetCDF files (raw) and YAML data files (processed, git-friendly)
 - 💻 User-friendly CLI with short options and argument validation
 - 🐍 Clean Python API for programmatic use
 - 📊 Real-time progress bars with aligned output during data downloads
@@ -132,7 +132,7 @@ vis.plot_polar(title="Austin 2020 Noon Temps", save_file="output/austin_2020.png
 - `config.yaml`: Application configuration (places, logging)
 - `settings.yaml`: Plot styling configuration
 - `era5_cache/`: Cached NetCDF files (auto-created)
-- `data_cache/`: Cached CSV data files (auto-created)
+- `data_cache/`: Cached YAML data files (auto-created)
 - `output/`: Generated plots (auto-created)
 - `tests/`: Test suite with 108 tests across 8 modules
 
@@ -232,7 +232,7 @@ python geo_temp.py -p "MyCity" --lat 40.7 --lon -74.0 -y 2024
 |--------|---------|-------------|
 | `--out-dir DIR` | output | Output directory for plots |
 | `--cache-dir DIR` | era5_cache | Cache directory for NetCDF files |
-| `--data-cache-dir DIR` | data_cache | Cache directory for CSV data files |
+| `--data-cache-dir DIR` | data_cache | Cache directory for YAML data files |
 | `--settings FILE` | settings.yaml | Plot settings YAML file |
 
 ### Advanced Options
@@ -329,9 +329,31 @@ See comments in the file for detailed options.
 - Individual plots: `Austin_TX_noon_temps_polar_2020_2025.png`
 - Combined subplot: `Overall_noon_temps_polar_2020_2025.png`
 
-**CSV data files** are cached in `data_cache/` directory (configurable with `--data-cache-dir`):
-- `Austin_TX_noon_temps_2020_2025.csv`
-- Each contains: date, local_noon, utc_time_used, temp_C, temp_F, grid coordinates
+**Data cache files (YAML)** are cached in `data_cache/` directory (configurable with `--data-cache-dir`):
+- `Austin_TX_noon_temps.yaml` - Hierarchical format with place metadata and temperatures
+- Format: Place info (name, coordinates, timezone) + temperatures organized by year/month/day
+- Compact format: 1 line per month for 31% size reduction
+- Git-friendly with clear diffs when adding new data
+
+Example YAML structure:
+```yaml
+place:
+  name: "Austin, TX"
+  lat: 30.27
+  lon: -97.74
+  timezone: "America/Chicago"
+  grid_lat: 30.268
+  grid_lon: -97.7435
+temperatures:
+  2025:
+    1:  # January
+      1: 12.74
+      2: 13.60
+      # ... continues for all days
+    2:  # February
+      1: 18.12
+      # ... continues for all months
+```
 
 **NetCDF files** are cached in `era5_cache/` directory (configurable with `--cache-dir`):
 - Raw ERA5 monthly data files for each location
@@ -360,7 +382,7 @@ pytest -k "timezone"      # Run tests matching pattern
 | test_logging_config.py | 10 | Logging setup and configuration |
 | test_progress.py | 10 | Progress handlers and callbacks |
 | test_cds.py | 8 | CDS API, Location, timezone auto-detection |
-| test_data.py | 7 | Data I/O, retrieval, CSV caching |
+| test_data.py | 7 | Data I/O, retrieval, YAML caching |
 
 **Coverage highlights:**
 - ✅ CLI argument parsing and validation (including mutually exclusive groups)
