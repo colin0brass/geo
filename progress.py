@@ -37,20 +37,33 @@ class ConsoleProgressHandler:
     
     def on_location_start(self, location_name: str, location_num: int, total_locations: int) -> None:
         """Display location start message."""
-        pass  # Already handled by data.py logger
+        # Store context for progress bar display
+        self._current_location_num = location_num
+        self._total_locations = total_locations
+        self._current_year_num = 0
+        self._total_years = 0
     
     def on_year_start(self, location_name: str, year: int, total_months: int) -> None:
         """Initialize progress bar for the year."""
-        pass  # No initialization needed
+        # Increment year counter for this location
+        self._current_year_num += 1
     
     def on_month_complete(self, location_name: str, year: int, month_num: int, total_months: int) -> None:
         """Update progress bar for the current year."""
         bar_width = 12
         filled = int(bar_width * month_num / total_months)
         bar = '█' * filled + '░' * (bar_width - filled)
+        # Get current place number from context if available
+        place_prefix = ""
+        if hasattr(self, '_current_location_num') and hasattr(self, '_total_locations'):
+            place_prefix = f"Place {self._current_location_num}/{self._total_locations} "
+        # Get year number context
+        year_prefix = ""
+        if hasattr(self, '_current_year_num') and hasattr(self, '_total_years') and self._total_years > 0:
+            year_prefix = f"Year {self._current_year_num}/{self._total_years} "
         # Pad location name to 30 characters for alignment
         padded_name = f"{location_name:<30}"
-        print(f"\r  {padded_name} - {year}: [{bar}] {month_num}/{total_months} months", end='', flush=True)
+        print(f"\r  {place_prefix}{padded_name} - {year_prefix}{year}: [{bar}] {month_num}/{total_months} months", end='', flush=True)
     
     def on_year_complete(self, location_name: str, year: int) -> None:
         """Complete the progress bar line."""
@@ -58,7 +71,8 @@ class ConsoleProgressHandler:
     
     def on_location_complete(self, location_name: str) -> None:
         """Location processing complete."""
-        pass  # No additional output needed
+        # Reset year counter for next location
+        self._current_year_num = 0
 
 
 class ProgressManager:
@@ -105,6 +119,12 @@ class ProgressManager:
         """Notify all handlers that location processing completed."""
         for handler in self.handlers:
             handler.on_location_complete(location_name)
+    
+    def set_total_years(self, total_years: int) -> None:
+        """Set the total number of years to be fetched for current location."""
+        for handler in self.handlers:
+            if hasattr(handler, '_total_years'):
+                handler._total_years = total_years
 
 
 # Global progress manager instance

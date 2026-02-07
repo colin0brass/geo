@@ -220,3 +220,67 @@ def test_progress_manager_multiple_handlers():
     
     assert handler1.call_count == 1
     assert handler2.call_count == 1
+
+
+def test_progress_manager_set_total_years():
+    """Test setting total years for progress handlers."""
+    manager = ProgressManager()
+    handler = ConsoleProgressHandler()
+    
+    manager.register_handler(handler)
+    
+    # Initialize the handler context first
+    handler.on_location_start("Test", 1, 1)
+    
+    # Now set total years
+    manager.set_total_years(3)
+    
+    assert handler._total_years == 3
+
+
+def test_console_progress_handler_with_place_and_year_numbering(capsys):
+    """Test console progress handler with place and year numbering."""
+    handler = ConsoleProgressHandler()
+    
+    # Simulate location start (sets place context)
+    handler.on_location_start("Austin, TX", 2, 5)
+    
+    # Set total years and simulate year start
+    handler._total_years = 3
+    handler.on_year_start("Austin, TX", 2024, 12)
+    
+    # Test month complete with place and year numbering
+    handler.on_month_complete("Austin, TX", 2024, 6, 12)
+    captured = capsys.readouterr()
+    
+    # Check for place numbering
+    assert "Place 2/5" in captured.out
+    # Check for year numbering
+    assert "Year 1/3" in captured.out
+    # Check location and other details
+    assert "Austin, TX" in captured.out
+    assert "2024" in captured.out
+    assert "6/12 months" in captured.out
+
+
+def test_console_progress_handler_year_counter_reset(capsys):
+    """Test that year counter resets between locations."""
+    handler = ConsoleProgressHandler()
+    
+    # First location
+    handler.on_location_start("City A", 1, 2)
+    handler._total_years = 2
+    handler.on_year_start("City A", 2024, 12)
+    handler.on_month_complete("City A", 2024, 12, 12)
+    captured = capsys.readouterr()
+    assert "Year 1/2" in captured.out
+    
+    handler.on_location_complete("City A")
+    
+    # Second location - year counter should reset
+    handler.on_location_start("City B", 2, 2)
+    handler._total_years = 2
+    handler.on_year_start("City B", 2024, 12)
+    handler.on_month_complete("City B", 2024, 12, 12)
+    captured = capsys.readouterr()
+    assert "Year 1/2" in captured.out  # Should be Year 1 again, not Year 2

@@ -63,8 +63,41 @@ def retrieve_and_concat_data(
     """
     df_overall = pd.DataFrame()
     progress_mgr = get_progress_manager()
+    requested_years = set(range(start_year, end_year + 1))
     
-    # Process each location
+    # First pass: determine which places need CDS retrieval
+    places_needing_cds = []
+    for loc in place_list:
+        base_name = f"{loc.name.replace(' ', '_').replace(',', '')}_noon_temps"
+        yaml_file = data_cache_dir / f"{base_name}.yaml"
+        
+        # Check which years are already cached
+        cached_years = set()
+        if yaml_file.exists():
+            cached_years = get_cached_years(yaml_file)
+        
+        # Determine if this place needs any CDS fetches
+        missing_years = sorted(requested_years - cached_years)
+        if missing_years:
+            places_needing_cds.append(loc.name)
+    
+    # Print summary of CDS retrieval needs
+    if places_needing_cds:
+        print(f"\n{'='*60}")
+        print(f"CDS Retrieval Required: {len(places_needing_cds)} place(s)")
+        print(f"{'='*60}")
+        for place_name in places_needing_cds:
+            print(f"  • {place_name}")
+        print(f"{'='*60}\n")
+    else:
+        print(f"\n{'='*60}")
+        print(f"All data already cached - no CDS retrieval needed")
+        print(f"{'='*60}\n")
+    
+    # Second pass: process each location
+    cds_place_num = 0  # Track place number for CDS retrieval
+    total_cds_places = len(places_needing_cds)
+    
     for loc in place_list:
         base_name = f"{loc.name.replace(' ', '_').replace(',', '')}_noon_temps"
         yaml_file = data_cache_dir / f"{base_name}.yaml"
@@ -75,7 +108,6 @@ def retrieve_and_concat_data(
             cached_years = get_cached_years(yaml_file)
         
         # Determine which years need to be fetched
-        requested_years = set(range(start_year, end_year + 1))
         missing_years = sorted(requested_years - cached_years)
         
         # Load cached data for this location
@@ -86,7 +118,13 @@ def retrieve_and_concat_data(
         
         # Fetch missing years
         if missing_years:
+            cds_place_num += 1
             logger.info(f"Fetching {loc.name} from CDS for {len(missing_years)} year(s): {missing_years}")
+            
+            # Notify progress manager of location start and total years
+            progress_mgr.notify_location_start(loc.name, cds_place_num, total_cds_places)
+            progress_mgr.set_total_years(len(missing_years))
+            
             cds = CDS(cache_dir=cache_dir, progress_manager=progress_mgr)
             
             for year in missing_years:

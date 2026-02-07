@@ -425,3 +425,67 @@ def test_save_data_file_key_normalization(tmp_path):
     # Verify all years are detected (including the string key)
     cached_years = get_cached_years(yaml_file)
     assert cached_years == {2023, 2024, 2025}
+
+
+def test_retrieve_and_concat_data_prints_cds_summary(tmp_path, monkeypatch, capsys):
+    """Test that retrieve_and_concat_data prints CDS retrieval summary."""
+    loc1 = Location(name="City A", lat=40.0, lon=-73.0, tz="America/New_York")
+    loc2 = Location(name="City B", lat=51.5, lon=-0.1, tz="Europe/London")
+    
+    mock_cds = MagicMock()
+    mock_df = pd.DataFrame({
+        'date': ['2024-01-01'],
+        'temp_C': [10.0],
+        'place_name': ['Test'],
+        'grid_lat': [40.0],
+        'grid_lon': [-73.0],
+    })
+    mock_cds.get_noon_series.return_value = mock_df
+    
+    def mock_cds_init(cache_dir, progress_manager=None):
+        return mock_cds
+    
+    monkeypatch.setattr('data.CDS', mock_cds_init)
+    
+    # Call with fresh locations (no cache)
+    retrieve_and_concat_data([loc1, loc2], 2024, 2024, tmp_path, tmp_path)
+    
+    captured = capsys.readouterr()
+    
+    # Check for summary message
+    assert "CDS Retrieval Required: 2 place(s)" in captured.out
+    assert "City A" in captured.out
+    assert "City B" in captured.out
+    assert "=" in captured.out  # Separator lines
+
+
+def test_retrieve_and_concat_data_prints_all_cached_message(tmp_path, monkeypatch, capsys):
+    """Test that retrieve_and_concat_data prints message when all data is cached."""
+    loc = Location(name="Test", lat=40.0, lon=-73.0, tz="America/New_York")
+    
+    # Pre-populate cache
+    df = pd.DataFrame({
+        'date': ['2024-01-01'],
+        'temp_C': [10.0],
+        'grid_lat': [40.0],
+        'grid_lon': [-73.0],
+    })
+    data_cache_dir = tmp_path / "data_cache"
+    data_cache_dir.mkdir()
+    yaml_file = data_cache_dir / "Test_noon_temps.yaml"
+    save_data_file(df, yaml_file, loc)
+    
+    mock_cds = MagicMock()
+    monkeypatch.setattr('data.CDS', lambda cache_dir, progress_manager=None: mock_cds)
+    
+    # Call with cached data
+    retrieve_and_concat_data([loc], 2024, 2024, tmp_path, data_cache_dir)
+    
+    captured = capsys.readouterr()
+    
+    # Check for "all cached" message
+    assert "All data already cached - no CDS retrieval needed" in captured.out
+    assert "=" in captured.out  # Separator lines
+    
+    # Verify CDS was not called
+    mock_cds.get_noon_series.assert_not_called()
