@@ -16,7 +16,7 @@
 - 💻 User-friendly CLI with short options and argument validation
 - 🐍 Clean Python API for programmatic use
 - 📊 Real-time progress bars with aligned output during data downloads
-- ✅ Comprehensive test suite with 108 tests (87% coverage)
+- ✅ Comprehensive test suite with 119 tests (89% coverage)
 
 ---
 
@@ -134,7 +134,7 @@ vis.plot_polar(title="Austin 2020 Noon Temps", save_file="output/austin_2020.png
 - `era5_cache/`: Cached NetCDF files (auto-created)
 - `data_cache/`: Cached YAML data files (auto-created)
 - `output/`: Generated plots (auto-created)
-- `tests/`: Test suite with 108 tests across 8 modules
+- `tests/`: Test suite with 119 tests across 8 modules
 
 ---
 
@@ -371,7 +371,7 @@ pytest -v                 # Verbose output
 pytest -k "timezone"      # Run tests matching pattern
 ```
 
-**Total: 108 tests** with 87% code coverage across 8 modules:
+**Total: 119 tests** with 89% code coverage across 8 modules:
 
 | Module | Tests | Coverage |
 |--------|-------|----------|
@@ -381,14 +381,15 @@ pytest -k "timezone"      # Run tests matching pattern
 | test_visualizer.py | 11 | Polar plots, single/multi-subplot layouts |
 | test_logging_config.py | 10 | Logging setup and configuration |
 | test_progress.py | 10 | Progress handlers and callbacks |
+| test_data.py | 18 | Data I/O, retrieval, YAML caching, error handling |
 | test_cds.py | 8 | CDS API, Location, timezone auto-detection |
-| test_data.py | 7 | Data I/O, retrieval, YAML caching |
 
 **Coverage highlights:**
 - ✅ CLI argument parsing and validation (including mutually exclusive groups)
 - ✅ Timezone auto-detection and explicit override
 - ✅ Grid layout calculations (1x1, 2D, custom grids)
-- ✅ Data retrieval with mocked CDS API
+- ✅ Data retrieval and caching with YAML format (100% coverage)
+- ✅ YAML error handling and data merging (corrupted files, key normalization)
 - ✅ Plot generation and orchestration (100% coverage)
 - ✅ Progress reporting with callbacks (94% coverage)
 - ✅ Configuration loading from YAML
