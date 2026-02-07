@@ -10,19 +10,18 @@ from cds import Location
 
 
 def test_read_and_save_data_file(tmp_path):
-    """Test reading and saving CSV data files."""
+    """Test reading and saving YAML data files."""
+    loc = Location(name="Test", lat=40.0, lon=-73.0, tz="America/New_York")
     df = pd.DataFrame({
         'date': ['2025-01-01', '2025-01-02'],
-        'utc_time_used': ['2025-01-01T18:00:00', '2025-01-02T18:00:00'],
-        'local_noon': ['2025-01-01T12:00:00', '2025-01-02T12:00:00'],
         'temp_C': [10.0, 12.0],
         'temp_F': [50.0, 53.6],
-        'grid_lat': [1.0, 1.0],
-        'grid_lon': [2.0, 2.0],
+        'grid_lat': [40.0, 40.0],
+        'grid_lon': [-73.0, -73.0],
         'place_name': ['Test', 'Test'],
     })
-    out_file = tmp_path / "test.csv"
-    save_data_file(df, out_file)
+    out_file = tmp_path / "test.yaml"
+    save_data_file(df, out_file, loc)
     
     # Verify file was created
     assert out_file.exists()
@@ -37,34 +36,38 @@ def test_read_and_save_data_file(tmp_path):
 
 def test_save_data_file_creates_directory(tmp_path):
     """Test that save_data_file creates output directory if needed."""
+    loc = Location(name="Test", lat=40.0, lon=-73.0, tz="America/New_York")
     df = pd.DataFrame({
         'date': ['2025-01-01'],
         'temp_C': [10.0],
+        'grid_lat': [40.0],
+        'grid_lon': [-73.0],
     })
-    nested_path = tmp_path / "nested" / "dir" / "test.csv"
+    nested_path = tmp_path / "nested" / "dir" / "test.yaml"
     
-    save_data_file(df, nested_path)
+    save_data_file(df, nested_path, loc)
     assert nested_path.exists()
     assert nested_path.parent.is_dir()
 
 
 def test_read_data_file_missing_file(tmp_path):
     """Test reading a non-existent file raises appropriate error."""
-    missing_file = tmp_path / "missing.csv"
+    missing_file = tmp_path / "missing.yaml"
     with pytest.raises(FileNotFoundError):
         read_data_file(missing_file)
 
 
 def test_read_data_file_date_parsing(tmp_path):
     """Test that date column is properly parsed as datetime."""
+    loc = Location(name="Test", lat=40.0, lon=-73.0, tz="America/New_York")
     df = pd.DataFrame({
         'date': ['2025-01-15', '2025-02-20'],
         'temp_C': [15.0, 18.0],
-        'utc_time_used': ['2025-01-15T18:00:00', '2025-02-20T18:00:00'],
-        'local_noon': ['2025-01-15T12:00:00', '2025-02-20T12:00:00'],
+        'grid_lat': [40.0, 40.0],
+        'grid_lon': [-73.0, -73.0],
     })
-    out_file = tmp_path / "dates.csv"
-    save_data_file(df, out_file)
+    out_file = tmp_path / "dates.yaml"
+    save_data_file(df, out_file, loc)
     
     df2 = read_data_file(out_file)
     assert pd.api.types.is_datetime64_any_dtype(df2['date'])
@@ -83,6 +86,8 @@ def test_retrieve_and_concat_data_single_location(tmp_path, monkeypatch):
         'date': ['2024-01-01'],
         'temp_C': [10.0],
         'place_name': ['Test City'],
+        'grid_lat': [40.0],
+        'grid_lon': [-73.0],
     })
     mock_cds.get_noon_series.return_value = mock_df
     
@@ -110,6 +115,8 @@ def test_retrieve_and_concat_data_multiple_locations(tmp_path, monkeypatch):
             'date': ['2024-01-01'],
             'temp_C': [10.0],
             'place_name': [loc.name],
+            'grid_lat': [loc.lat],
+            'grid_lon': [loc.lon],
         })
     
     mock_cds.get_noon_series.side_effect = mock_get_noon_series
@@ -128,15 +135,18 @@ def test_retrieve_and_concat_data_multiple_locations(tmp_path, monkeypatch):
     assert mock_cds.get_noon_series.call_count == 2
 
 
-def test_retrieve_and_concat_data_caches_to_csv(tmp_path, monkeypatch):
-    """Test that data is saved to CSV cache file."""
+def test_retrieve_and_concat_data_caches_to_yaml(tmp_path, monkeypatch):
+    """Test that data is saved to YAML cache file."""
     loc = Location(name="Test", lat=40.0, lon=-73.0, tz="America/New_York")
     
     mock_cds = MagicMock()
     mock_df = pd.DataFrame({
         'date': ['2024-01-01'],
         'temp_C': [10.0],
+        'temp_F': [50.0],
         'place_name': ['Test'],
+        'grid_lat': [40.0],
+        'grid_lon': [-73.0],
     })
     mock_cds.get_noon_series.return_value = mock_df
     
@@ -145,7 +155,7 @@ def test_retrieve_and_concat_data_caches_to_csv(tmp_path, monkeypatch):
     data_cache_dir = tmp_path / "data_cache"
     retrieve_and_concat_data([loc], 2024, 2024, tmp_path, data_cache_dir)
     
-    # Check that CSV file was created in data_cache_dir
-    csv_files = list(data_cache_dir.glob("*.csv"))
-    assert len(csv_files) > 0
-    assert any('Test' in str(f) for f in csv_files)
+    # Check that YAML file was created in data_cache_dir
+    yaml_files = list(data_cache_dir.glob("*.yaml"))
+    assert len(yaml_files) > 0
+    assert any('Test' in str(f) for f in yaml_files)
