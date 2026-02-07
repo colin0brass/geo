@@ -16,7 +16,7 @@
 - 💻 User-friendly CLI with short options and argument validation
 - 🐍 Clean Python API for programmatic use
 - 📊 Real-time progress bars with place/year numbering during data downloads
-- ✅ Comprehensive test suite with 124 tests (90% coverage)
+- ✅ Comprehensive test suite with 130 tests (90% coverage)
 
 ---
 
@@ -43,6 +43,9 @@ python geo_temp.py -y 2024 -s
 
 # List available places
 python geo_temp.py -l
+
+# List places with their cached years
+python geo_temp.py -ly
 
 # Show help and version
 python geo_temp.py --help
@@ -182,6 +185,9 @@ python geo_temp.py --add-place "Seattle, WA"
 # List all available places and place lists
 python geo_temp.py -l
 
+# List places with their cached years (from data cache)
+python geo_temp.py -ly
+
 # Show version
 python geo_temp.py --version
 
@@ -196,6 +202,27 @@ python geo_temp.py --help
 | `--place NAME` | `-p` | Single configured or custom place |
 | `--list [NAME]` | `-L` | Predefined place list. Use `-L` for 'default' list, or `-L NAME` for specific list |
 | `--all` | `-a` | All configured places |
+
+### Information Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--list-places` | `-l` | List all available places and place lists, then exit |
+| `--list-years` | `-ly` | List all places with their cached years (condensed ranges), then exit |
+| `--add-place NAME` | | Add a new place to config (looks up coordinates online) |
+
+**Example output for `--list-years`:**
+```
+=== Cached Years by Place ===
+Data cache directory: data_cache
+
+  • Austin, TX                      Years: 1990-2025
+  • Cambridge, UK                   Years: 1990-2025
+  • London, UK                      Years: 2025
+  • Singapore                       Years: 1990-2025
+  ...
+```
+*Note: Contiguous year ranges are automatically condensed (e.g., `1990-2025` instead of listing all 36 years).*
 
 ### Custom Location
 
@@ -371,15 +398,15 @@ pytest -v                 # Verbose output
 pytest -k "timezone"      # Run tests matching pattern
 ```
 
-**Total: 124 tests** with 90% code coverage across 8 modules:
+**Total: 130 tests** with 90% code coverage across 8 modules:
 
 | Module | Tests | Coverage |
 |--------|-------|----------|
-| test_cli.py | 40 | Argument parsing, grid layout, validation |
+| test_cli.py | 48 | Argument parsing, grid layout, validation, year condensing |
 | test_orchestrator.py | 12 | Plot coordination, batching, integration |
 | test_config_manager.py | 11 | Config loading, saving, place management |
 | test_visualizer.py | 11 | Polar plots, single/multi-subplot layouts |
-| test_progress.py | 13 | Progress handlers, place/year numbering |
+| test_progress.py | 11 | Progress handlers, place/year numbering |
 | test_data.py | 20 | Data I/O, retrieval, YAML caching, CDS summary |
 | test_logging_config.py | 10 | Logging setup and configuration |
 | test_cds.py | 8 | CDS API, Location, timezone auto-detection |

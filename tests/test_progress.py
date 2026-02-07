@@ -69,49 +69,21 @@ def test_progress_manager_notify_year_start():
             self.called = False
             self.args = None
         
-        def on_year_start(self, location_name, year, total_months):
+        def on_year_start(self, location_name, year, current_year, total_years):
             self.called = True
-            self.args = (location_name, year, total_months)
+            self.args = (location_name, year, current_year, total_years)
         
         def on_location_start(self, *args): pass
-        def on_month_complete(self, *args): pass
         def on_year_complete(self, *args): pass
         def on_location_complete(self, *args): pass
     
     mock_handler = MockHandler()
     manager.register_handler(mock_handler)
     
-    manager.notify_year_start("Test City", 2024, 12)
+    manager.notify_year_start("Test City", 2024, 1, 3)
     
     assert mock_handler.called
-    assert mock_handler.args == ("Test City", 2024, 12)
-
-
-def test_progress_manager_notify_month_complete():
-    """Test notifying month complete."""
-    manager = ProgressManager()
-    
-    class MockHandler:
-        def __init__(self):
-            self.called = False
-            self.args = None
-        
-        def on_month_complete(self, location_name, year, month_num, total_months):
-            self.called = True
-            self.args = (location_name, year, month_num, total_months)
-        
-        def on_location_start(self, *args): pass
-        def on_year_start(self, *args): pass
-        def on_year_complete(self, *args): pass
-        def on_location_complete(self, *args): pass
-    
-    mock_handler = MockHandler()
-    manager.register_handler(mock_handler)
-    
-    manager.notify_month_complete("Test City", 2024, 6, 12)
-    
-    assert mock_handler.called
-    assert mock_handler.args == ("Test City", 2024, 6, 12)
+    assert mock_handler.args == ("Test City", 2024, 1, 3)
 
 
 def test_progress_manager_notify_year_complete():
@@ -123,22 +95,21 @@ def test_progress_manager_notify_year_complete():
             self.called = False
             self.args = None
         
-        def on_year_complete(self, location_name, year):
+        def on_year_complete(self, location_name, year, current_year, total_years):
             self.called = True
-            self.args = (location_name, year)
+            self.args = (location_name, year, current_year, total_years)
         
         def on_location_start(self, *args): pass
         def on_year_start(self, *args): pass
-        def on_month_complete(self, *args): pass
         def on_location_complete(self, *args): pass
     
     mock_handler = MockHandler()
     manager.register_handler(mock_handler)
     
-    manager.notify_year_complete("Test City", 2024)
+    manager.notify_year_complete("Test City", 2024, 1, 3)
     
     assert mock_handler.called
-    assert mock_handler.args == ("Test City", 2024)
+    assert mock_handler.args == ("Test City", 2024, 1, 3)
 
 
 def test_progress_manager_notify_location_complete():
@@ -171,19 +142,15 @@ def test_progress_manager_notify_location_complete():
 def test_console_progress_handler_output(capsys):
     """Test console progress handler output."""
     handler = ConsoleProgressHandler()
+    handler.on_location_start("Austin, TX", 1, 1)
     
-    # Test month complete
-    handler.on_month_complete("Austin, TX", 2024, 6, 12)
+    # Test year complete
+    handler.on_year_complete("Austin, TX", 2024, 1, 1)
     captured = capsys.readouterr()
     assert "Austin, TX" in captured.out
     assert "2024" in captured.out
-    assert "6/12 months" in captured.out
+    assert "Year 1/1" in captured.out
     assert "█" in captured.out or "░" in captured.out  # Progress bar characters
-    
-    # Test year complete
-    handler.on_year_complete("Austin, TX", 2024)
-    captured = capsys.readouterr()
-    assert captured.out == "\n"  # Should just print a newline
 
 
 def test_get_progress_manager_singleton():
@@ -202,12 +169,11 @@ def test_progress_manager_multiple_handlers():
         def __init__(self):
             self.call_count = 0
         
-        def on_month_complete(self, *args):
+        def on_year_complete(self, *args):
             self.call_count += 1
         
         def on_location_start(self, *args): pass
         def on_year_start(self, *args): pass
-        def on_year_complete(self, *args): pass
         def on_location_complete(self, *args): pass
     
     handler1 = MockHandler()
@@ -216,41 +182,22 @@ def test_progress_manager_multiple_handlers():
     manager.register_handler(handler1)
     manager.register_handler(handler2)
     
-    manager.notify_month_complete("Test", 2024, 1, 12)
+    manager.notify_year_complete("Test", 2024, 1, 1)
     
     assert handler1.call_count == 1
     assert handler2.call_count == 1
 
 
-def test_progress_manager_set_total_years():
-    """Test setting total years for progress handlers."""
-    manager = ProgressManager()
-    handler = ConsoleProgressHandler()
-    
-    manager.register_handler(handler)
-    
-    # Initialize the handler context first
-    handler.on_location_start("Test", 1, 1)
-    
-    # Now set total years
-    manager.set_total_years(3)
-    
-    assert handler._total_years == 3
-
-
-def test_console_progress_handler_with_place_and_year_numbering(capsys):
-    """Test console progress handler with place and year numbering."""
+def test_console_progress_handler_with_place_numbering(capsys):
+    """Test console progress handler with place numbering."""
     handler = ConsoleProgressHandler()
     
     # Simulate location start (sets place context)
     handler.on_location_start("Austin, TX", 2, 5)
     
-    # Set total years and simulate year start
-    handler._total_years = 3
-    handler.on_year_start("Austin, TX", 2024, 12)
-    
-    # Test month complete with place and year numbering
-    handler.on_month_complete("Austin, TX", 2024, 6, 12)
+    # Simulate year start and complete
+    handler.on_year_start("Austin, TX", 2024, 1, 3)
+    handler.on_year_complete("Austin, TX", 2024, 1, 3)
     captured = capsys.readouterr()
     
     # Check for place numbering
@@ -260,27 +207,18 @@ def test_console_progress_handler_with_place_and_year_numbering(capsys):
     # Check location and other details
     assert "Austin, TX" in captured.out
     assert "2024" in captured.out
-    assert "6/12 months" in captured.out
 
 
-def test_console_progress_handler_year_counter_reset(capsys):
-    """Test that year counter resets between locations."""
+def test_console_progress_handler_location_complete(capsys):
+    """Test that location complete moves to next line."""
     handler = ConsoleProgressHandler()
     
     # First location
     handler.on_location_start("City A", 1, 2)
-    handler._total_years = 2
-    handler.on_year_start("City A", 2024, 12)
-    handler.on_month_complete("City A", 2024, 12, 12)
-    captured = capsys.readouterr()
-    assert "Year 1/2" in captured.out
-    
+    handler.on_year_start("City A", 2024, 1, 1)
+    handler.on_year_complete("City A", 2024, 1, 1)
     handler.on_location_complete("City A")
-    
-    # Second location - year counter should reset
-    handler.on_location_start("City B", 2, 2)
-    handler._total_years = 2
-    handler.on_year_start("City B", 2024, 12)
-    handler.on_month_complete("City B", 2024, 12, 12)
     captured = capsys.readouterr()
-    assert "Year 1/2" in captured.out  # Should be Year 1 again, not Year 2
+    
+    # Should have newline from location complete
+    assert "\n" in captured.out

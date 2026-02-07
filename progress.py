@@ -15,16 +15,12 @@ class ProgressHandler(Protocol):
         """Called when processing starts for a location."""
         ...
     
-    def on_year_start(self, location_name: str, year: int, total_months: int) -> None:
+    def on_year_start(self, location_name: str, year: int, current_year: int, total_years: int) -> None:
         """Called when processing starts for a year."""
         ...
     
-    def on_month_complete(self, location_name: str, year: int, month_num: int, total_months: int) -> None:
-        """Called when a month is completed."""
-        ...
-    
-    def on_year_complete(self, location_name: str, year: int) -> None:
-        """Called when all months for a year are completed."""
+    def on_year_complete(self, location_name: str, year: int, current_year: int, total_years: int) -> None:
+        """Called when a year is completed."""
         ...
     
     def on_location_complete(self, location_name: str) -> None:
@@ -37,63 +33,47 @@ class ConsoleProgressHandler:
     
     def on_location_start(self, location_name: str, location_num: int, total_locations: int) -> None:
         """Display location start message."""
-        # Store context for progress bar display
         self._current_location_num = location_num
         self._total_locations = total_locations
-        self._current_year_num = 0
-        self._total_years = 0
     
-    def on_year_start(self, location_name: str, year: int, total_months: int) -> None:
-        """Initialize progress bar for the year."""
-        # Increment year counter for this location
-        self._current_year_num += 1
-        self._current_year = year
-        self._current_location_name = location_name
-        self._current_total_months = total_months
-        
-        # Display initial progress bar immediately
+    def on_year_start(self, location_name: str, year: int, current_year: int, total_years: int) -> None:
+        """Display initial progress bar for the year."""
         bar_width = 12
         bar = '░' * bar_width
         
-        # Get current place number from context if available
+        # Get current place number from context
         place_prefix = ""
         if hasattr(self, '_current_location_num') and hasattr(self, '_total_locations'):
             place_prefix = f"Place {self._current_location_num}/{self._total_locations} "
         
-        # Get year number context
-        year_prefix = ""
-        if hasattr(self, '_current_year_num') and hasattr(self, '_total_years') and self._total_years > 0:
-            year_prefix = f"Year {self._current_year_num}/{self._total_years} "
-        
         # Pad location name to 30 characters for alignment
         padded_name = f"{location_name:<30}"
-        print(f"\r  {place_prefix}{padded_name} - {year_prefix}{year}: [{bar}] 0/{total_months} months", end='', flush=True)
+        
+        # Show year progress with percentage (before starting this year)
+        percentage = int(100 * (current_year - 1) / total_years)
+        print(f"\r  {place_prefix}{padded_name} - Year {current_year}/{total_years} ({year}): [{bar}] {percentage}%", end='', flush=True)
     
-    def on_month_complete(self, location_name: str, year: int, month_num: int, total_months: int) -> None:
-        """Update progress bar for the current year."""
+    def on_year_complete(self, location_name: str, year: int, current_year: int, total_years: int) -> None:
+        """Update the progress bar after year completes."""
         bar_width = 12
-        filled = int(bar_width * month_num / total_months)
+        filled = int(bar_width * current_year / total_years)
         bar = '█' * filled + '░' * (bar_width - filled)
-        # Get current place number from context if available
+        
+        # Get current place number from context
         place_prefix = ""
         if hasattr(self, '_current_location_num') and hasattr(self, '_total_locations'):
             place_prefix = f"Place {self._current_location_num}/{self._total_locations} "
-        # Get year number context
-        year_prefix = ""
-        if hasattr(self, '_current_year_num') and hasattr(self, '_total_years') and self._total_years > 0:
-            year_prefix = f"Year {self._current_year_num}/{self._total_years} "
+        
         # Pad location name to 30 characters for alignment
         padded_name = f"{location_name:<30}"
-        print(f"\r  {place_prefix}{padded_name} - {year_prefix}{year}: [{bar}] {month_num}/{total_months} months", end='', flush=True)
-    
-    def on_year_complete(self, location_name: str, year: int) -> None:
-        """Complete the progress bar line."""
-        print()  # Move to next line
+        
+        # Show updated progress with filled bar
+        percentage = int(100 * current_year / total_years)
+        print(f"\r  {place_prefix}{padded_name} - Year {current_year}/{total_years} ({year}): [{bar}] {percentage}%", end='', flush=True)
     
     def on_location_complete(self, location_name: str) -> None:
-        """Location processing complete."""
-        # Reset year counter for next location
-        self._current_year_num = 0
+        """Location processing complete - move to next line."""
+        print()  # Move to next line after location is done
 
 
 class ProgressManager:
@@ -121,31 +101,20 @@ class ProgressManager:
         for handler in self.handlers:
             handler.on_location_start(location_name, location_num, total_locations)
     
-    def notify_year_start(self, location_name: str, year: int, total_months: int) -> None:
+    def notify_year_start(self, location_name: str, year: int, current_year: int, total_years: int) -> None:
         """Notify all handlers that year processing started."""
         for handler in self.handlers:
-            handler.on_year_start(location_name, year, total_months)
+            handler.on_year_start(location_name, year, current_year, total_years)
     
-    def notify_month_complete(self, location_name: str, year: int, month_num: int, total_months: int) -> None:
-        """Notify all handlers that a month was completed."""
-        for handler in self.handlers:
-            handler.on_month_complete(location_name, year, month_num, total_months)
-    
-    def notify_year_complete(self, location_name: str, year: int) -> None:
+    def notify_year_complete(self, location_name: str, year: int, current_year: int, total_years: int) -> None:
         """Notify all handlers that year processing completed."""
         for handler in self.handlers:
-            handler.on_year_complete(location_name, year)
+            handler.on_year_complete(location_name, year, current_year, total_years)
     
     def notify_location_complete(self, location_name: str) -> None:
         """Notify all handlers that location processing completed."""
         for handler in self.handlers:
             handler.on_location_complete(location_name)
-    
-    def set_total_years(self, total_years: int) -> None:
-        """Set the total number of years to be fetched for current location."""
-        for handler in self.handlers:
-            if hasattr(handler, '_total_years'):
-                handler._total_years = total_years
 
 
 # Global progress manager instance

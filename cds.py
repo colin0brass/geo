@@ -439,18 +439,18 @@ class CDS:
         
         # Get list of years to process
         years = list(range(start_d.year, end_d.year + 1))
+        total_years = len(years)
         
-        for year in years:
+        for year_idx, year in enumerate(years, 1):
             if self.progress_manager:
-                self.progress_manager.notify_year_start(location.name, year, 1)
+                self.progress_manager.notify_year_start(location.name, year, year_idx, total_years)
             
             # Download entire year at once
             df_year = self.get_year_daily_noon_data(location, year, half_box_deg)
             all_dfs.append(df_year)
             
             if self.progress_manager:
-                self.progress_manager.notify_month_complete(location.name, year, 1, 1)
-                self.progress_manager.notify_year_complete(location.name, year)
+                self.progress_manager.notify_year_complete(location.name, year, year_idx, total_years)
 
         df_all = pd.concat(all_dfs, ignore_index=True)
 

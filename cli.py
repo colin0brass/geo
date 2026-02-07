@@ -83,6 +83,11 @@ Examples:
         help="List all available places and place lists, then exit"
     )
     info_group.add_argument(
+        "-ly", "--list-years",
+        action="store_true",
+        help="List all places with their cached years from data cache, then exit"
+    )
+    info_group.add_argument(
         "--add-place",
         type=str,
         metavar="NAME",
@@ -361,4 +366,88 @@ def list_places_and_exit() -> None:
                 print(f"    - {place}")
     
     print()
+    exit(0)
+
+
+def list_years_and_exit(data_cache_dir: Path = Path("data_cache")) -> None:
+    """
+    Print all places with their cached years from the data cache directory, then exit.
+    
+    Args:
+        data_cache_dir: Directory containing cached YAML data files.
+    """
+    from data import get_cached_years
+    
+    def condense_year_ranges(years: list[int]) -> str:
+        """
+        Condense contiguous year ranges into readable format.
+        
+        Args:
+            years: Sorted list of years.
+            
+        Returns:
+            String representation with ranges (e.g., "1990-2000, 2005, 2010-2015").
+        """
+        if not years:
+            return ""
+        
+        ranges = []
+        start = years[0]
+        end = years[0]
+        
+        for i in range(1, len(years)):
+            if years[i] == end + 1:
+                # Contiguous year
+                end = years[i]
+            else:
+                # Gap found, save previous range
+                if start == end:
+                    ranges.append(str(start))
+                else:
+                    ranges.append(f"{start}-{end}")
+                start = years[i]
+                end = years[i]
+        
+        # Add the last range
+        if start == end:
+            ranges.append(str(start))
+        else:
+            ranges.append(f"{start}-{end}")
+        
+        return ", ".join(ranges)
+    
+    places, default_place, place_lists = load_places()
+    
+    print("\n=== Cached Years by Place ===")
+    print(f"Data cache directory: {data_cache_dir}\n")
+    
+    # Track statistics
+    places_with_cache = 0
+    places_without_cache = 0
+    
+    # Sort places alphabetically for display
+    for place_name in sorted(places.keys()):
+        # Generate expected cache file name
+        base_name = f"{place_name.replace(' ', '_').replace(',', '')}_noon_temps"
+        yaml_file = data_cache_dir / f"{base_name}.yaml"
+        
+        # Check for cached years
+        cached_years = get_cached_years(yaml_file)
+        
+        if cached_years:
+            places_with_cache += 1
+            year_list = sorted(cached_years)
+            year_str = condense_year_ranges(year_list)
+            print(f"  • {place_name:30s}  Years: {year_str}")
+        else:
+            places_without_cache += 1
+            print(f"  • {place_name:30s}  (no cached data)")
+    
+    # Print summary
+    print(f"\n{'='*60}")
+    print(f"Total places: {len(places)}")
+    print(f"Places with cached data: {places_with_cache}")
+    print(f"Places without cached data: {places_without_cache}")
+    print(f"{'='*60}\n")
+    
     exit(0)

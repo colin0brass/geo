@@ -121,9 +121,8 @@ def retrieve_and_concat_data(
             cds_place_num += 1
             logger.info(f"Fetching {loc.name} from CDS for {len(missing_years)} year(s): {missing_years}")
             
-            # Notify progress manager of location start and total years
+            # Notify progress manager of location start
             progress_mgr.notify_location_start(loc.name, cds_place_num, total_cds_places)
-            progress_mgr.set_total_years(len(missing_years))
             
             cds = CDS(cache_dir=cache_dir, progress_manager=progress_mgr)
             

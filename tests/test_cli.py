@@ -343,3 +343,75 @@ def test_parse_args_grid_default():
         assert args.grid is None
 
 
+# Helper function for testing year range condensing logic
+def _condense_year_ranges(years):
+    """Helper to test year range condensing logic."""
+    if not years:
+        return ""
+    ranges = []
+    start = years[0]
+    end = years[0]
+    for i in range(1, len(years)):
+        if years[i] == end + 1:
+            end = years[i]
+        else:
+            if start == end:
+                ranges.append(str(start))
+            else:
+                ranges.append(f"{start}-{end}")
+            start = years[i]
+            end = years[i]
+    if start == end:
+        ranges.append(str(start))
+    else:
+        ranges.append(f"{start}-{end}")
+    return ", ".join(ranges)
+
+
+def test_condense_year_ranges_single_year():
+    """Test condensing a single year."""
+    assert _condense_year_ranges([2025]) == "2025"
+
+
+def test_condense_year_ranges_contiguous():
+    """Test condensing contiguous year ranges."""
+    assert _condense_year_ranges([1990, 1991, 1992, 1993, 1994, 1995]) == "1990-1995"
+    assert _condense_year_ranges([2020, 2021, 2022, 2023, 2024, 2025]) == "2020-2025"
+
+
+def test_condense_year_ranges_with_gaps():
+    """Test condensing years with gaps."""
+    assert _condense_year_ranges([1990, 1991, 1995, 2000, 2001, 2002]) == "1990-1991, 1995, 2000-2002"
+    assert _condense_year_ranges([2020, 2022, 2024]) == "2020, 2022, 2024"
+
+
+def test_condense_year_ranges_empty():
+    """Test condensing empty list."""
+    assert _condense_year_ranges([]) == ""
+
+
+def test_condense_year_ranges_two_years():
+    """Test condensing two contiguous years."""
+    assert _condense_year_ranges([2024, 2025]) == "2024-2025"
+
+
+def test_parse_args_with_list_years():
+    """Test parsing --list-years argument."""
+    with patch('sys.argv', ['geo_temp.py', '-ly']):
+        args = parse_args()
+        assert args.list_years is True
+
+
+def test_parse_args_list_years_long_form():
+    """Test parsing --list-years with long form."""
+    with patch('sys.argv', ['geo_temp.py', '--list-years']):
+        args = parse_args()
+        assert args.list_years is True
+
+
+def test_parse_args_list_years_default():
+    """Test that list_years is False by default."""
+    with patch('sys.argv', ['geo_temp.py']):
+        args = parse_args()
+        assert args.list_years is False
+
