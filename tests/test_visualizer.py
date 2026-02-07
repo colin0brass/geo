@@ -1,0 +1,52 @@
+# Test Visualizer class and related data handling
+import pytest
+import pandas as pd
+from plot import Visualizer
+
+def test_temp_c_to_f():
+    assert Visualizer.temp_c_to_f(0) == 32.0
+    assert Visualizer.temp_c_to_f(100) == 212.0
+    assert Visualizer.temp_c_to_f(-40) == -40.0
+
+def test_add_data_fields():
+    df = pd.DataFrame({'date': ['2025-01-01', '2025-01-02'], 'temp_C': [10, 12]})
+    vis = Visualizer(df)
+    df2 = vis.add_data_fields(df.copy())
+    assert 'day_of_year' in df2.columns
+    assert 'angle' in df2.columns
+    assert df2['day_of_year'].iloc[0] == 1
+    assert df2['angle'].iloc[0] == 0.0
+
+def test_add_data_fields_missing_columns():
+    df = pd.DataFrame({'date': ['2025-01-01', '2025-01-02'], 'temp_C': [10, 12]})
+    vis = Visualizer(df)
+    assert 'day_of_year' in vis.df.columns
+    assert 'angle' in vis.df.columns
+    df2 = df.copy()
+    df2['day_of_year'] = [1, 2]
+    df2['angle'] = [0.0, 0.1]
+    vis2 = Visualizer(df2)
+    assert (vis2.df['day_of_year'] == [1, 2]).all()
+    assert (vis2.df['angle'] == [0.0, 0.1]).all()
+
+def test_add_data_fields_empty_df():
+    with pytest.raises(ValueError):
+        Visualizer(pd.DataFrame())
+
+def test_add_data_fields_invalid_date():
+    df = pd.DataFrame({'date': ['not-a-date'], 'temp_C': [10]})
+    with pytest.raises(Exception):
+        Visualizer(df)
+
+def test_visualizer_init_and_error():
+    df = pd.DataFrame({'date': ['2025-01-01'], 'temp_C': [10]})
+    vis = Visualizer(df)
+    assert vis.df is not None
+    assert vis.tmin_c == 10
+    assert vis.tmax_c == 10
+    with pytest.raises(ValueError):
+        Visualizer(pd.DataFrame())
+
+def test_visualizer_temp_c_to_f_edge_cases():
+    assert Visualizer.temp_c_to_f(37.5) == 99.5
+    assert Visualizer.temp_c_to_f(-273.15) == pytest.approx(-459.67, abs=0.01)

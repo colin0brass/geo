@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sys
-
+import logging
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -10,11 +10,13 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+logger = logging.getLogger("geo_temp")
+
 try:
     from zoneinfo import ZoneInfo  # Python 3.9+
 except ImportError:
-    print("This script requires Python 3.9+ (zoneinfo).", file=sys.stderr)
-    raise
+    logger.error("This script requires Python 3.9+ (zoneinfo).")
+    sys.exit(1)
 
 import cdsapi
 
@@ -98,7 +100,7 @@ class CDS:
         if out_nc.exists() and out_nc.stat().st_size > 0:
             return out_nc  # cache hit
 
-        print(f"Downloading ERA5 {year:04d}-{month:02d} to {out_nc} ...")
+        logger.info(f"Downloading ERA5 {year:04d}-{month:02d} to {out_nc} ...")
         self.client.retrieve("reanalysis-era5-single-levels", request, str(out_nc))
         return out_nc
 
@@ -145,7 +147,7 @@ class CDS:
         if out_nc.exists() and out_nc.stat().st_size > 0:
             return out_nc  # cache hit
 
-        print(f"Downloading ERA5 date series to {out_nc} ...")
+        logger.info(f"Downloading ERA5 date series to {out_nc} ...")
         self.client.retrieve("reanalysis-era5-single-levels", request, str(out_nc))
         return out_nc
     
