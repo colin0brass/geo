@@ -144,6 +144,9 @@ def retrieve_and_concat_data(
                 
                 # Notify year complete
                 progress_mgr.notify_year_complete(loc.name, year, year_idx, len(missing_years))
+            
+            # Notify location complete to move to next line
+            progress_mgr.notify_location_complete(loc.name)
     
     df_overall['date'] = pd.to_datetime(df_overall['date'])
     return df_overall
