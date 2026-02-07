@@ -4,3 +4,11 @@ __pycache__/
 output/
 era5_cache/
 *.log
+
+# Coverage reports
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+.pytest_cache/
