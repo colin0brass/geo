@@ -16,40 +16,53 @@ from orchestrator import (
 from cds import Location
 
 
-def test_calculate_grid_dimensions_no_custom_grid():
+def test_calculate_grid_dimensions_no_custom_grid(tmp_path):
     """Test automatic grid dimension calculation."""
-    # Single place
-    rows, cols, total = calculate_grid_dimensions(1, None)
-    assert rows == 1 and cols == 1 and total == 1
+    # Create config file with grid config
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("grid:\n  max_auto_rows: 4\n  max_auto_cols: 6\n")
     
-    # 4 places
-    rows, cols, total = calculate_grid_dimensions(4, None)
-    assert rows == 2 and cols == 2 and total == 4
+    # Single place: grid 1x1, max capacity 24 (4x6)
+    rows, cols, max_capacity = calculate_grid_dimensions(1, None, config_file)
+    assert rows == 1 and cols == 1 and max_capacity == 24
     
-    # 6 places
-    rows, cols, total = calculate_grid_dimensions(6, None)
-    assert rows == 2 and cols == 3 and total == 6
+    # 4 places: grid 2x2, max capacity 24
+    rows, cols, max_capacity = calculate_grid_dimensions(4, None, config_file)
+    assert rows == 2 and cols == 2 and max_capacity == 24
     
-    # 10 places (auto-calculated total equals num_places, not grid size)
-    rows, cols, total = calculate_grid_dimensions(10, None)
-    assert rows == 3 and cols == 4 and total == 10
+    # 6 places: grid 2x3, max capacity 24
+    rows, cols, max_capacity = calculate_grid_dimensions(6, None, config_file)
+    assert rows == 2 and cols == 3 and max_capacity == 24
+    
+    # 10 places: grid 3x4, max capacity 24 (with 4x6 max)
+    rows, cols, max_capacity = calculate_grid_dimensions(10, None, config_file)
+    assert rows == 3 and cols == 4 and max_capacity == 24
 
 
-def test_calculate_grid_dimensions_with_custom_grid():
+def test_calculate_grid_dimensions_with_custom_grid(tmp_path):
     """Test grid dimensions with custom grid specification."""
+    # Create dummy config file (not used when grid is specified)
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("grid:\n  max_auto_rows: 4\n  max_auto_cols: 6\n")
+    
     # Custom 3x4 grid
-    rows, cols, total = calculate_grid_dimensions(8, (3, 4))
+    rows, cols, total = calculate_grid_dimensions(8, (3, 4), config_file)
     assert rows == 3 and cols == 4 and total == 12
     
     # Custom 2x5 grid
-    rows, cols, total = calculate_grid_dimensions(7, (2, 5))
+    rows, cols, total = calculate_grid_dimensions(7, (2, 5), config_file)
     assert rows == 2 and cols == 5 and total == 10
 
 
-def test_calculate_grid_dimensions_zero_places():
+def test_calculate_grid_dimensions_zero_places(tmp_path):
     """Test handling of zero places."""
-    rows, cols, total = calculate_grid_dimensions(0, None)
-    assert rows == 1 and cols == 1 and total == 0
+    # Create config file
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("grid:\n  max_auto_rows: 4\n  max_auto_cols: 6\n")
+    
+    # With 0 places, grid is 1x1 but max capacity is still 24 (4x6)
+    rows, cols, max_capacity = calculate_grid_dimensions(0, None, config_file)
+    assert rows == 1 and cols == 1 and max_capacity == 24
 
 
 @patch('orchestrator.Visualizer')
@@ -174,12 +187,17 @@ def test_create_main_plots_single_batch(mock_grid_layout, mock_create_batch, tmp
     loc1 = Location(name="City A", lat=40.0, lon=-73.0, tz="America/New_York")
     loc2 = Location(name="City B", lat=51.5, lon=-0.1, tz="Europe/London")
     
+    # Create dummy config file
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("grid:\n  max_auto_rows: 4\n  max_auto_cols: 6\n")
+    
     result = create_main_plots(
         df_overall=df,
         place_list=[loc1, loc2],
         start_year=2024,
         end_year=2024,
         out_dir=tmp_path,
+        config=config_file,
         settings=Path("settings.yaml"),
         t_min_c=5.0,
         t_max_c=20.0,
@@ -211,6 +229,10 @@ def test_create_main_plots_multiple_batches(mock_create_batch, tmp_path):
         Location(name="E", lat=44.0, lon=-77.0, tz="America/New_York"),
     ]
     
+    # Create dummy config file
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("grid:\n  max_auto_rows: 4\n  max_auto_cols: 6\n")
+    
     # Fixed grid 2x2 = 4 places per batch, so 5 places needs 2 batches
     result = create_main_plots(
         df_overall=df,
@@ -218,6 +240,7 @@ def test_create_main_plots_multiple_batches(mock_create_batch, tmp_path):
         start_year=2024,
         end_year=2024,
         out_dir=tmp_path,
+        config=config_file,
         settings=Path("settings.yaml"),
         t_min_c=10.0,
         t_max_c=18.0,
@@ -243,12 +266,17 @@ def test_plot_all_no_show(mock_create_main, mock_create_individual, mock_visuali
     })
     loc = Location(name="City A", lat=40.0, lon=-73.0, tz="America/New_York")
     
+    # Create dummy config file
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("grid:\n  max_auto_rows: 4\n  max_auto_cols: 6\n")
+    
     plot_all(
         df_overall=df,
         place_list=[loc],
         start_year=2024,
         end_year=2024,
         out_dir=tmp_path,
+        config=config_file,
         settings=Path("settings.yaml"),
         show_main=False,
         show_individual=False,
@@ -279,12 +307,17 @@ def test_plot_all_show_main(mock_create_main, mock_create_individual, mock_visua
     })
     loc = Location(name="City A", lat=40.0, lon=-73.0, tz="America/New_York")
     
+    # Create dummy config file
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("grid:\n  max_auto_rows: 4\n  max_auto_cols: 6\n")
+    
     plot_all(
         df_overall=df,
         place_list=[loc],
         start_year=2024,
         end_year=2024,
         out_dir=tmp_path,
+        config=config_file,
         settings=Path("settings.yaml"),
         show_main=True,
         show_individual=False,
@@ -313,12 +346,17 @@ def test_plot_all_show_all(mock_create_main, mock_create_individual, mock_visual
     })
     loc = Location(name="City A", lat=40.0, lon=-73.0, tz="America/New_York")
     
+    # Create dummy config file
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("grid:\n  max_auto_rows: 4\n  max_auto_cols: 6\n")
+    
     plot_all(
         df_overall=df,
         place_list=[loc],
         start_year=2024,
         end_year=2024,
         out_dir=tmp_path,
+        config=config_file,
         settings=Path("settings.yaml"),
         show_main=True,
         show_individual=True,
@@ -348,12 +386,17 @@ def test_plot_all_multiple_locations(mock_create_main, mock_create_individual, m
     loc1 = Location(name="City A", lat=40.0, lon=-73.0, tz="America/New_York")
     loc2 = Location(name="City B", lat=51.5, lon=-0.1, tz="Europe/London")
     
+    # Create dummy config file
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("grid:\n  max_auto_rows: 4\n  max_auto_cols: 6\n")
+    
     plot_all(
         df_overall=df,
         place_list=[loc1, loc2],
         start_year=2024,
         end_year=2024,
         out_dir=tmp_path,
+        config=config_file,
         settings=Path("settings.yaml"),
         show_main=False,
         show_individual=False,

@@ -16,7 +16,7 @@
 - 💻 User-friendly CLI with short options and argument validation
 - 🐍 Clean Python API for programmatic use
 - 📊 Real-time progress bars with place/year numbering during data downloads
-- ✅ Comprehensive test suite with 130 tests (90% coverage)
+- ✅ Comprehensive test suite with 134 tests (90% coverage)
 
 ---
 
@@ -137,7 +137,7 @@ vis.plot_polar(title="Austin 2020 Noon Temps", save_file="output/austin_2020.png
 - `era5_cache/`: Cached NetCDF files (auto-created)
 - `data_cache/`: Cached YAML data files (auto-created)
 - `output/`: Generated plots (auto-created)
-- `tests/`: Test suite with 124 tests across 8 modules
+- `tests/`: Test suite with 134 tests across 8 modules
 
 ---
 
@@ -278,7 +278,7 @@ python geo_temp.py -p "MyCity" --lat 40.7 --lon -74.0 -y 2024
 
 ### config.yaml
 
-Stores application configuration with two main sections:
+Stores application configuration with three main sections:
 
 #### 1. Logging
 ```yaml
@@ -287,7 +287,18 @@ logging:
   console_level: WARNING  # DEBUG, INFO, WARNING, ERROR, CRITICAL
 ```
 
-#### 2. Places
+#### 2. Grid Layout
+```yaml
+grid:
+  max_auto_rows: 4    # Maximum rows for auto-calculated grids
+  max_auto_cols: 6    # Maximum columns for auto-calculated grids
+```
+
+These settings determine the maximum grid size (default 4×6 = 24 places) when the grid is auto-calculated. If you have more places than this, the system will automatically batch them into multiple images.
+
+**Note:** The `--grid` command-line option always overrides these configuration settings.
+
+#### 3. Places
 
 **default_place:** Used when no location is specified
 ```yaml
@@ -398,11 +409,11 @@ pytest -v                 # Verbose output
 pytest -k "timezone"      # Run tests matching pattern
 ```
 
-**Total: 130 tests** with 90% code coverage across 8 modules:
+**Total: 134 tests** with 90% code coverage across 8 modules:
 
 | Module | Tests | Coverage |
 |--------|-------|----------|
-| test_cli.py | 48 | Argument parsing, grid layout, validation, year condensing |
+| test_cli.py | 52 | Argument parsing, grid layout, validation, year condensing, grid settings |
 | test_orchestrator.py | 12 | Plot coordination, batching, integration |
 | test_config_manager.py | 11 | Config loading, saving, place management |
 | test_visualizer.py | 11 | Polar plots, single/multi-subplot layouts |

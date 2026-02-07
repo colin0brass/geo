@@ -5,7 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 from unittest.mock import patch
-from cli import parse_args, parse_years, get_place_list, calculate_grid_layout, parse_grid, load_places
+from cli import parse_args, parse_years, get_place_list, calculate_grid_layout, parse_grid, load_places, load_grid_settings
 from cds import Location
 
 
@@ -239,55 +239,64 @@ def test_get_place_list_invalid_place_no_coords():
 
 # Test calculate_grid_layout function
 def test_calculate_grid_layout_single():
-    assert calculate_grid_layout(1) == (1, 1)
+    # With default 4x6 max
+    assert calculate_grid_layout(1, 4, 6) == (1, 1)
 
 
 def test_calculate_grid_layout_two():
-    assert calculate_grid_layout(2) == (1, 2)
+    # With default 4x6 max
+    assert calculate_grid_layout(2, 4, 6) == (1, 2)
 
 
 def test_calculate_grid_layout_four():
-    assert calculate_grid_layout(4) == (2, 2)
+    # With default 4x6 max
+    assert calculate_grid_layout(4, 4, 6) == (2, 2)
 
 
 def test_calculate_grid_layout_six():
-    assert calculate_grid_layout(6) == (2, 3)
+    # With default 4x6 max
+    assert calculate_grid_layout(6, 4, 6) == (2, 3)
 
 
 def test_calculate_grid_layout_eight():
     # Should be 3×3 (9 cells, 1 empty) for better aspect ratio
-    rows, cols = calculate_grid_layout(8)
+    # With default 4x6 max
+    rows, cols = calculate_grid_layout(8, 4, 6)
     assert rows == 3 and cols == 3
 
 
 def test_calculate_grid_layout_ten():
     # Should be 3×4 (12 cells, 2 empty) instead of 2×5
-    rows, cols = calculate_grid_layout(10)
+    # With default 4x6 max
+    rows, cols = calculate_grid_layout(10, 4, 6)
     assert rows == 3 and cols == 4
 
 
 def test_calculate_grid_layout_twelve():
-    assert calculate_grid_layout(12) == (3, 4)
+    # With default 4x6 max
+    assert calculate_grid_layout(12, 4, 6) == (3, 4)
 
 
 def test_calculate_grid_layout_sixteen():
     # Should be 4×4 instead of 2×8
-    assert calculate_grid_layout(16) == (4, 4)
+    # With default 4x6 max
+    assert calculate_grid_layout(16, 4, 6) == (4, 4)
 
 
 def test_calculate_grid_layout_twenty():
-    # Should be 5×4 (max_cols=4) instead of wider layout
-    rows, cols = calculate_grid_layout(20)
-    assert rows == 5 and cols == 4
+    # With 4x6 max grid (24 places max), should be 4×5 for 20 places
+    rows, cols = calculate_grid_layout(20, 4, 6)
+    assert rows == 4 and cols == 5
 
 
 def test_calculate_grid_layout_zero():
-    assert calculate_grid_layout(0) == (1, 1)
+    # With default 4x6 max
+    assert calculate_grid_layout(0, 4, 6) == (1, 1)
 
 
 def test_calculate_grid_layout_custom_max_cols():
-    # Test with custom max_cols
-    rows, cols = calculate_grid_layout(10, max_cols=3)
+    # Test with custom max_cols=3 and max_rows=5
+    rows, cols = calculate_grid_layout(10, max_rows=5, max_cols=3)
     assert cols <= 3
     assert rows * cols >= 10
 
@@ -415,3 +424,42 @@ def test_parse_args_list_years_default():
         args = parse_args()
         assert args.list_years is False
 
+
+# Test load_grid_settings function
+def test_load_grid_settings_valid(tmp_path):
+    """Test loading grid settings from valid YAML file."""
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("grid:\n  max_auto_rows: 5\n  max_auto_cols: 8\n")
+    
+    max_rows, max_cols = load_grid_settings(config_file)
+    assert max_rows == 5
+    assert max_cols == 8
+
+
+def test_load_grid_settings_defaults(tmp_path):
+    """Test that defaults are returned when grid section is missing."""
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("other_section:\n  key: value\n")
+    
+    max_rows, max_cols = load_grid_settings(config_file)
+    assert max_rows == 4
+    assert max_cols == 6
+
+
+def test_load_grid_settings_partial(tmp_path):
+    """Test partial grid settings with only one value specified."""
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("grid:\n  max_auto_rows: 3\n")
+    
+    max_rows, max_cols = load_grid_settings(config_file)
+    assert max_rows == 3
+    assert max_cols == 6  # default
+
+
+def test_load_grid_settings_missing_file(tmp_path):
+    """Test that defaults are returned when config file doesn't exist."""
+    config_file = tmp_path / "nonexistent.yaml"
+    
+    max_rows, max_cols = load_grid_settings(config_file)
+    assert max_rows == 4
+    assert max_cols == 6

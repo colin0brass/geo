@@ -290,50 +290,90 @@ def parse_grid(grid_str: str | None) -> tuple[int, int] | None:
         sys.exit(1)
 
 
-def calculate_grid_layout(num_places: int, max_cols: int = 4) -> tuple[int, int]:
+def load_grid_settings(config_file: Path) -> tuple[int, int]:
+    """
+    Load grid maximum dimensions from config YAML file.
+    
+    Args:
+        config_file: Path to config YAML file.
+        
+    Returns:
+        tuple[int, int]: (max_rows, max_cols) from config, or defaults (4, 6).
+    """
+    try:
+        with open(config_file, 'r') as f:
+            config = yaml.safe_load(f)
+            grid_config = config.get('grid', {})
+            max_rows = grid_config.get('max_auto_rows', 4)
+            max_cols = grid_config.get('max_auto_cols', 6)
+            return (max_rows, max_cols)
+    except Exception as e:
+        logger.warning(f"Failed to load grid settings from {config_file}: {e}. Using defaults (4x6).")
+        return (4, 6)
+
+
+def calculate_grid_layout(num_places: int, max_rows: int = 4, max_cols: int = 6) -> tuple[int, int]:
     """
     Calculate optimal grid layout (rows, columns) for subplot arrangement.
     
-    Prioritizes balanced aspect ratio while limiting maximum columns for readability.
+    Prioritizes balanced aspect ratio while limiting maximum grid size for readability.
+    If places exceed max capacity, they should be batched into multiple images.
     
     Args:
         num_places: Number of subplots to arrange.
-        max_cols: Maximum number of columns allowed (default 4).
+        max_rows: Maximum number of rows allowed (default 4).
+        max_cols: Maximum number of columns allowed (default 6).
         
     Returns:
         tuple[int, int]: (num_rows, num_cols) for the grid layout.
         
     Examples:
-        >>> calculate_grid_layout(1)  # 1×1
+        >>> calculate_grid_layout(1, 4, 6)  # 1×1
         (1, 1)
-        >>> calculate_grid_layout(6)  # 2×3
+        >>> calculate_grid_layout(6, 4, 6)  # 2×3
         (2, 3)
-        >>> calculate_grid_layout(8)  # 2×4
+        >>> calculate_grid_layout(8, 4, 6)  # 2×4
         (2, 4)
-        >>> calculate_grid_layout(10)  # 3×4 instead of 2×5
+        >>> calculate_grid_layout(10, 4, 6)  # 3×4 (instead of 2×5)
         (3, 4)
-        >>> calculate_grid_layout(16)  # 4×4 instead of 2×8
-        (4, 4)
+        >>> calculate_grid_layout(24, 4, 6)  # 4×6 (max grid size)
+        (4, 6)
+        >>> calculate_grid_layout(30, 4, 6)  # 4×6 (capped at max, needs batching)
+        (4, 6)
     """
     if num_places == 0:
         return (1, 1)
     
+    # Cap at maximum grid size
+    max_grid_size = max_rows * max_cols
+    places_to_fit = min(num_places, max_grid_size)
+    
     # For small numbers, use simple logic
-    if num_places <= 2:
-        return (1, num_places)
-    if num_places <= 4:
+    if places_to_fit <= 2:
+        return (1, places_to_fit)
+    if places_to_fit <= 4:
         return (2, 2)
     
-    # For larger numbers, find best balanced layout within max_cols constraint
+    # For larger numbers, find best balanced layout within constraints
     # Start with square-ish layout
-    num_cols = min(max_cols, math.ceil(math.sqrt(num_places)))
-    num_rows = math.ceil(num_places / num_cols)
+    num_cols = min(max_cols, math.ceil(math.sqrt(places_to_fit)))
+    num_rows = math.ceil(places_to_fit / num_cols)
+    
+    # Cap rows at maximum
+    if num_rows > max_rows:
+        num_rows = max_rows
+        num_cols = min(max_cols, math.ceil(places_to_fit / num_rows))
     
     # Optimize: try to reduce empty spaces while maintaining good aspect ratio
     # Check if we can reduce columns and still fit everything
     for cols in range(num_cols, 0, -1):
-        rows = math.ceil(num_places / cols)
-        empty_spaces = (rows * cols) - num_places
+        rows = math.ceil(places_to_fit / cols)
+        
+        # Skip if exceeds row limit
+        if rows > max_rows:
+            continue
+            
+        empty_spaces = (rows * cols) - places_to_fit
         
         # Accept layout if it doesn't waste too many spaces
         # and maintains reasonable aspect ratio (rows ≤ cols + 1)

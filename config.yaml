@@ -6,6 +6,14 @@ logging:
   log_file: geo_temp.log
   console_level: WARNING
 
+# Grid layout configuration
+grid:
+  # Maximum automatic grid size (rows x columns)
+  # Used when no --grid option is specified
+  # Locations exceeding this will be batched into multiple images
+  max_auto_rows: 4
+  max_auto_cols: 6
+
 # Places configuration
 places:
   # Default place used when no location is specified

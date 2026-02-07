@@ -13,19 +13,20 @@ from pathlib import Path
 import pandas as pd
 
 from cds import Location
-from cli import calculate_grid_layout
+from cli import calculate_grid_layout, load_grid_settings
 from plot import Visualizer
 
 logger = logging.getLogger("geo_temp")
 
 
-def calculate_grid_dimensions(num_places: int, grid: tuple[int, int] | None) -> tuple[int, int, int]:
+def calculate_grid_dimensions(num_places: int, grid: tuple[int, int] | None, config: Path) -> tuple[int, int, int]:
     """
     Calculate grid layout and maximum places per image.
     
     Args:
         num_places: Total number of places to plot.
         grid: Optional fixed grid dimensions (rows, cols).
+        config: Path to config file for loading grid configuration.
     Returns:
         Tuple of (num_rows, num_cols, max_places_per_image).
     """
@@ -34,9 +35,17 @@ def calculate_grid_dimensions(num_places: int, grid: tuple[int, int] | None) -> 
         max_places_per_image = num_rows * num_cols
         logger.info(f"Using fixed grid: {num_rows}×{num_cols} (max {max_places_per_image} places per image)")
     else:
-        num_rows, num_cols = calculate_grid_layout(num_places)
-        max_places_per_image = num_places  # No limit when auto-calculating
-        logger.info(f"Auto-calculated grid: {num_rows}×{num_cols} for {num_places} location(s)")
+        # Load grid settings from config YAML
+        max_rows, max_cols = load_grid_settings(config)
+        max_places_per_image = max_rows * max_cols
+        
+        # Calculate grid, capping at maximum size
+        num_rows, num_cols = calculate_grid_layout(num_places, max_rows, max_cols)
+        
+        if num_places > max_places_per_image:
+            logger.info(f"Auto-calculated grid: {num_rows}×{num_cols} (max {max_places_per_image} places per image, will batch {num_places} locations)")
+        else:
+            logger.info(f"Auto-calculated grid: {num_rows}×{num_cols} for {num_places} location(s)")
     
     return num_rows, num_cols, max_places_per_image
 
@@ -115,6 +124,7 @@ def create_main_plots(
     start_year: int,
     end_year: int,
     out_dir: Path,
+    config: Path,
     settings: Path,
     t_min_c: float,
     t_max_c: float,
@@ -130,7 +140,8 @@ def create_main_plots(
         start_year: Start year for plot titles and filenames.
         end_year: End year for plot titles and filenames.
         out_dir: Directory for output plot files.
-        settings: Path to plot settings YAML file.
+        config: Path to config YAML file (for grid settings).
+        settings: Path to plot settings YAML file (for styling).
         t_min_c: Minimum temperature across all data.
         t_max_c: Maximum temperature across all data.
         grid: Optional fixed grid dimensions (rows, cols).
@@ -139,7 +150,7 @@ def create_main_plots(
         List of paths to saved plot files.
     """
     num_places = len(place_list)
-    num_rows, num_cols, max_places_per_image = calculate_grid_dimensions(num_places, grid)
+    num_rows, num_cols, max_places_per_image = calculate_grid_dimensions(num_places, grid, config)
     num_batches = (num_places + max_places_per_image - 1) // max_places_per_image
     
     batch_plot_files = []
@@ -157,7 +168,8 @@ def create_main_plots(
         if grid:
             batch_rows, batch_cols = num_rows, num_cols
         else:
-            batch_rows, batch_cols = calculate_grid_layout(batch_size)
+            max_rows, max_cols = load_grid_settings(config)
+            batch_rows, batch_cols = calculate_grid_layout(batch_size, max_rows, max_cols)
         
         plot_file = create_batch_subplot(
             df_batch=df_batch,
@@ -228,6 +240,7 @@ def plot_all(
     start_year: int,
     end_year: int,
     out_dir: Path,
+    config: Path,
     settings: Path,
     show_main: bool,
     show_individual: bool,
@@ -243,7 +256,8 @@ def plot_all(
         start_year: Start year for plot titles and filenames.
         end_year: End year for plot titles and filenames.
         out_dir: Directory for output plot files.
-        settings: Path to plot settings YAML file.
+        config: Path to config YAML file (for grid settings).
+        settings: Path to plot settings YAML file (for styling).
         show_main: Whether to display the main subplot on screen.
         show_individual: Whether to display individual plots on screen.
         scale_height: Whether to scale figure height for 3+ rows to prevent overlap.
@@ -259,8 +273,7 @@ def plot_all(
         place_list=place_list,
         start_year=start_year,
         end_year=end_year,
-        out_dir=out_dir,
-        settings=settings,
+        out_dir=out_dir,        config=config,        settings=settings,
         t_min_c=t_min_c,
         t_max_c=t_max_c,
         grid=grid,
