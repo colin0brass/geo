@@ -108,6 +108,12 @@ Examples:
         help="Cache directory for NetCDF files (default: era5_cache)"
     )
     output_group.add_argument(
+        "--data-cache-dir",
+        type=Path,
+        default=Path("data_cache"),
+        help="Cache directory for CSV data files (default: data_cache)"
+    )
+    output_group.add_argument(
         "--out-dir",
         type=Path,
         default=Path("output"),

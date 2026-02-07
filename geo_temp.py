@@ -74,11 +74,12 @@ def main() -> None:
         logger.info(f"Years: {start_year}-{end_year}")
         logger.info(f"Grid: {grid if grid else 'auto'}")
         logger.info(f"Output directory: {args.out_dir}")
-        logger.info(f"Cache directory: {args.cache_dir}")
+        logger.info(f"NetCDF cache directory: {args.cache_dir}")
+        logger.info(f"Data cache directory: {args.data_cache_dir}")
         logger.info(f"Show plots: {args.show}")
         return
     
-    df_overall = retrieve_and_concat_data(place_list, start_year, end_year, args.cache_dir, args.out_dir)
+    df_overall = retrieve_and_concat_data(place_list, start_year, end_year, args.cache_dir, args.data_cache_dir)
     show_main = args.show.lower() in ("main", "all")
     show_individual = args.show.lower() == "all"
     plot_all(df_overall, place_list, start_year, end_year, args.out_dir, args.settings, show_main, show_individual, True, grid)

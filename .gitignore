@@ -3,6 +3,7 @@ __pycache__/
 .venv/
 output/
 era5_cache/
+data_cache/
 *.log
 
 # Coverage reports

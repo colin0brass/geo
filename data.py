@@ -23,7 +23,7 @@ def retrieve_and_concat_data(
     start_year: int,
     end_year: int,
     cache_dir: Path,
-    out_dir: Path
+    data_cache_dir: Path
 ) -> pd.DataFrame:
     """
     Retrieve temperature data for all places and concatenate into a single DataFrame.
@@ -33,7 +33,7 @@ def retrieve_and_concat_data(
         start_year: Start year for data retrieval.
         end_year: End year for data retrieval.
         cache_dir: Directory for caching NetCDF files.
-        out_dir: Directory for output CSV files.
+        data_cache_dir: Directory for caching CSV data files.
         
     Returns:
         pd.DataFrame: Concatenated DataFrame with temperature data for all places.
@@ -48,7 +48,7 @@ def retrieve_and_concat_data(
         start_d = date(start_year, 1, 1)
         end_d = date(end_year, 12, 31)
         file_leaf_name = f"{loc.name.replace(' ', '_').replace(',', '')}_noon_temps_{start_year}_{end_year}.csv"
-        data_file = out_dir / file_leaf_name
+        data_file = data_cache_dir / file_leaf_name
         if data_file.exists():
             logger.info(f"Data file {data_file} already exists. Loading existing data.")
             df = read_data_file(data_file)

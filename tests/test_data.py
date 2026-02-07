@@ -142,10 +142,10 @@ def test_retrieve_and_concat_data_caches_to_csv(tmp_path, monkeypatch):
     
     monkeypatch.setattr('data.CDS', lambda cache_dir, progress_manager=None: mock_cds)
     
-    out_dir = tmp_path / "output"
-    retrieve_and_concat_data([loc], 2024, 2024, tmp_path, out_dir)
+    data_cache_dir = tmp_path / "data_cache"
+    retrieve_and_concat_data([loc], 2024, 2024, tmp_path, data_cache_dir)
     
-    # Check that CSV file was created
-    csv_files = list(out_dir.glob("*.csv"))
+    # Check that CSV file was created in data_cache_dir
+    csv_files = list(data_cache_dir.glob("*.csv"))
     assert len(csv_files) > 0
     assert any('Test' in str(f) for f in csv_files)

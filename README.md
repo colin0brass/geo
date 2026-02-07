@@ -12,7 +12,7 @@
 - 🕐 **Automatic timezone detection** from coordinates (no manual lookup needed)
 - 🎯 Smart grid layout with automatic batching for large datasets
 - ⚙️ Highly configurable plotting via YAML settings
-- 🚀 Efficient caching to avoid redundant downloads
+- 🚀 **Two-tier caching system**: NetCDF files (raw) and CSV data files (processed)
 - 💻 User-friendly CLI with short options and argument validation
 - 🐍 Clean Python API for programmatic use
 - 📊 Real-time progress bars with aligned output during data downloads
@@ -132,7 +132,8 @@ vis.plot_polar(title="Austin 2020 Noon Temps", save_file="output/austin_2020.png
 - `config.yaml`: Application configuration (places, logging)
 - `settings.yaml`: Plot styling configuration
 - `era5_cache/`: Cached NetCDF files (auto-created)
-- `output/`: Generated plots and CSVs (auto-created)
+- `data_cache/`: Cached CSV data files (auto-created)
+- `output/`: Generated plots (auto-created)
 - `tests/`: Test suite with 108 tests across 8 modules
 
 ---
@@ -231,6 +232,7 @@ python geo_temp.py -p "MyCity" --lat 40.7 --lon -74.0 -y 2024
 |--------|---------|-------------|
 | `--out-dir DIR` | output | Output directory for plots |
 | `--cache-dir DIR` | era5_cache | Cache directory for NetCDF files |
+| `--data-cache-dir DIR` | data_cache | Cache directory for CSV data files |
 | `--settings FILE` | settings.yaml | Plot settings YAML file |
 
 ### Advanced Options
@@ -323,18 +325,16 @@ See comments in the file for detailed options.
 
 ## Output Files
 
-Generated files are saved in `output/` directory:
+**Plots** are saved in `output/` directory (configurable with `--out-dir`):
+- Individual plots: `Austin_TX_noon_temps_polar_2020_2025.png`
+- Combined subplot: `Overall_noon_temps_polar_2020_2025.png`
 
-**Individual plots:**
-- `Austin_TX_noon_temps_polar_2020_2025.png`
-- `Cambridge_UK_noon_temps_polar_2020_2025.png`
-
-**Combined subplot:**
-- `Overall_noon_temps_polar_2020_2025.png`
-
-**Data files (CSV):**
+**CSV data files** are cached in `data_cache/` directory (configurable with `--data-cache-dir`):
 - `Austin_TX_noon_temps_2020_2025.csv`
 - Each contains: date, local_noon, utc_time_used, temp_C, temp_F, grid coordinates
+
+**NetCDF files** are cached in `era5_cache/` directory (configurable with `--cache-dir`):
+- Raw ERA5 monthly data files for each location
 
 ---
 
