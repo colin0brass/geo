@@ -12,8 +12,6 @@ from data import retrieve_and_concat_data
 from orchestrator import plot_all
 from logging_config import setup_logging, get_logger
 
-logger = get_logger(__name__)
-
 
 def main() -> None:
     """
@@ -24,15 +22,30 @@ def main() -> None:
     """
     args = parse_args()
     
-    # Initialize logging with appropriate level based on flags
+    # Initialize logging
     setup_logging()
+    logger = get_logger("geo_temp")  # Use explicit name, not __name__
     
-    # Handle verbose/quiet flags
+    # Handle verbose/quiet flags for console output
+    geo_logger = logging.getLogger("geo_temp")
     if args.verbose:
-        logging.getLogger("geo_temp").setLevel(logging.DEBUG)
-        logger.debug("Verbose mode enabled")
+        # Set console handler to DEBUG level for verbose output
+        for handler in geo_logger.handlers:
+            if isinstance(handler, logging.StreamHandler) and not isinstance(handler, logging.FileHandler):
+                handler.setLevel(logging.DEBUG)
+        logger.debug("Verbose mode enabled (console output at DEBUG level)")
     elif args.quiet:
-        logging.getLogger("geo_temp").setLevel(logging.ERROR)
+        # Set console handler to ERROR level for quiet output
+        for handler in geo_logger.handlers:
+            if isinstance(handler, logging.StreamHandler) and not isinstance(handler, logging.FileHandler):
+                handler.setLevel(logging.ERROR)
+    elif args.dry_run:
+        # Dry-run needs at least INFO level to show preview output
+        for handler in geo_logger.handlers:
+            if isinstance(handler, logging.StreamHandler) and not isinstance(handler, logging.FileHandler):
+                current_level = handler.level
+                if current_level > logging.INFO:
+                    handler.setLevel(logging.INFO)
     
     # Handle --list-places flag (exits after listing)
     if args.list_places:

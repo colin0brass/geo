@@ -46,7 +46,8 @@ def setup_logging(config_path: Path = Path("config.yaml")) -> logging.Logger:
     )
     
     # File handler (DEBUG level - captures everything)
-    file_handler = logging.FileHandler(log_file, mode='a', encoding='utf-8')
+    # Use 'w' mode to clear log file on each run for a clean start
+    file_handler = logging.FileHandler(log_file, mode='w', encoding='utf-8')
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(detailed_formatter)
     logger.addHandler(file_handler)

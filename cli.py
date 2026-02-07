@@ -77,7 +77,7 @@ Examples:
         help="Name of a configured place, or custom place name with --lat/--lon"
     )
     location_exclusive.add_argument(
-        "--list",
+        "-L", "--list",
         dest="place_list",
         type=str,
         default=None,
@@ -162,12 +162,12 @@ Examples:
     advanced_group.add_argument(
         "-q", "--quiet",
         action="store_true",
-        help="Suppress all console output except errors"
+        help="Suppress console output except errors (log file unaffected)"
     )
     advanced_group.add_argument(
         "-v", "--verbose",
         action="store_true",
-        help="Enable verbose output (DEBUG level logging)"
+        help="Enable verbose console output (DEBUG level, log file always at DEBUG)"
     )
     
     return parser.parse_args()

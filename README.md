@@ -54,7 +54,7 @@ python geo_temp.py -p "Austin, TX" -y 2020-2025 -s main
 
 **Predefined place list:**
 ```bash
-python geo_temp.py --list preferred -y 2024 -s
+python geo_temp.py -L preferred -y 2024 -s
 ```
 
 **All locations:**
@@ -70,7 +70,7 @@ python geo_temp.py -p "Custom Location" --lat 40.7128 --lon -74.0060 -y 2024
 **Specify grid layout:**
 ```bash
 # 4 columns by 3 rows = 12 places max per image
-python geo_temp.py --list preferred -y 2024 --grid 4x3
+python geo_temp.py -L preferred -y 2024 --grid 4x3
 
 # If places exceed grid capacity, multiple images are generated
 python geo_temp.py -a -y 2024 --grid 4x4
@@ -178,7 +178,7 @@ python geo_temp.py --help
 | Option | Short | Description |
 |--------|-------|-------------|
 | `--place NAME` | `-p` | Single configured or custom place |
-| `--list NAME` | | Predefined place list (e.g., 'preferred') |
+| `--list NAME` | `-L` | Predefined place list (e.g., 'preferred') |
 | `--all` | `-a` | All configured places |
 
 ### Custom Location
@@ -219,8 +219,10 @@ python geo_temp.py -p "MyCity" --lat 40.7 --lon -74.0 -y 2024
 | Option | Short | Description |
 |--------|-------|-------------|
 | `--dry-run` | | Preview without downloading/plotting |
-| `--verbose` | `-v` | Enable DEBUG level logging |
-| `--quiet` | `-q` | Suppress output except errors |
+| `--verbose` | `-v` | Show DEBUG messages on console (log file always at DEBUG) |
+| `--quiet` | `-q` | Show only errors on console (log file unaffected) |
+
+**Note:** The log file (`geo_temp.log`) always captures all DEBUG messages regardless of console verbosity. It's cleared at the start of each run.
 
 ---
 
