@@ -14,30 +14,65 @@ places:
   # All available places (name, latitude, longitude)
   # Timezone is auto-detected from coordinates
   all_places:
-    - {name: "Austin, TX", lat: 30.2672, lon: -97.7431}
-    - {name: "Bangalore, India", lat: 12.9716, lon: 77.5946}
-    - {name: "Cambridge, UK", lat: 52.2053, lon: 0.1218}
-    - {name: "San Diego, CA", lat: 32.7157, lon: -117.1611}
-    - {name: "San Jose, CA", lat: 37.3382, lon: -121.8863}
-    - {name: "Trondheim, Norway", lat: 63.4305, lon: 10.3951}
-    - {name: "Singapore", lat: 1.3521, lon: 103.8198}
-    - {name: "Beijing, China", lat: 39.9042, lon: 116.4074}
-    - {name: "Lund, Sweden", lat: 55.7047, lon: 13.191}
-    - {name: "Cape Town, South Africa", lat: -33.9249, lon: 18.4241}
-    - {name: "Rio de Janeiro, Brazil", lat: -22.9068, lon: -43.1729}
-    - {name: "Rome, Italy", lat: 41.9028, lon: 12.4964}
-    - {name: "Paris, France", lat: 48.8566, lon: 2.3522}
-    - {name: "Berlin, Germany", lat: 52.52, lon: 13.405}
-    - {name: "Madrid, Spain", lat: 40.4168, lon: -3.7038}
-    - {name: "Amsterdam, Netherlands", lat: 52.3676, lon: 4.9041}
-    - {name: "Vienna, Austria", lat: 48.2082, lon: 16.3738}
-    - {name: "Stockholm, Sweden", lat: 59.3293, lon: 18.0686}
-    - {name: "Copenhagen, Denmark", lat: 55.6761, lon: 12.5683}
-    - {name: "Test City", lat: -37.81, lon: 144.96}
+    - {name: "Austin, TX", lat: 30.27, lon: -97.74}
+    - {name: "San Diego, CA", lat: 32.72, lon: -117.16}
+    - {name: "San Jose, CA", lat: 37.34, lon: -121.89}
+    - {name: "Denver, CO", lat: 39.74, lon: -104.99}
+    - {name: "Phoenix, AZ", lat: 33.45, lon: -112.07}
+    - {name: "Anchorage, AK", lat: 61.22, lon: -149.9}
+    - {name: "Miami, FL", lat: 25.76, lon: -80.19}
+    - {name: "Seattle, WA", lat: 47.61, lon: -122.33}
+    - {name: "Montreal, Canada", lat: 45.5, lon: -73.57}
+    - {name: "Reykjavik, Iceland", lat: 64.13, lon: -21.94}
+    - {name: "Cambridge, UK", lat: 52.21, lon: 0.12}
+    - {name: "London, UK", lat: 51.51, lon: -0.13}
+    - {name: "Trondheim, Norway", lat: 63.43, lon: 10.4}
+    - {name: "Tromsø, Norway", lat: 69.65, lon: 18.96}
+    - {name: "Stockholm, Sweden", lat: 59.33, lon: 18.07}
+    - {name: "Copenhagen, Denmark", lat: 55.68, lon: 12.57}
+    - {name: "Berlin, Germany", lat: 52.52, lon: 13.41}
+    - {name: "Munich, Germany", lat: 48.14, lon: 11.58}
+    - {name: "Paris, France", lat: 48.86, lon: 2.35}
+    - {name: "Madrid, Spain", lat: 40.42, lon: -3.7}
+    - {name: "Barcelona, Spain", lat: 41.39, lon: 2.16}
+    - {name: "Rome, Italy", lat: 41.9, lon: 12.5}
+    - {name: "Athens, Greece", lat: 37.98, lon: 23.73}
+    - {name: "Vienna, Austria", lat: 48.21, lon: 16.37}
+    - {name: "Amsterdam, Netherlands", lat: 52.37, lon: 4.9}
+    - {name: "Zurich, Switzerland", lat: 47.38, lon: 8.54}
+    - {name: "Moscow, Russia", lat: 55.76, lon: 37.62}
+    - {name: "Singapore", lat: 1.35, lon: 103.82}
+    - {name: "Bangalore, India", lat: 12.97, lon: 77.59}
+    - {name: "Mumbai, India", lat: 19.08, lon: 72.88}
+    - {name: "Delhi, India", lat: 28.61, lon: 77.21}
+    - {name: "Beijing, China", lat: 39.9, lon: 116.41}
+    - {name: "Shanghai, China", lat: 31.23, lon: 121.47}
+    - {name: "Hong Kong", lat: 22.32, lon: 114.17}
+    - {name: "Tokyo, Japan", lat: 35.68, lon: 139.65}
+    - {name: "Seoul, South Korea", lat: 37.57, lon: 126.98}
+    - {name: "Bangkok, Thailand", lat: 13.76, lon: 100.5}
+    - {name: "Dubai, UAE", lat: 25.2, lon: 55.27}
+    - {name: "Ulaanbaatar, Mongolia", lat: 47.89, lon: 106.91}
+    - {name: "Sydney, Australia", lat: -33.87, lon: 151.21}
+    - {name: "Melbourne, Australia", lat: -37.81, lon: 144.96}
+    - {name: "Brisbane, Australia", lat: -27.47, lon: 153.03}
+    - {name: "Perth, Australia", lat: -31.95, lon: 115.86}
+    - {name: "Auckland, New Zealand", lat: -36.85, lon: 174.76}
+    - {name: "Rio de Janeiro, Brazil", lat: -22.91, lon: -43.17}
+    - {name: "São Paulo, Brazil", lat: -23.55, lon: -46.63}
+    - {name: "Buenos Aires, Argentina", lat: -34.6, lon: -58.38}
+    - {name: "Santiago, Chile", lat: -33.45, lon: -70.67}
+    - {name: "Lima, Peru", lat: -12.05, lon: -77.04}
+    - {name: "Cape Town, South Africa", lat: -33.92, lon: 18.42}
+    - {name: "Johannesburg, South Africa", lat: -26.2, lon: 28.05}
+    - {name: "Cairo, Egypt", lat: 30.04, lon: 31.24}
+    - {name: "Nairobi, Kenya", lat: -1.29, lon: 36.82}
+    - {name: "Lagos, Nigeria", lat: 6.52, lon: 3.38}
+    - {name: "Lund, Sweden", lat: 55.7, lon: 13.19}
 
   # Predefined place lists (use with --list/-L)
   place_lists:
-    preferred:
+    default:
       - Austin, TX
       - Bangalore, India
       - Cambridge, UK
@@ -54,3 +89,91 @@ places:
       - Bangalore, India
       - Cambridge, UK
       - Trondheim, Norway
+
+    extreme_range:
+      - Ulaanbaatar, Mongolia
+      - Moscow, Russia
+      - Montreal, Canada
+      - Anchorage, AK
+      - Denver, CO
+
+    minimal_range:
+      - Singapore
+      - Mumbai, India
+      - Lima, Peru
+      - Nairobi, Kenya
+      - Lagos, Nigeria
+
+    arctic_circle:
+      - Tromsø, Norway
+      - Reykjavik, Iceland
+      - Anchorage, AK
+
+    tropical:
+      - Singapore
+      - Bangkok, Thailand
+      - Miami, FL
+      - Mumbai, India
+      - Rio de Janeiro, Brazil
+
+    desert:
+      - Phoenix, AZ
+      - Dubai, UAE
+      - Cairo, Egypt
+
+    mediterranean:
+      - Barcelona, Spain
+      - Athens, Greece
+      - Rome, Italy
+      - Perth, Australia
+
+    southern_hemisphere:
+      - Sydney, Australia
+      - Melbourne, Australia
+      - Auckland, New Zealand
+      - Cape Town, South Africa
+      - Buenos Aires, Argentina
+      - Santiago, Chile
+
+    tech_hubs:
+      - San Jose, CA
+      - Austin, TX
+      - Bangalore, India
+      - Singapore
+      - Seattle, WA
+      - Berlin, Germany
+      - Tokyo, Japan
+
+    europe_north:
+      - Tromsø, Norway
+      - Trondheim, Norway
+      - Stockholm, Sweden
+      - Copenhagen, Denmark
+      - Reykjavik, Iceland
+
+    europe_south:
+      - Barcelona, Spain
+      - Athens, Greece
+      - Rome, Italy
+      - Madrid, Spain
+
+    us_west:
+      - San Diego, CA
+      - San Jose, CA
+      - Seattle, WA
+      - Phoenix, AZ
+      - Denver, CO
+
+    asia_pacific:
+      - Singapore
+      - Tokyo, Japan
+      - Seoul, South Korea
+      - Bangkok, Thailand
+      - Sydney, Australia
+      - Hong Kong
+
+    comparison_similar_lat:
+      - Cambridge, UK
+      - Berlin, Germany
+      - Amsterdam, Netherlands
+      - Montreal, Canada

@@ -8,13 +8,14 @@
 ## Features
 - ✨ Download and cache ERA5 2m temperature data for any location
 - 📊 Generate publication-quality polar plots of annual temperature cycles
-- 🌍 **Automatic timezone detection** from coordinates (no manual lookup needed)
+- 🌍 **55 pre-configured global locations** with 13 thematic place lists
+- 🕐 **Automatic timezone detection** from coordinates (no manual lookup needed)
 - 🎯 Smart grid layout with automatic batching for large datasets
 - ⚙️ Highly configurable plotting via YAML settings
 - 🚀 Efficient caching to avoid redundant downloads
 - 💻 User-friendly CLI with short options and argument validation
 - 🐍 Clean Python API for programmatic use
-- ✅ Comprehensive test suite with 76 tests
+- ✅ Comprehensive test suite with 89 tests
 
 ---
 
@@ -54,7 +55,11 @@ python geo_temp.py -p "Austin, TX" -y 2020-2025 -s main
 
 **Predefined place list:**
 ```bash
-python geo_temp.py -L preferred -y 2024 -s
+# Use default list
+python geo_temp.py -L -y 2024 -s
+
+# Use specific list
+python geo_temp.py -L extreme_range -y 2024 -s
 ```
 
 **All locations:**
@@ -70,7 +75,7 @@ python geo_temp.py -p "Custom Location" --lat 40.7128 --lon -74.0060 -y 2024
 **Specify grid layout:**
 ```bash
 # 4 columns by 3 rows = 12 places max per image
-python geo_temp.py -L preferred -y 2024 --grid 4x3
+python geo_temp.py -L -y 2024 --grid 4x3
 
 # If places exceed grid capacity, multiple images are generated
 python geo_temp.py -a -y 2024 --grid 4x4
@@ -116,6 +121,7 @@ vis.plot_polar(title="Austin 2020 Noon Temps", save_file="output/austin_2020.png
 ## Project Structure
 - `geo_temp.py`: Main entry point and orchestration
 - `cli.py`: Command-line argument parsing, configuration loading, and validation
+- `config_manager.py`: Configuration file management and place geocoding
 - `cds.py`: ERA5 data download, caching, and processing
 - `plot.py`: Polar plotting and visualization (Visualizer class)
 - `data.py`: Data retrieval and I/O operations
@@ -125,7 +131,7 @@ vis.plot_polar(title="Austin 2020 Noon Temps", save_file="output/austin_2020.png
 - `settings.yaml`: Plot styling configuration
 - `era5_cache/`: Cached NetCDF files (auto-created)
 - `output/`: Generated plots and CSVs (auto-created)
-- `tests/`: Test suite with 76 tests across 6 modules
+- `tests/`: Test suite with 89 tests across 7 modules
 
 ---
 
@@ -144,6 +150,7 @@ vis.plot_polar(title="Austin 2020 Noon Temps", save_file="output/austin_2020.png
 - netcdf4
 - dask
 - timezonefinder
+- geopy
 
 **Installation:**
 
@@ -184,7 +191,7 @@ python geo_temp.py --help
 | Option | Short | Description |
 |--------|-------|-------------|
 | `--place NAME` | `-p` | Single configured or custom place |
-| `--list NAME` | `-L` | Predefined place list (e.g., 'preferred') |
+| `--list [NAME]` | `-L` | Predefined place list. Use `-L` for 'default' list, or `-L NAME` for specific list |
 | `--all` | `-a` | All configured places |
 
 ### Custom Location
@@ -212,9 +219,9 @@ python geo_temp.py -p "MyCity" --lat 40.7 --lon -74.0 -y 2024
 | `--grid COLSxROWS` | | Manual grid (e.g., 4x3) | auto |
 
 **Notes:** 
-- `-s` without argument defaults to "all"
-- `--show all` opens all plot windows simultaneously
-- `--show main` opens only the combined subplot window
+- `-s` without argument defaults to "main" (opens the combined subplot)
+- `-s all` opens all plots (combined + individual)
+- Plots open in your system's default image viewer (not matplotlib windows)
 
 ### Output Options
 
@@ -272,14 +279,33 @@ places:
 ```yaml
 places:
   place_lists:
-    preferred:
+    default:  # Used when calling -L without argument
       - Austin, TX
       - Cambridge, UK
       - San Jose, CA
-    us_cities:
-      - Austin, TX
-      - San Diego, CA
+      - Bangalore, India
+      - Trondheim, Norway
+      - Beijing, China
+    extreme_range:  # High annual temperature variation
+      - Ulaanbaatar, Mongolia
+      - Moscow, Russia
+      - Montreal, Canada
+    minimal_range:  # Stable equatorial climates
+      - Singapore
+      - Mumbai, India
+      - Lima, Peru
+    # ... plus 10 more thematic lists (55 places total)
 ```
+
+**Available place lists:**
+- `default`: Curated selection (used by `-L` without argument)
+- `us_cities`, `international`: Regional selections
+- `extreme_range`, `minimal_range`: Temperature variation comparison
+- `arctic_circle`, `tropical`, `desert`, `mediterranean`: Climate zones
+- `southern_hemisphere`: Southern hemisphere cities
+- `tech_hubs`: Global technology centers
+- `europe_north`, `europe_south`, `us_west`, `asia_pacific`: Regional groups
+- `comparison_similar_lat`: Cities at similar latitude (~52°N)
 
 ### settings.yaml
 
@@ -321,13 +347,14 @@ pytest -v                 # Verbose output
 pytest -k "timezone"      # Run tests matching pattern
 ```
 
-**Total: 76 tests** across 6 modules with comprehensive coverage:
+**Total: 89 tests** with 81% code coverage across 7 modules:
 
 | Module | Tests | Coverage |
 |--------|-------|----------|
 | test_cli.py | 40 | Argument parsing, grid layout, validation |
+| test_config_manager.py | 11 | Config loading, saving, place management |
 | test_logging_config.py | 10 | Logging setup and configuration |
-| test_visualizer.py | 8 | Polar plots, single/multi-subplot layouts |
+| test_visualizer.py | 11 | Polar plots, single/multi-subplot layouts |
 | test_cds.py | 8 | CDS API, Location, timezone auto-detection |
 | test_data.py | 7 | Data I/O, retrieval, CSV caching |
 | test_orchestrator.py | 3 | Grid dimension calculations |

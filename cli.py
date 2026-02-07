@@ -58,8 +58,10 @@ Examples:
         "-L", "--list",
         dest="place_list",
         type=str,
+        nargs='?',
+        const='default',
         default=None,
-        help="Name of a predefined place list (e.g., 'preferred', 'us_cities')"
+        help="Name of a predefined place list (e.g., 'default', 'us_cities'). If no list name provided, uses 'default' list."
     )
     location_exclusive.add_argument(
         "-a", "--all",
@@ -124,10 +126,10 @@ Examples:
         "-s", "--show",
         type=str,
         nargs='?',
-        const="all",
+        const="main",
         choices=["none", "main", "all"],
         default="none",
-        help="Show plots interactively: 'none' (default), 'main' (combined plot only), 'all' (all plots). Use -s without argument for 'all'"
+        help="Show plots interactively: 'none' (default), 'main' (combined plot only), 'all' (all plots). Use -s without argument for 'main'"
     )
     display_group.add_argument(
         "--grid",

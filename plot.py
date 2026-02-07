@@ -105,36 +105,34 @@ class Visualizer:
     @staticmethod
     def show_saved_plots(plot_files: list[str]) -> None:
         """
-        Display saved plot images by loading them from disk.
-        Opens all plots simultaneously in separate windows.
+        Open saved plot images with the system's default image viewer.
         
         Args:
             plot_files: List of file paths to saved plot images.
         """
+        import subprocess
+        import sys
+        
         if not plot_files:
             return
         
         if len(plot_files) > 1:
-            logger.info(f"Displaying all {len(plot_files)} plots...")
+            logger.info(f"Opening {len(plot_files)} plots...")
         else:
-            logger.info(f"Displaying plot...")
+            logger.info(f"Opening plot...")
         
-        # Create all figures first without blocking
-        figures = []
         for plot_file in plot_files:
-            img = mpimg.imread(plot_file)
-            fig, ax = plt.subplots(figsize=(13.34, 7.5))
-            ax.imshow(img)
-            ax.axis('off')
-            plt.tight_layout()
-            figures.append(fig)
-        
-        # Show all figures at once
-        plt.show()
-        
-        # Close all figures after display
-        for fig in figures:
-            plt.close(fig)
+            try:
+                if sys.platform == 'darwin':  # macOS
+                    subprocess.run(['open', plot_file], check=True)
+                elif sys.platform == 'win32':  # Windows
+                    subprocess.run(['start', '', plot_file], shell=True, check=True)
+                else:  # Linux and other Unix-like
+                    subprocess.run(['xdg-open', plot_file], check=True)
+            except subprocess.CalledProcessError as e:
+                logger.warning(f"Failed to open {plot_file}: {e}")
+            except FileNotFoundError:
+                logger.warning(f"Could not find system image viewer for {plot_file}")
     
     def add_dual_colourbars(self, fig: plt.Figure) -> None:
         """
