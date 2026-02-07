@@ -81,14 +81,24 @@ places:
       - Beijing, China
 
     us_cities:
-      - Austin, TX
+      - Anchorage, AK
+      - Seattle, WA
       - San Diego, CA
-      - San Jose, CA
+      - Phoenix, AZ
+      - Denver, CO
+      - Austin, TX
+      - Miami, FL
+      - Montreal, Canada
 
     international:
-      - Bangalore, India
-      - Cambridge, UK
-      - Trondheim, Norway
+      - Stockholm, Sweden
+      - Delhi, India
+      - Tokyo, Japan
+      - Cairo, Egypt
+      - Johannesburg, South Africa
+      - São Paulo, Brazil
+      - Shanghai, China
+      - Dubai, UAE
 
     extreme_range:
       - Ulaanbaatar, Mongolia
