@@ -15,7 +15,8 @@
 - 🚀 Efficient caching to avoid redundant downloads
 - 💻 User-friendly CLI with short options and argument validation
 - 🐍 Clean Python API for programmatic use
-- ✅ Comprehensive test suite with 89 tests
+- 📊 Real-time progress bars with aligned output during data downloads
+- ✅ Comprehensive test suite with 108 tests (87% coverage)
 
 ---
 
@@ -126,12 +127,13 @@ vis.plot_polar(title="Austin 2020 Noon Temps", save_file="output/austin_2020.png
 - `plot.py`: Polar plotting and visualization (Visualizer class)
 - `data.py`: Data retrieval and I/O operations
 - `orchestrator.py`: Plot coordination and batching
+- `progress.py`: Progress reporting system with callback handlers
 - `logging_config.py`: Centralized logging configuration
 - `config.yaml`: Application configuration (places, logging)
 - `settings.yaml`: Plot styling configuration
 - `era5_cache/`: Cached NetCDF files (auto-created)
 - `output/`: Generated plots and CSVs (auto-created)
-- `tests/`: Test suite with 89 tests across 7 modules
+- `tests/`: Test suite with 108 tests across 8 modules
 
 ---
 
@@ -218,7 +220,7 @@ python geo_temp.py -p "MyCity" --lat 40.7 --lon -74.0 -y 2024
 | `--show [MODE]` | `-s` | Display plots on screen: none/main/all | none |
 | `--grid COLSxROWS` | | Manual grid (e.g., 4x3) | auto |
 
-**Notes:** 
+**Notes:**
 - `-s` without argument defaults to "main" (opens the combined subplot)
 - `-s all` opens all plots (combined + individual)
 - Plots open in your system's default image viewer (not matplotlib windows)
@@ -347,24 +349,26 @@ pytest -v                 # Verbose output
 pytest -k "timezone"      # Run tests matching pattern
 ```
 
-**Total: 89 tests** with 81% code coverage across 7 modules:
+**Total: 108 tests** with 87% code coverage across 8 modules:
 
 | Module | Tests | Coverage |
 |--------|-------|----------|
 | test_cli.py | 40 | Argument parsing, grid layout, validation |
+| test_orchestrator.py | 12 | Plot coordination, batching, integration |
 | test_config_manager.py | 11 | Config loading, saving, place management |
-| test_logging_config.py | 10 | Logging setup and configuration |
 | test_visualizer.py | 11 | Polar plots, single/multi-subplot layouts |
+| test_logging_config.py | 10 | Logging setup and configuration |
+| test_progress.py | 10 | Progress handlers and callbacks |
 | test_cds.py | 8 | CDS API, Location, timezone auto-detection |
 | test_data.py | 7 | Data I/O, retrieval, CSV caching |
-| test_orchestrator.py | 3 | Grid dimension calculations |
 
 **Coverage highlights:**
 - ✅ CLI argument parsing and validation (including mutually exclusive groups)
 - ✅ Timezone auto-detection and explicit override
 - ✅ Grid layout calculations (1x1, 2D, custom grids)
 - ✅ Data retrieval with mocked CDS API
-- ✅ Plot generation (single subplot edge case covered)
+- ✅ Plot generation and orchestration (100% coverage)
+- ✅ Progress reporting with callbacks (94% coverage)
 - ✅ Configuration loading from YAML
 
 ---

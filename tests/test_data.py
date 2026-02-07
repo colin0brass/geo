@@ -86,7 +86,7 @@ def test_retrieve_and_concat_data_single_location(tmp_path, monkeypatch):
     })
     mock_cds.get_noon_series.return_value = mock_df
     
-    def mock_cds_init(cache_dir):
+    def mock_cds_init(cache_dir, progress_manager=None):
         return mock_cds
     
     monkeypatch.setattr('data.CDS', mock_cds_init)
@@ -114,7 +114,7 @@ def test_retrieve_and_concat_data_multiple_locations(tmp_path, monkeypatch):
     
     mock_cds.get_noon_series.side_effect = mock_get_noon_series
     
-    def mock_cds_init(cache_dir):
+    def mock_cds_init(cache_dir, progress_manager=None):
         return mock_cds
     
     monkeypatch.setattr('data.CDS', mock_cds_init)
@@ -140,7 +140,7 @@ def test_retrieve_and_concat_data_caches_to_csv(tmp_path, monkeypatch):
     })
     mock_cds.get_noon_series.return_value = mock_df
     
-    monkeypatch.setattr('data.CDS', lambda cache_dir: mock_cds)
+    monkeypatch.setattr('data.CDS', lambda cache_dir, progress_manager=None: mock_cds)
     
     out_dir = tmp_path / "output"
     retrieve_and_concat_data([loc], 2024, 2024, tmp_path, out_dir)

@@ -67,15 +67,23 @@ class CDS:
     Client for downloading and processing ERA5 reanalysis data from the CDS API.
     Handles data retrieval, caching, and conversion to pandas/xarray objects.
     """
-    def __init__(self, cache_dir: Path = Path("era5_cache")) -> None:
+    def __init__(self, cache_dir: Path = Path("era5_cache"), progress_manager=None) -> None:
         """
         Initialize the CDS client and set the cache directory.
         
         Args:
             cache_dir: Directory to cache downloaded NetCDF files.
+            progress_manager: Optional ProgressManager for progress reporting.
         """
-        self.client = cdsapi.Client()
+        self.client = cdsapi.Client(quiet=True, debug=False)
         self.cache_dir = cache_dir
+        self.progress_manager = progress_manager
+        
+        # Suppress verbose cdsapi logging after client initialization
+        cdsapi_logger = logging.getLogger('cdsapi')
+        cdsapi_logger.handlers.clear()
+        cdsapi_logger.setLevel(logging.WARNING)
+        cdsapi_logger.propagate = False
 
     def _cds_retrieve_era5_month(
         self,
@@ -354,10 +362,30 @@ class CDS:
         Retrieve and return a DataFrame of daily local noon temperatures for the given location and date range.
         """
         all_dfs = []
-        for year, month in self._month_range(start_d, end_d):
-            # df_month = self._get_month_noon_data(location, year, month, half_box_deg)
-            df_month = self.get_month_daily_noon_data(location, year, month, half_box_deg)
-            all_dfs.append(df_month)
+        months_list = list(self._month_range(start_d, end_d))
+        
+        # Group months by year for progress display
+        from collections import defaultdict
+        years_dict = defaultdict(list)
+        for year, month in months_list:
+            years_dict[year].append(month)
+        
+        for year in sorted(years_dict.keys()):
+            months_in_year = years_dict[year]
+            total_in_year = len(months_in_year)
+            
+            if self.progress_manager:
+                self.progress_manager.notify_year_start(location.name, year, total_in_year)
+            
+            for idx, month in enumerate(months_in_year, 1):
+                df_month = self.get_month_daily_noon_data(location, year, month, half_box_deg)
+                all_dfs.append(df_month)
+                
+                if self.progress_manager:
+                    self.progress_manager.notify_month_complete(location.name, year, idx, total_in_year)
+            
+            if self.progress_manager:
+                self.progress_manager.notify_year_complete(location.name, year)
 
         df_all = pd.concat(all_dfs, ignore_index=True)
 

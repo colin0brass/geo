@@ -13,6 +13,7 @@ from pathlib import Path
 import pandas as pd
 
 from cds import CDS, Location
+from progress import get_progress_manager
 
 logger = logging.getLogger("geo_temp")
 
@@ -38,9 +39,12 @@ def retrieve_and_concat_data(
         pd.DataFrame: Concatenated DataFrame with temperature data for all places.
     """
     df_overall = pd.DataFrame()
-    for loc in place_list:
-        logger.info(f"Retrieving data for {loc.name} ({loc.lat}, {loc.lon}) in timezone {loc.tz}...")
-        cds = CDS(cache_dir=cache_dir)
+    total_places = len(place_list)
+    progress_mgr = get_progress_manager()
+    
+    for idx, loc in enumerate(place_list, 1):
+        logger.info(f"[{idx}/{total_places}] Retrieving data for {loc.name} ({loc.lat}, {loc.lon}) in timezone {loc.tz}...")
+        cds = CDS(cache_dir=cache_dir, progress_manager=progress_mgr)
         start_d = date(start_year, 1, 1)
         end_d = date(end_year, 12, 31)
         file_leaf_name = f"{loc.name.replace(' ', '_').replace(',', '')}_noon_temps_{start_year}_{end_year}.csv"

@@ -12,6 +12,7 @@ from config_manager import load_places, add_place_to_config
 from data import retrieve_and_concat_data
 from orchestrator import plot_all
 from logging_config import setup_logging, get_logger
+from progress import get_progress_manager, ConsoleProgressHandler
 
 
 def main() -> None:
@@ -26,6 +27,10 @@ def main() -> None:
     # Initialize logging
     setup_logging()
     logger = get_logger("geo_temp")  # Use explicit name, not __name__
+    
+    # Register progress handler for console output
+    progress_manager = get_progress_manager()
+    progress_manager.register_handler(ConsoleProgressHandler())
     
     # Handle verbose/quiet flags for console output
     geo_logger = logging.getLogger("geo_temp")

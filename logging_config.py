@@ -58,6 +58,17 @@ def setup_logging(config_path: Path = Path("config.yaml")) -> logging.Logger:
     console_handler.setFormatter(simple_formatter)
     logger.addHandler(console_handler)
     
+    # Suppress verbose output from cdsapi library
+    # Remove any existing handlers and set level to WARNING
+    cdsapi_logger = logging.getLogger('cdsapi')
+    cdsapi_logger.handlers.clear()  # Remove any handlers cdsapi may have added
+    cdsapi_logger.setLevel(logging.WARNING)
+    cdsapi_logger.propagate = False
+    
+    # Also suppress the root logger to catch any cdsapi messages that bypass their logger
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.WARNING)
+    
     return logger
 
 
