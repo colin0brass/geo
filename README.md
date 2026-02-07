@@ -14,7 +14,7 @@
 - Highly configurable plotting (YAML settings)
 - Efficient caching to avoid redundant downloads
 - Command-line interface and Python API
-- Comprehensive test suite with 54 tests
+- Comprehensive test suite with 73 tests
 
 ---
 
@@ -236,17 +236,34 @@ python geo_temp.py --all --years 2024
 Run all tests with:
 
 ```bash
-pytest
-# or if pytest is not in PATH:
-python -m pytest
+pytest                    # Run all tests
+pytest tests/test_cli.py  # Run specific module
+pytest -v                 # Verbose output
 ```
 
-Tests are organized into three modules:
-- `tests/test_cds.py`: 6 tests for CDS class, Location dataclass, and data retrieval
-- `tests/test_visualizer.py`: 7 tests for Visualizer, temperature conversion, and data handling
-- `tests/test_cli.py`: 41 tests for CLI argument parsing, grid layout, place list handling, and file I/O
+**Total: 73 tests** across 6 test modules covering all components:
 
-**Total: 54 tests** with comprehensive coverage of all CLI options (`--place`, `--place-list`, `--all`, `--years`, `--show`, `--grid`, `--scale-height`) and error handling.
+### Test Modules
+
+| Module | Tests | Coverage |
+|--------|-------|----------|
+| test_cli.py | 46 | CLI parsing, grid layout, place lists |
+| test_logging_config.py | 10 | Logging configuration from config.yaml |
+| test_data.py | 7 | Data I/O and retrieval operations |
+| test_visualizer.py | 7 | Temperature conversion, data fields |
+| test_cds.py | 6 | CDS API interaction, Location dataclass |
+| test_orchestrator.py | 3 | Grid dimension calculations |
+
+### Coverage by Component
+
+- ✅ **cli.py** (46 tests) - Comprehensive coverage of argument parsing, year parsing, place list management, grid layout calculations, and grid string parsing
+- ✅ **logging_config.py** (10 tests) - config.yaml integration, console/file handlers, logging levels, handler management
+- ✅ **data.py** (7 tests) - File I/O, data retrieval, CSV caching, directory creation
+- ✅ **plot.py** (7 tests) - Visualizer utilities, temperature conversion, data field calculations
+- ✅ **cds.py** (6 tests) - CDS API with mocks, Location dataclass, month range generation
+- ✅ **orchestrator.py** (3 tests) - Grid dimension logic (complex integration via E2E)
+
+All tests validate the modular refactoring maintained functionality while improving code organization.
 
 ---
 

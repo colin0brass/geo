@@ -1,29 +1,13 @@
-# Test CLI and file I/O utilities in geo_temp.py
+# Test CLI utilities
 import pytest
 import pandas as pd
 import subprocess
 import sys
 from pathlib import Path
 from unittest.mock import patch
-from geo_temp import read_data_file, save_data_file, parse_args, parse_years, get_place_list, calculate_grid_layout, parse_grid
+from cli import parse_args, parse_years, get_place_list, calculate_grid_layout, parse_grid, load_places
 from cds import Location
 
-def test_read_and_save_data_file(tmp_path):
-    df = pd.DataFrame({
-        'date': ['2025-01-01'],
-        'utc_time_used': ['2025-01-01T18:00:00'],
-        'local_noon': ['2025-01-01T12:00:00'],
-        'temp_C': [10.0],
-        'temp_F': [50.0],
-        'grid_lat': [1.0],
-        'grid_lon': [2.0],
-        'place_name': ['Test'],
-    })
-    out_file = tmp_path / "test.csv"
-    save_data_file(df, out_file)
-    df2 = read_data_file(out_file)
-    assert not df2.empty
-    assert df2['date'].iloc[0] == pd.Timestamp('2025-01-01')
 
 def test_cli_help():
     result = subprocess.run([sys.executable, '-m', 'geo_temp', '--help'], capture_output=True, text=True)
