@@ -58,16 +58,34 @@ def save_config(config: dict, config_path: Path = Path("config.yaml")) -> None:
     lines.append("# Programmatic updates (e.g., --add-place) will reformat this file")
     lines.append("")
     
+    # Track which sections we've explicitly handled
+    handled_sections = set()
+    
     # Logging section
     if 'logging' in config:
+        handled_sections.add('logging')
         lines.append("# Logging configuration")
         lines.append("logging:")
         for key, value in config['logging'].items():
             lines.append(f"  {key}: {value}")
         lines.append("")  # Blank line after section
     
+    # Grid section
+    if 'grid' in config:
+        handled_sections.add('grid')
+        lines.append("# Grid layout configuration")
+        lines.append("grid:")
+        grid_config = config['grid']
+        lines.append("  # Maximum automatic grid size (rows x columns)")
+        lines.append("  # Used when no --grid option is specified")
+        lines.append("  # Locations exceeding this will be batched into multiple images")
+        for key, value in grid_config.items():
+            lines.append(f"  {key}: {value}")
+        lines.append("")  # Blank line after section
+    
     # Places section
     if 'places' in config:
+        handled_sections.add('places')
         lines.append("# Places configuration")
         lines.append("places:")
         places_config = config['places']
@@ -102,6 +120,18 @@ def save_config(config: dict, config_path: Path = Path("config.yaml")) -> None:
                     lines.append(f"      - {place_name}")
                 if list_name != list(places_config['place_lists'].keys())[-1]:
                     lines.append("")  # Blank line between lists
+    
+    # Fallback: write any other sections using standard YAML formatting
+    # This preserves sections we don't explicitly handle above
+    for section_name, section_data in config.items():
+        if section_name not in handled_sections:
+            lines.append(f"# {section_name.replace('_', ' ').title()} section")
+            lines.append(f"{section_name}:")
+            # Use standard YAML dump for unknown sections
+            section_yaml = yaml.dump(section_data, default_flow_style=False, sort_keys=False)
+            for line in section_yaml.rstrip().split('\n'):
+                lines.append(f"  {line}")
+            lines.append("")  # Blank line after section
     
     # Write to file
     with open(config_path, "w") as f:

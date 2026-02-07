@@ -125,6 +125,12 @@ Examples:
         help="Output directory for plots (default: output)"
     )
     output_group.add_argument(
+        "--config",
+        type=Path,
+        default=Path("config.yaml"),
+        help="Path to config YAML file (default: config.yaml)"
+    )
+    output_group.add_argument(
         "--settings",
         type=Path,
         default=Path("settings.yaml"),
