@@ -420,7 +420,8 @@ class CDS:
         location: Location,
         start_d: date,
         end_d: date,
-        half_box_deg: float = 0.25
+        half_box_deg: float = 0.25,
+        notify_progress: bool = True
     ) -> pd.DataFrame:
         """
         Retrieve and return a DataFrame of daily local noon temperatures for the given location and date range.
@@ -432,6 +433,7 @@ class CDS:
             start_d (date): Start date.
             end_d (date): End date.
             half_box_deg (float, optional): Half-size of the grid box in degrees. Defaults to 0.25.
+            notify_progress (bool, optional): Whether to notify progress manager. Defaults to True.
         Returns:
             pd.DataFrame: DataFrame with daily local noon temperatures for the date range.
         """
@@ -442,14 +444,14 @@ class CDS:
         total_years = len(years)
         
         for year_idx, year in enumerate(years, 1):
-            if self.progress_manager:
+            if self.progress_manager and notify_progress:
                 self.progress_manager.notify_year_start(location.name, year, year_idx, total_years)
             
             # Download entire year at once
             df_year = self.get_year_daily_noon_data(location, year, half_box_deg)
             all_dfs.append(df_year)
             
-            if self.progress_manager:
+            if self.progress_manager and notify_progress:
                 self.progress_manager.notify_year_complete(location.name, year, year_idx, total_years)
 
         df_all = pd.concat(all_dfs, ignore_index=True)

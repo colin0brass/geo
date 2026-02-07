@@ -111,7 +111,7 @@ def test_retrieve_and_concat_data_multiple_locations(tmp_path, monkeypatch):
     
     mock_cds = MagicMock()
     
-    def mock_get_noon_series(loc, start_d, end_d):
+    def mock_get_noon_series(loc, start_d, end_d, notify_progress=True):
         return pd.DataFrame({
             'date': ['2024-01-01'],
             'temp_C': [10.0],

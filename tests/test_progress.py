@@ -42,9 +42,9 @@ def test_progress_manager_notify_location_start():
             self.called = False
             self.args = None
         
-        def on_location_start(self, location_name, location_num, total_locations):
+        def on_location_start(self, location_name, location_num, total_locations, total_years=1):
             self.called = True
-            self.args = (location_name, location_num, total_locations)
+            self.args = (location_name, location_num, total_locations, total_years)
         
         def on_year_start(self, *args): pass
         def on_month_complete(self, *args): pass
@@ -57,7 +57,7 @@ def test_progress_manager_notify_location_start():
     manager.notify_location_start("Test City", 1, 5)
     
     assert mock_handler.called
-    assert mock_handler.args == ("Test City", 1, 5)
+    assert mock_handler.args == ("Test City", 1, 5, 1)
 
 
 def test_progress_manager_notify_year_start():
@@ -192,8 +192,8 @@ def test_console_progress_handler_with_place_numbering(capsys):
     """Test console progress handler with place numbering."""
     handler = ConsoleProgressHandler()
     
-    # Simulate location start (sets place context)
-    handler.on_location_start("Austin, TX", 2, 5)
+    # Simulate location start (sets place context and total years)
+    handler.on_location_start("Austin, TX", 2, 5, total_years=3)
     
     # Simulate year start and complete
     handler.on_year_start("Austin, TX", 2024, 1, 3)

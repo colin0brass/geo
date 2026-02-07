@@ -121,22 +121,29 @@ def retrieve_and_concat_data(
             cds_place_num += 1
             logger.info(f"Fetching {loc.name} from CDS for {len(missing_years)} year(s): {missing_years}")
             
-            # Notify progress manager of location start
-            progress_mgr.notify_location_start(loc.name, cds_place_num, total_cds_places)
+            # Notify progress manager of location start with total years to fetch
+            progress_mgr.notify_location_start(loc.name, cds_place_num, total_cds_places, len(missing_years))
             
             cds = CDS(cache_dir=cache_dir, progress_manager=progress_mgr)
             
-            for year in missing_years:
+            for year_idx, year in enumerate(missing_years, 1):
                 start_d = date(year, 1, 1)
                 end_d = date(year, 12, 31)
+                
+                # Notify year start with accurate position
+                progress_mgr.notify_year_start(loc.name, year, year_idx, len(missing_years))
+                
                 logger.info(f"  Retrieving {year} for {loc.name}...")
-                df_year = cds.get_noon_series(loc, start_d, end_d)
+                df_year = cds.get_noon_series(loc, start_d, end_d, notify_progress=False)
                 
                 # Append to cache file (merges with existing data)
                 save_data_file(df_year, yaml_file, loc, append=True)
                 
                 # Add to overall dataframe
                 df_overall = pd.concat([df_overall, df_year], ignore_index=True)
+                
+                # Notify year complete
+                progress_mgr.notify_year_complete(loc.name, year, year_idx, len(missing_years))
     
     df_overall['date'] = pd.to_datetime(df_overall['date'])
     return df_overall
