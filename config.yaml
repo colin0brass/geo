@@ -1,22 +1,18 @@
-# Configuration for geo_temp
+# geo_temp configuration file
+# Programmatic updates (e.g., --add-place) will reformat this file
 
 # Logging configuration
 logging:
-  # Log file name (relative to working directory)
   log_file: geo_temp.log
-  # Console output level: DEBUG, INFO, WARNING, ERROR, CRITICAL
-  # WARNING level by default - only warnings and errors shown in console
-  # File always captures DEBUG level for detailed troubleshooting
   console_level: WARNING
 
 # Places configuration
 places:
-  # Default place to use when no place is specified
+  # Default place used when no location is specified
   default_place: Cambridge, UK
 
-  # All available places
-  # Note: 'tz' (timezone) is optional - will be auto-detected from coordinates using timezonefinder
-  # Format: {name: Place Name, lat: latitude, lon: longitude, tz: Timezone}  (tz is optional)
+  # All available places (name, latitude, longitude)
+  # Timezone is auto-detected from coordinates
   all_places:
     - {name: "Austin, TX", lat: 30.2672, lon: -97.7431}
     - {name: "Bangalore, India", lat: 12.9716, lon: 77.5946}
@@ -24,21 +20,22 @@ places:
     - {name: "San Diego, CA", lat: 32.7157, lon: -117.1611}
     - {name: "San Jose, CA", lat: 37.3382, lon: -121.8863}
     - {name: "Trondheim, Norway", lat: 63.4305, lon: 10.3951}
-    - {name: Singapore, lat: 1.3521, lon: 103.8198}
+    - {name: "Singapore", lat: 1.3521, lon: 103.8198}
     - {name: "Beijing, China", lat: 39.9042, lon: 116.4074}
-    - {name: "Lund, Sweden", lat: 55.7047, lon: 13.1910}
+    - {name: "Lund, Sweden", lat: 55.7047, lon: 13.191}
     - {name: "Cape Town, South Africa", lat: -33.9249, lon: 18.4241}
     - {name: "Rio de Janeiro, Brazil", lat: -22.9068, lon: -43.1729}
     - {name: "Rome, Italy", lat: 41.9028, lon: 12.4964}
     - {name: "Paris, France", lat: 48.8566, lon: 2.3522}
-    - {name: "Berlin, Germany", lat: 52.5200, lon: 13.4050}
+    - {name: "Berlin, Germany", lat: 52.52, lon: 13.405}
     - {name: "Madrid, Spain", lat: 40.4168, lon: -3.7038}
     - {name: "Amsterdam, Netherlands", lat: 52.3676, lon: 4.9041}
     - {name: "Vienna, Austria", lat: 48.2082, lon: 16.3738}
     - {name: "Stockholm, Sweden", lat: 59.3293, lon: 18.0686}
     - {name: "Copenhagen, Denmark", lat: 55.6761, lon: 12.5683}
+    - {name: "Test City", lat: -37.81, lon: 144.96}
 
-  # Named place lists for convenience
+  # Predefined place lists (use with --list/-L)
   place_lists:
     preferred:
       - Austin, TX
@@ -47,10 +44,12 @@ places:
       - San Jose, CA
       - Trondheim, Norway
       - Beijing, China
+
     us_cities:
       - Austin, TX
       - San Diego, CA
       - San Jose, CA
+
     international:
       - Bangalore, India
       - Cambridge, UK

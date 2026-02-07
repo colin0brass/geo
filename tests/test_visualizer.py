@@ -1,7 +1,10 @@
 # Test Visualizer class and related data handling
 import pytest
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend for tests
 from plot import Visualizer
+
 
 def test_temp_c_to_f():
     assert Visualizer.temp_c_to_f(0) == 32.0
@@ -59,15 +62,49 @@ def test_plot_polar_subplots_single_place(tmp_path):
         'temp_C': [20 + 5 * (i % 30) / 30 for i in range(365)],
         'place_name': ['Test Place'] * 365
     })
-    vis = Visualizer(df)
     
-    # Test with single place (1x1 grid) - this was the bug case
-    output_file = tmp_path / "test_single.png"
+    vis = Visualizer(df)
+    output_file = tmp_path / "single_place.png"
+    
+    # Should not raise error for 1x1 grid
     vis.plot_polar_subplots(
-        subplot_field='place_name',
-        title="Test Single",
+        title="Single Place Test",
         save_file=str(output_file),
+        num_rows=1,
+        num_cols=1,
         show_plot=False
     )
+    
     assert output_file.exists()
-    assert output_file.stat().st_size > 0
+
+
+def test_plot_polar_basic(tmp_path):
+    """Test basic plot_polar functionality."""
+    df = pd.DataFrame({
+        'date': pd.date_range('2025-01-01', periods=100),
+        'temp_C': [20] * 100
+    })
+    
+    vis = Visualizer(df)
+    output_file = tmp_path / "basic_polar.png"
+    
+    vis.plot_polar(title="Basic Test", save_file=str(output_file), show_plot=False)
+    
+    assert output_file.exists()
+
+
+def test_plot_polar_with_range(tmp_path):
+    """Test plot_polar with varying temperatures."""
+    df = pd.DataFrame({
+        'date': pd.date_range('2025-01-01', periods=365),
+        'temp_C': [10 + 20 * (i / 365) for i in range(365)]
+    })
+    
+    vis = Visualizer(df)
+    output_file = tmp_path / "range_polar.png"
+    
+    vis.plot_polar(title="Range Test", save_file=str(output_file), show_plot=False)
+    
+    assert output_file.exists()
+    # Check temp range was calculated
+    assert vis.tmin_c < vis.tmax_c

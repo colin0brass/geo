@@ -214,7 +214,14 @@ class Visualizer:
             
         ax.set_xticklabels(self.MONTH_LABELS, fontsize=xtick_fontsize)
         ax.set_yticks([])
-        ax.set_ylim(self.tmin_c, self.tmax_c)
+        
+        # Set y-axis limits, handling case where min == max
+        if self.tmin_c < self.tmax_c:
+            ax.set_ylim(self.tmin_c, self.tmax_c)
+        else:
+            # Add a small margin when all temps are the same
+            margin = 1.0 if self.tmin_c != 0 else 1.0
+            ax.set_ylim(self.tmin_c - margin, self.tmax_c + margin)
 
     def plot_polar(
         self,

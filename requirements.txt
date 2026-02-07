@@ -4,7 +4,9 @@ numpy
 pandas
 pyyaml
 pytest
+pytest-cov
 xarray
 netcdf4
 dask
 timezonefinder
+geopy

@@ -1,0 +1,176 @@
+"""
+Configuration file management for geo_temp.
+
+Handles loading and saving of config.yaml with proper formatting.
+"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import yaml
+from geopy.geocoders import Nominatim
+from timezonefinder import TimezoneFinder
+
+from cds import Location
+
+
+def load_places(yaml_path: Path = Path("config.yaml")) -> tuple[dict, str, dict]:
+    """
+    Load places configuration from YAML.
+    
+    Args:
+        yaml_path: Path to the configuration YAML file.
+    
+    Returns:
+        tuple: (places_dict, default_place_name, place_lists_dict)
+    """
+    with open(yaml_path, "r") as f:
+        config = yaml.safe_load(f)
+    
+    # Extract places section from config
+    places_config = config.get('places', {})
+    places_dict = {p['name']: Location(**p) for p in places_config['all_places']}
+    default_place = places_config.get('default_place', list(places_dict.keys())[0])
+    place_lists = places_config.get('place_lists', {})
+    
+    return places_dict, default_place, place_lists
+
+
+def save_config(config: dict, config_path: Path = Path("config.yaml")) -> None:
+    """
+    Save configuration to YAML file with proper formatting.
+    
+    Uses compact flow style for places (one line per place) and ensures
+    spacing between sections. Note: This overwrites the file and does not
+    preserve user-added comments.
+    
+    Args:
+        config: Configuration dictionary to save
+        config_path: Path to the configuration YAML file
+    """
+    # Build YAML string manually for better formatting control
+    lines = []
+    
+    # File header comment
+    lines.append("# geo_temp configuration file")
+    lines.append("# Programmatic updates (e.g., --add-place) will reformat this file")
+    lines.append("")
+    
+    # Logging section
+    if 'logging' in config:
+        lines.append("# Logging configuration")
+        lines.append("logging:")
+        for key, value in config['logging'].items():
+            lines.append(f"  {key}: {value}")
+        lines.append("")  # Blank line after section
+    
+    # Places section
+    if 'places' in config:
+        lines.append("# Places configuration")
+        lines.append("places:")
+        places_config = config['places']
+        
+        # Default place
+        if 'default_place' in places_config:
+            lines.append(f"  # Default place used when no location is specified")
+            lines.append(f"  default_place: {places_config['default_place']}")
+            lines.append("")  # Blank line before all_places
+        
+        # All places (compact format)
+        if 'all_places' in places_config:
+            lines.append("  # All available places (name, latitude, longitude)")
+            lines.append("  # Timezone is auto-detected from coordinates")
+            lines.append("  all_places:")
+            for place in places_config['all_places']:
+                # Use flow style (one line) for each place
+                # Quote the name to handle commas and special characters
+                name = place['name']
+                lat = place['lat']
+                lon = place['lon']
+                lines.append(f"    - {{name: \"{name}\", lat: {lat}, lon: {lon}}}")
+            lines.append("")  # Blank line after all_places
+        
+        # Place lists
+        if 'place_lists' in places_config:
+            lines.append("  # Predefined place lists (use with --list/-L)")
+            lines.append("  place_lists:")
+            for list_name, places in places_config['place_lists'].items():
+                lines.append(f"    {list_name}:")
+                for place_name in places:
+                    lines.append(f"      - {place_name}")
+                if list_name != list(places_config['place_lists'].keys())[-1]:
+                    lines.append("")  # Blank line between lists
+    
+    # Write to file
+    with open(config_path, "w") as f:
+        f.write("\n".join(lines))
+        if lines and not lines[-1] == "":
+            f.write("\n")  # Ensure file ends with newline
+
+
+def add_place_to_config(place_name: str, config_path: Path = Path("config.yaml")) -> None:
+    """
+    Look up coordinates for a place and add it to the configuration file.
+    
+    Args:
+        place_name: Name of the place to add (e.g., "Seattle, WA")
+        config_path: Path to the configuration YAML file
+    """
+    # Geocode the place
+    print(f"Looking up coordinates for '{place_name}'...")
+    geolocator = Nominatim(user_agent="geo_temp")
+    
+    try:
+        location = geolocator.geocode(place_name)
+        if location is None:
+            print(f"ERROR: Could not find coordinates for '{place_name}'")
+            print("Try being more specific (e.g., 'Seattle, WA, USA' instead of 'Seattle')")
+            sys.exit(1)
+        
+        lat = round(location.latitude, 2)
+        lon = round(location.longitude, 2)
+        
+        print(f"Found: {location.address}")
+        print(f"Coordinates: {lat}, {lon}")
+        
+        # Auto-detect timezone
+        tf = TimezoneFinder()
+        tz = tf.timezone_at(lat=lat, lng=lon)
+        if tz:
+            print(f"Timezone: {tz}")
+        
+        # Load existing config
+        with open(config_path, "r") as f:
+            config = yaml.safe_load(f)
+        
+        # Check if place already exists
+        places_config = config.get('places', {})
+        all_places = places_config.get('all_places', [])
+        
+        for place in all_places:
+            if place['name'] == place_name:
+                print(f"\nWARNING: '{place_name}' already exists in config with coordinates {place['lat']}, {place['lon']}")
+                response = input("Overwrite? (y/n): ")
+                if response.lower() != 'y':
+                    print("Cancelled.")
+                    sys.exit(0)
+                all_places.remove(place)
+                break
+        
+        # Add new place
+        new_place = {'name': place_name, 'lat': lat, 'lon': lon}
+        all_places.append(new_place)
+        
+        # Save config with proper formatting
+        save_config(config, config_path)
+        
+        print(f"\n✓ Added '{place_name}' to {config_path}")
+        print(f"  Coordinates: {lat}, {lon}")
+        if tz:
+            print(f"  Timezone will be auto-detected as: {tz}")
+        
+    except Exception as e:
+        print(f"ERROR: Failed to look up or add place: {e}")
+        sys.exit(1)

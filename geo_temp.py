@@ -7,7 +7,8 @@ processing, and visualization of ERA5 temperature data.
 
 import logging
 
-from cli import load_places, parse_args, parse_grid, parse_years, get_place_list, list_places_and_exit
+from cli import parse_args, parse_grid, parse_years, get_place_list, list_places_and_exit
+from config_manager import load_places, add_place_to_config
 from data import retrieve_and_concat_data
 from orchestrator import plot_all
 from logging_config import setup_logging, get_logger
@@ -50,6 +51,11 @@ def main() -> None:
     # Handle --list-places flag (exits after listing)
     if args.list_places:
         list_places_and_exit()
+    
+    # Handle --add-place flag (exits after adding)
+    if args.add_place:
+        add_place_to_config(args.add_place)
+        return
     
     start_year, end_year = parse_years(args.years)
     grid = parse_grid(args.grid)

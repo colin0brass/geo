@@ -1,8 +1,7 @@
 """
 CLI and configuration utilities for geo_temp.
 
-Handles command-line argument parsing, configuration loading,
-and grid layout calculations.
+Handles command-line argument parsing and grid layout calculations.
 """
 
 from __future__ import annotations
@@ -17,32 +16,11 @@ from pathlib import Path
 import yaml
 
 from cds import Location
+from config_manager import load_places
 
 logger = logging.getLogger("geo_temp")
 
 __version__ = "1.0.0"
-
-
-def load_places(yaml_path: Path = Path("config.yaml")) -> tuple[dict, str, dict]:
-    """
-    Load places configuration from YAML.
-    
-    Args:
-        yaml_path: Path to the configuration YAML file.
-    
-    Returns:
-        tuple: (places_dict, default_place_name, place_lists_dict)
-    """
-    with open(yaml_path, "r") as f:
-        config = yaml.safe_load(f)
-    
-    # Extract places section from config
-    places_config = config.get('places', {})
-    places_dict = {p['name']: Location(**p) for p in places_config['all_places']}
-    default_place = places_config.get('default_place', list(places_dict.keys())[0])
-    place_lists = places_config.get('place_lists', {})
-    
-    return places_dict, default_place, place_lists
 
 
 def parse_args() -> argparse.Namespace:
@@ -101,6 +79,12 @@ Examples:
         "-l", "--list-places",
         action="store_true",
         help="List all available places and place lists, then exit"
+    )
+    info_group.add_argument(
+        "--add-place",
+        type=str,
+        metavar="NAME",
+        help="Add a new place to config (looks up coordinates online). Usage: --add-place 'Seattle, WA'"
     )
     
     # Time period

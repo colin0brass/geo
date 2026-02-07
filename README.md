@@ -80,6 +80,9 @@ python geo_temp.py -a -y 2024 --grid 4x4
 
 **Advanced options:**
 ```bash
+# Add a new place to config (looks up coordinates automatically)
+python geo_temp.py --add-place "Seattle, WA"
+
 # Dry-run mode (preview without executing)
 python geo_temp.py -a -y 2024 --dry-run
 
@@ -163,6 +166,9 @@ pip install -r requirements.txt
 ### Quick Commands
 
 ```bash
+# Add a new place (looks up coordinates online)
+python geo_temp.py --add-place "Seattle, WA"
+
 # List all available places and place lists
 python geo_temp.py -l
 
@@ -184,6 +190,10 @@ python geo_temp.py --help
 ### Custom Location
 
 ```bash
+# Add a new place to config (looks up coordinates)
+python geo_temp.py --add-place "Seattle, WA"
+
+# Use custom coordinates without adding to config
 python geo_temp.py -p "MyCity" --lat 40.7 --lon -74.0 -y 2024
 # Timezone auto-detected; use --tz to override
 ```
