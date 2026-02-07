@@ -52,9 +52,10 @@ class ConsoleProgressHandler:
         # Pad location name to 30 characters for alignment
         padded_name = f"{location_name:<30}"
         
-        # Show year progress with percentage (before starting this year)
-        percentage = int(100 * (current_year - 1) / total_years)
-        print(f"\r  {place_prefix}{padded_name} - Year {current_year}/{total_years} ({year}): [{bar}] {percentage}%", end='', flush=True)
+        # Show number of completed years (not including current year being downloaded)
+        completed_years = current_year - 1
+        percentage = int(100 * completed_years / total_years)
+        print(f"\r  {place_prefix}{padded_name} - Year {completed_years}/{total_years} ({year}): [{bar}] {percentage}%", end='', flush=True)
     
     def on_year_complete(self, location_name: str, year: int, current_year: int, total_years: int) -> None:
         """Update the progress bar after year completes."""
