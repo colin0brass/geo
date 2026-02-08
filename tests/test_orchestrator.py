@@ -91,6 +91,7 @@ def test_create_batch_subplot_single_batch(mock_visualizer_class, tmp_path):
         start_year=2024,
         end_year=2024,
         out_dir=tmp_path,
+        config=Path("config.yaml"),
         settings=Path("settings.yaml"),
         t_min_c=5.0,
         t_max_c=20.0
@@ -125,6 +126,7 @@ def test_create_batch_subplot_multiple_batches(mock_visualizer_class, tmp_path):
         start_year=2024,
         end_year=2024,
         out_dir=tmp_path,
+        config=Path("config.yaml"),
         settings=Path("settings.yaml"),
         t_min_c=5.0,
         t_max_c=20.0
@@ -155,6 +157,7 @@ def test_create_individual_plot(mock_visualizer_class, tmp_path):
         start_year=2024,
         end_year=2024,
         out_dir=tmp_path,
+        config=Path("config.yaml"),
         settings=Path("settings.yaml"),
         t_min_c=5.0,
         t_max_c=35.0

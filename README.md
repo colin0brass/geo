@@ -278,7 +278,7 @@ python geo_temp.py -p "MyCity" --lat 40.7 --lon -74.0 -y 2024
 
 ### config.yaml
 
-Stores application configuration with three main sections:
+Stores application configuration with four main sections:
 
 #### 1. Logging
 ```yaml
@@ -298,7 +298,50 @@ These settings determine the maximum grid size (default 4×6 = 24 places) when t
 
 **Note:** The `--grid` command-line option always overrides these configuration settings.
 
-#### 3. Places
+#### 3. Plot Text (Titles and Filenames)
+
+Customize plot titles, filenames, and attribution text using format placeholders:
+
+```yaml
+plot_text:
+  # Title patterns (use {location}, {start_year}, {end_year}, {batch}, {total_batches})
+  single_plot_title: "{location} Mid-Day Temperatures ({start_year}-{end_year})"
+  subplot_title: "Mid-Day Temperatures ({start_year}-{end_year})"
+  subplot_title_with_batch: "Mid-Day Temperatures ({start_year}-{end_year}) - Part {batch}/{total_batches}"
+  
+  # Filename patterns (location names automatically sanitized for filenames)
+  single_plot_filename: "{location}_noon_temperatures_{start_year}_{end_year}.png"
+  subplot_filename: "{list_name}_noon_temperature_{start_year}_{end_year}.png"
+  subplot_filename_with_batch: "{list_name}_noon_temperatures_{start_year}_{end_year}_part{batch}of{total_batches}.png"
+  
+  # Credit and data source text
+  credit: "Mid-Day Temperature Analysis & Visualisation by Colin Osborne"
+  data_source: "Data from: ERA5 via CDS"
+  single_plot_credit: "Analysis & visualisation by Colin Osborne"
+```
+
+**Available placeholders:**
+- `{location}` - Place name (auto-sanitized in filenames: spaces→underscores, commas removed)
+- `{list_name}` - Place list name (e.g., "default", "arctic", "all")
+- `{start_year}` - Start year of data
+- `{end_year}` - End year of data
+- `{batch}` - Current batch number (for multi-batch plots)
+- `{total_batches}` - Total number of batches
+
+**Example customizations:**
+```yaml
+# Short titles
+subplot_title: "Noon Temps {start_year}-{end_year}"
+
+# Different filename format
+single_plot_filename: "{start_year}-{end_year}_{location}_noon.png"
+
+# Internationalization
+credit: "Analyse et visualisation par Colin Osborne"
+data_source: "Données de: ERA5 via CDS"
+```
+
+#### 4. Places
 
 **default_place:** Used when no location is specified
 ```yaml

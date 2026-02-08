@@ -14,6 +14,24 @@ grid:
   max_auto_rows: 4
   max_auto_cols: 6
 
+# Plot text configuration
+plot_text:
+  # Title patterns (can use {location}, {start_year}, {end_year}, {batch}, {total_batches})
+  single_plot_title: "{location} Mid-Day Temperatures ({start_year}-{end_year})"
+  subplot_title: "Mid-Day Temperatures ({start_year}-{end_year})"
+  subplot_title_with_batch: "Mid-Day Temperatures ({start_year}-{end_year}) - Part {batch}/{total_batches}"
+  
+  # Filename patterns (can use {location}, {list_name}, {start_year}, {end_year}, {batch}, {total_batches})
+  # Note: {location} will be sanitized (spaces->underscores, commas removed)
+  single_plot_filename: "{location}_noon_temperatures_{start_year}_{end_year}.png"
+  subplot_filename: "{list_name}_noon_temperature_{start_year}_{end_year}.png"
+  subplot_filename_with_batch: "{list_name}_noon_temperatures_{start_year}_{end_year}_part{batch}of{total_batches}.png"
+  
+  # Credit and attribution text
+  credit: "Mid-Day Temperature Analysis & Visualisation by Colin Osborne"
+  data_source: "Data from: ERA5 via CDS"
+  single_plot_credit: "Analysis & visualisation by Colin Osborne"
+
 # Places configuration
 places:
   # Default place used when no location is specified

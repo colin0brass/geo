@@ -14,6 +14,7 @@ import pandas as pd
 
 from cds import Location
 from cli import calculate_grid_layout, load_grid_settings
+from config_manager import load_plot_text_config, get_plot_text
 from plot import Visualizer
 
 logger = logging.getLogger("geo_temp")
@@ -60,6 +61,7 @@ def create_batch_subplot(
     start_year: int,
     end_year: int,
     out_dir: Path,
+    config: Path,
     settings: Path,
     t_min_c: float,
     t_max_c: float,
@@ -78,6 +80,7 @@ def create_batch_subplot(
         start_year: Start year for plot titles and filenames.
         end_year: End year for plot titles and filenames.
         out_dir: Directory for output plot files.
+        config: Path to config YAML file (for text patterns).
         settings: Path to plot settings YAML file.
         t_min_c: Minimum temperature across all data.
         t_max_c: Maximum temperature across all data.
@@ -85,12 +88,8 @@ def create_batch_subplot(
     Returns:
         Path to the saved plot file.
     """
-    # Generate filename with batch number if multiple batches
-    if num_batches > 1:
-        batch_suffix = f"_part{batch_idx + 1}of{num_batches}"
-        logger.info(f"Generating batch {batch_idx + 1}/{num_batches}: {len(batch_places)} locations")
-    else:
-        batch_suffix = ""
+    # Load plot text configuration
+    plot_text_config = load_plot_text_config(config)
     
     # Use list name in filename if provided, otherwise use "Overall"
     filename_prefix = list_name if list_name else "Overall"
@@ -98,14 +97,26 @@ def create_batch_subplot(
     # Ensure output directory exists
     out_dir.mkdir(parents=True, exist_ok=True)
     
-    vis = Visualizer(df_batch, out_dir=out_dir, t_min_c=t_min_c, t_max_c=t_max_c, settings_file=settings)
-    plot_file = out_dir / f"{filename_prefix}_noon_temps_polar_{start_year}_{end_year}{batch_suffix}.png"
-    title = f"Mid-Day Temperatures ({start_year}-{end_year})"
+    # Generate title and filename using configuration
     if num_batches > 1:
-        title += f" - Part {batch_idx + 1}/{num_batches}"
+        logger.info(f"Generating batch {batch_idx + 1}/{num_batches}: {len(batch_places)} locations")
+        title = get_plot_text(plot_text_config, 'subplot_title_with_batch',
+                             start_year=start_year, end_year=end_year,
+                             batch=batch_idx + 1, total_batches=num_batches)
+        filename = get_plot_text(plot_text_config, 'subplot_filename_with_batch',
+                                list_name=filename_prefix, start_year=start_year, end_year=end_year,
+                                batch=batch_idx + 1, total_batches=num_batches)
+    else:
+        title = get_plot_text(plot_text_config, 'subplot_title',
+                             start_year=start_year, end_year=end_year)
+        filename = get_plot_text(plot_text_config, 'subplot_filename',
+                                list_name=filename_prefix, start_year=start_year, end_year=end_year)
     
-    credit = "Mid-Day Temperature Analysis & Visualisation by Colin Osborne"
-    data_source = "Data from: ERA5 via CDS"
+    plot_file = out_dir / filename
+    credit = get_plot_text(plot_text_config, 'credit')
+    data_source = get_plot_text(plot_text_config, 'data_source')
+    
+    vis = Visualizer(df_batch, out_dir=out_dir, t_min_c=t_min_c, t_max_c=t_max_c, settings_file=settings)
     
     vis.plot_polar_subplots(
         title=title,
@@ -186,6 +197,7 @@ def create_main_plots(
             start_year=start_year,
             end_year=end_year,
             out_dir=out_dir,
+            config=config,
             settings=settings,
             t_min_c=t_min_c,
             t_max_c=t_max_c,
@@ -202,6 +214,7 @@ def create_individual_plot(
     start_year: int,
     end_year: int,
     out_dir: Path,
+    config: Path,
     settings: Path,
     t_min_c: float,
     t_max_c: float
@@ -215,20 +228,29 @@ def create_individual_plot(
         start_year: Start year for plot titles and filenames.
         end_year: End year for plot titles and filenames.
         out_dir: Directory for output plot files.
+        config: Path to config YAML file (for text patterns).
         settings: Path to plot settings YAML file.
         t_min_c: Minimum temperature across all data.
         t_max_c: Maximum temperature across all data.
     Returns:
         Path to the saved plot file.
     """
+    # Load plot text configuration
+    plot_text_config = load_plot_text_config(config)
+    
     # Ensure output directory exists
     out_dir.mkdir(parents=True, exist_ok=True)
     
+    # Generate title and filename using configuration
+    title = get_plot_text(plot_text_config, 'single_plot_title',
+                         location=loc.name, start_year=start_year, end_year=end_year)
+    filename = get_plot_text(plot_text_config, 'single_plot_filename',
+                            location=loc.name, start_year=start_year, end_year=end_year)
+    credit = get_plot_text(plot_text_config, 'single_plot_credit')
+    data_source = get_plot_text(plot_text_config, 'data_source')
+    
+    plot_file = out_dir / filename
     vis = Visualizer(df, out_dir=out_dir, t_min_c=t_min_c, t_max_c=t_max_c, settings_file=settings)
-    plot_file = out_dir / f"{loc.name.replace(' ', '_').replace(',', '')}_noon_temps_polar_{start_year}_{end_year}.png"
-    title = f"{loc.name} Mid-Day Temperatures ({start_year}-{end_year})"
-    credit = "Analysis & visualisation by Colin Osborne"
-    data_source = "Data from: ERA5 via CDS"
     
     vis.plot_polar(
         title=title,
@@ -289,6 +311,7 @@ def plot_all(
             start_year=start_year,
             end_year=end_year,
             out_dir=out_dir,
+            config=config,
             settings=settings,
             t_min_c=t_min_c,
             t_max_c=t_max_c

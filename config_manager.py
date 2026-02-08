@@ -16,6 +16,62 @@ from timezonefinder import TimezoneFinder
 from cds import Location
 
 
+def load_plot_text_config(config_path: Path = Path("config.yaml")) -> dict:
+    """
+    Load plot text configuration from config file.
+    
+    Args:
+        config_path: Path to the configuration YAML file.
+    
+    Returns:
+        dict: Plot text configuration with default fallbacks.
+    """
+    try:
+        with open(config_path, 'r') as f:
+            config = yaml.safe_load(f)
+            return config.get('plot_text', {})
+    except Exception:
+        return {}
+
+
+def get_plot_text(config: dict, key: str, **kwargs) -> str:
+    """
+    Get formatted plot text from configuration.
+    
+    Args:
+        config: Plot text configuration dictionary.
+        key: Configuration key to retrieve.
+        **kwargs: Format parameters for string substitution.
+    
+    Returns:
+        str: Formatted text string.
+    """
+    # Default patterns if config is missing
+    defaults = {
+        'single_plot_title': "{location} Mid-Day Temperatures ({start_year}-{end_year})",
+        'subplot_title': "Mid-Day Temperatures ({start_year}-{end_year})",
+        'subplot_title_with_batch': "Mid-Day Temperatures ({start_year}-{end_year}) - Part {batch}/{total_batches}",
+        'single_plot_filename': "{location}_noon_temps_polar_{start_year}_{end_year}.png",
+        'subplot_filename': "{list_name}_noon_temps_polar_{start_year}_{end_year}.png",
+        'subplot_filename_with_batch': "{list_name}_noon_temps_polar_{start_year}_{end_year}_part{batch}of{total_batches}.png",
+        'credit': "Mid-Day Temperature Analysis & Visualisation by Colin Osborne",
+        'data_source': "Data from: ERA5 via CDS",
+        'single_plot_credit': "Analysis & visualisation by Colin Osborne"
+    }
+    
+    pattern = config.get(key, defaults.get(key, ""))
+    
+    # Sanitize location name for filenames if present
+    if 'location' in kwargs and ('filename' in key):
+        kwargs['location'] = kwargs['location'].replace(' ', '_').replace(',', '')
+    
+    try:
+        return pattern.format(**kwargs)
+    except KeyError:
+        # Missing format parameter - return pattern as-is
+        return pattern
+
+
 def load_places(yaml_path: Path = Path("config.yaml")) -> tuple[dict, str, dict]:
     """
     Load places configuration from YAML.
