@@ -121,10 +121,14 @@ places:
       - Delhi, India
       - Tokyo, Japan
       - Cairo, Egypt
-      - Johannesburg, South Africa
-      - São Paulo, Brazil
+      - Cambridge, UK
+      - Austin, TX
+      - Cape Town, South Africa
+      - Rio de Janeiro, Brazil
       - Shanghai, China
-      - Dubai, UAE
+      - Sydney, Australia
+      - Singapore
+      - Buenos Aires, Argentina
 
     extreme_range:
       - Ulaanbaatar, Mongolia
