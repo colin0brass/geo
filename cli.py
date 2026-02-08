@@ -145,7 +145,7 @@ Examples:
         help="Show plots interactively after generation"
     )
     display_group.add_argument(
-        "--grid",
+        "-g", "--grid",
         type=str,
         default=None,
         help="Grid dimensions as COLSxROWS (e.g., 4x3 for 4 columns × 3 rows)"
