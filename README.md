@@ -246,7 +246,7 @@ python geo_temp.py -p "MyCity" --lat 40.7 --lon -74.0 -y 2024
 | Option | Short | Description | Default |
 |--------|-------|-------------|---------|
 | `--show` | `-s` | Display plots on screen after generation | off |
-| `--grid COLSxROWS` | | Manual grid (e.g., 4x3) | auto |
+| `--grid COLSxROWS` | `-g` | Manual grid (e.g., 4x3) | auto |
 
 **Notes:**
 - Individual plots are only created for single places (using `--place`)
@@ -351,13 +351,27 @@ places:
 
 ### settings.yaml
 
-Controls plot appearance and styling. Edit to customize:
-- Figure size and DPI
-- Fonts (title, labels, radial text)
-- Colors and colormaps
-- Subplot spacing and margins
+Controls plot appearance and styling with automatic row-based scaling.
 
-See comments in the file for detailed options.
+**Structure:**
+- `polar_single`: Settings for single location plots
+- `polar_subplot`: Settings for multi-location subplot grids
+
+**Key features:**
+- **Row-based dictionaries**: Many parameters automatically scale based on grid rows
+  - Syntax: `{default: value_for_1-2_rows, 3: value_for_3_rows, 4: value_for_4+_rows}`
+  - Examples: `marker_size`, `xtick_fontsize`, `hspace`, `top`, `bottom`
+- **Fixed parameters**: Figure dimensions, DPI, colors remain constant
+- **SettingsManager integration**: Automatically resolves correct values at runtime
+
+**Customizable parameters:**
+- Figure size and DPI (A3 landscape: 13.34" × 7.5")
+- Row-scaled fonts (title, xticks, yticks, temperature labels)
+- Row-scaled marker sizes and spacing
+- Row-scaled subplot margins and dimensions
+- Colors, colormaps, and temperature step intervals
+
+See comments in the file for detailed options and row-based configuration patterns.
 
 ---
 
@@ -450,13 +464,25 @@ python geo_temp.py -a -y 2024 --grid 4x4
 
 ### Smart Scaling
 
-For grids with 3+ rows, automatic scaling prevents subplot overlap:
-- **Subplot dimensions:** 62% height, 83% width
-- **Spacing:** hspace=0.25, optimized margins
-- **Fonts:** Scaled proportionally
-- **Format:** Optimized for A3 landscape
+The plotting system automatically scales all visual parameters based on the number of rows in your grid:
 
-No configuration needed—works automatically.
+**Row-based settings** (configured in `settings.yaml`):
+- **1-2 rows:** Default values - larger markers (2.0), larger fonts (9-12pt), generous spacing
+- **3 rows:** Medium scale - markers (0.5), fonts (7-9pt), tighter spacing (hspace=0.25)
+- **4+ rows:** Compact scale - small markers (0.25), small fonts (6-7pt), optimized spacing (hspace=0.30)
+
+**Automatically scaled parameters:**
+- Marker size, tick fonts, title fonts, temperature label fonts
+- Subplot spacing (hspace, wspace) and margins (top, bottom)
+- Subplot dimensions (height_scale, width_scale)
+
+All scaling is controlled via `settings.yaml` using row-based dictionaries:
+```yaml
+marker_size: {default: 2.0, 3: 0.5, 4: 0.25}
+xtick_fontsize: {default: 9, 3: 7, 4: 6}
+```
+
+The `SettingsManager` class automatically selects the appropriate value based on your grid configuration. No manual scaling needed—works automatically.
 
 ### Dry-Run Mode
 

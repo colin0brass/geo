@@ -1,5 +1,13 @@
+# Plot Settings Configuration
+# Two layouts available:
+#   - polar_single: For individual location plots (one location per image)
+#   - polar_subplot: For multi-location subplot grids (multiple locations per image)
+
+# ============================================================================
+# POLAR_SINGLE: Single location polar plot settings
+# ============================================================================
 polar_single:
-  page:
+  page:  # Page-level settings (titles, labels, overall layout)
     width_cm: 33.87
     height_cm: 19.05
     title_fontsize: 16
@@ -9,27 +17,35 @@ polar_single:
     label_right: 0.93
     label_bottom: 0.03
     dpi: 300
-  figure:
+  figure:  # Plot area settings (dimensions, markers, fonts, temperature circles)
     fig_width_in: 13.34
     fig_height_in: 7.5
+    marker_size: 2.0
     xtick_fontsize: 12
     xtick_pad: -3
-    temp_label_fontsize: 10
+    temp_label_fontsize: 12
     temp_label_colour: gray
     temp_label_vspace: 0.04
     temp_step: 10.0
     ytick_fontsize: 10
     ytick_colour: gray
-  colourbar:
+  colourbar:  # Dual colourbar settings (Celsius on left, Fahrenheit on right)
     fontsize: 14
     width: 0.07
     height: 0.8
     left_c: 0.72
     left_f: 0.80
-    bottom: 0.10
+    bottom: 0.12
+
+# ============================================================================
+# POLAR_SUBPLOT: Multi-location subplot grid settings
+# ============================================================================
+# Many parameters use row-based dictionaries for automatic scaling:
+#   Syntax: {default: value_for_1-2_rows, 3: value_for_3_rows, 4: value_for_4+_rows}
+#   The SettingsManager automatically selects the appropriate value based on grid rows
 
 polar_subplot:
-  page:
+  page:  # Page-level settings with row-based scaling for titles
     width_cm: 33.87
     height_cm: 19.05
     title_fontsize: {default: 12, 3: 9, 4: 7}  # Auto-scaled based on grid rows
@@ -39,7 +55,7 @@ polar_subplot:
     label_right: 0.93
     label_bottom: 0.03
     dpi: 300
-  figure:
+  figure:  # Plot area settings with row-based scaling for markers, fonts, and spacing
     fig_width_in: 13.34
     fig_height_in: 7.5
     marker_size: {default: 2.0, 3: 0.5, 4: 0.25}  # Auto-scaled based on grid rows
@@ -51,7 +67,7 @@ polar_subplot:
     temp_step: 10.0
     ytick_fontsize: {default: 6.5, 3: 4, 4: 3.5}  # Auto-scaled based on grid rows
     ytick_colour: black
-  subplot:
+  subplot:  # Subplot grid layout settings with row-based margins and spacing
     left: 0.03
     right: 0.91
     hspace: {default: 0.45, 3: 0.25, 4: 0.30}  # Auto-scaled: vertical spacing between subplots
@@ -60,7 +76,7 @@ polar_subplot:
     bottom: {default: 0.10, 3: 0.06, 4: 0.04}  # Auto-scaled: bottom margin
     height_scale: {default: 1.08, 3: 0.70, 4: 0.70}  # Subplot height as fraction of allocated space
     width_scale: {default: 1.08, 3: 0.88, 4: 0.88}  # Subplot width as fraction of allocated space
-  colourbar:
+  colourbar:  # Dual colourbar settings (positioned on right side for subplots)
     fontsize: 12
     width: 0.045
     height: 0.8
