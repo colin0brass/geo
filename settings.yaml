@@ -32,7 +32,7 @@ polar_subplot:
   page:
     width_cm: 33.87
     height_cm: 19.05
-    title_fontsize: 12
+    title_fontsize: {default: 12, 3: 9, 4: 7}  # Auto-scaled based on grid rows
     title_colour: blue
     label_fontsize: 10
     label_left: 0.05
@@ -42,21 +42,24 @@ polar_subplot:
   figure:
     fig_width_in: 13.34
     fig_height_in: 7.5
-    xtick_fontsize: 9
-    xtick_pad: -3
-    temp_label_fontsize: 9
+    marker_size: {default: 2.0, 3: 0.5, 4: 0.25}  # Auto-scaled based on grid rows
+    xtick_fontsize: {default: 9, 3: 7, 4: 6}  # Auto-scaled based on grid rows
+    xtick_pad: {default: -2, 3: -3, 4: -4}  # Auto-scaled based on grid rows
+    temp_label_fontsize: {default: 9, 3: 7, 4: 6}  # Auto-scaled based on grid rows
     temp_label_colour: gray
-    temp_label_vspace: 0.04
+    temp_label_vspace: {default: 0.04, 3: 0.03, 4: 0.02}  # Auto-scaled based on grid rows
     temp_step: 10.0
-    ytick_fontsize: 6
+    ytick_fontsize: {default: 6.5, 3: 4, 4: 3.5}  # Auto-scaled based on grid rows
     ytick_colour: black
   subplot:
     left: 0.03
     right: 0.91
-    hspace: 0.45
-    wspace: 0.13
-    top: 0.90
-    bottom: 0.10
+    hspace: {default: 0.45, 3: 0.25, 4: 0.30}  # Auto-scaled: vertical spacing between subplots
+    wspace: {default: 0.13, 4: 0.10}  # Auto-scaled: horizontal spacing between subplots
+    top: {default: 0.90, 3: 0.92, 4: 0.94}  # Auto-scaled: top margin
+    bottom: {default: 0.10, 3: 0.06, 4: 0.04}  # Auto-scaled: bottom margin
+    height_scale: {default: 1.08, 3: 0.70, 4: 0.70}  # Subplot height as fraction of allocated space
+    width_scale: {default: 1.08, 3: 0.88, 4: 0.88}  # Subplot width as fraction of allocated space
   colourbar:
     fontsize: 12
     width: 0.045

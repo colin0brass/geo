@@ -93,8 +93,7 @@ def test_create_batch_subplot_single_batch(mock_visualizer_class, tmp_path):
         out_dir=tmp_path,
         settings=Path("settings.yaml"),
         t_min_c=5.0,
-        t_max_c=20.0,
-        scale_height=True
+        t_max_c=20.0
     )
     
     # Verify
@@ -128,8 +127,7 @@ def test_create_batch_subplot_multiple_batches(mock_visualizer_class, tmp_path):
         out_dir=tmp_path,
         settings=Path("settings.yaml"),
         t_min_c=5.0,
-        t_max_c=20.0,
-        scale_height=True
+        t_max_c=20.0
     )
     
     # Should include batch suffix
@@ -201,8 +199,7 @@ def test_create_main_plots_single_batch(mock_grid_layout, mock_create_batch, tmp
         settings=Path("settings.yaml"),
         t_min_c=5.0,
         t_max_c=20.0,
-        grid=None,
-        scale_height=True
+        grid=None
     )
     
     assert len(result) == 1
@@ -244,8 +241,7 @@ def test_create_main_plots_multiple_batches(mock_create_batch, tmp_path):
         settings=Path("settings.yaml"),
         t_min_c=10.0,
         t_max_c=18.0,
-        grid=(2, 2),
-        scale_height=True
+        grid=(2, 2)
     )
     
     assert len(result) == 2
@@ -280,7 +276,6 @@ def test_plot_all_no_show(mock_create_main, mock_create_individual, mock_visuali
         settings=Path("settings.yaml"),
         show_main=False,
         show_individual=False,
-        scale_height=True,
         grid=None
     )
     
@@ -322,7 +317,6 @@ def test_plot_all_show_main(mock_create_main, mock_create_individual, mock_visua
         settings=Path("settings.yaml"),
         show_main=True,
         show_individual=False,
-        scale_height=True,
         grid=None
     )
     
@@ -361,7 +355,6 @@ def test_plot_all_show_all(mock_create_main, mock_create_individual, mock_visual
         settings=Path("settings.yaml"),
         show_main=True,
         show_individual=True,
-        scale_height=True,
         grid=None
     )
     
@@ -401,7 +394,6 @@ def test_plot_all_multiple_locations(mock_create_main, mock_create_individual, m
         settings=Path("settings.yaml"),
         show_main=False,
         show_individual=False,
-        scale_height=True,
         grid=None
     )
     

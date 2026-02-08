@@ -6,6 +6,7 @@ import yaml
 import logging
 from matplotlib import cm
 from matplotlib.colors import Normalize
+from settings_manager import SettingsManager
 
 logger = logging.getLogger("geo_temp")
 
@@ -141,23 +142,30 @@ class Visualizer:
         Args:
             fig: Matplotlib Figure object to which colorbars are added.
         """
-        settings=self.all_settings[self.layout]['colourbar']
+        mgr = SettingsManager(self.all_settings[self.layout], num_rows=1)
+        
+        left_c = mgr.get('colourbar.left_c')
+        left_f = mgr.get('colourbar.left_f')
+        bottom = mgr.get('colourbar.bottom')
+        width = mgr.get('colourbar.width')
+        height = mgr.get('colourbar.height')
+        fontsize = mgr.get('colourbar.fontsize')
 
         # Celsius colorbar
-        cbar_ax_c = fig.add_axes([settings['left_c'], settings['bottom'], settings['width'], settings['height']], frameon=False)
+        cbar_ax_c = fig.add_axes([left_c, bottom, width, height], frameon=False)
         cbar_ax_c.set_yticks([]), cbar_ax_c.set_xticks([])
         norm_c = Normalize(vmin=self.tmin_c, vmax=self.tmax_c)
         cbar_c = plt.colorbar(cm.ScalarMappable(norm=norm_c, cmap=self.cmap), ax=cbar_ax_c, orientation='vertical')
-        cbar_c.ax.set_title(r'$^\circ\mathrm{C}$', fontsize=settings['fontsize'])
-        cbar_c.ax.tick_params(labelsize=settings['fontsize']-2)
+        cbar_c.ax.set_title(r'$^\circ\mathrm{C}$', fontsize=fontsize)
+        cbar_c.ax.tick_params(labelsize=fontsize-2)
 
         # Fahrenheit colorbar
-        cbar_ax_f = fig.add_axes([settings['left_f'], settings['bottom'], settings['width'], settings['height']], frameon=False)
+        cbar_ax_f = fig.add_axes([left_f, bottom, width, height], frameon=False)
         cbar_ax_f.set_yticks([]), cbar_ax_f.set_xticks([])
         norm_f = Normalize(vmin=self.temp_c_to_f(self.tmin_c), vmax=self.temp_c_to_f(self.tmax_c))
         cbar_f = plt.colorbar(cm.ScalarMappable(norm=norm_f, cmap=self.cmap), ax=cbar_ax_f, orientation='vertical')
-        cbar_f.ax.set_title(r'$^\circ\mathrm{F}$', fontsize=settings['fontsize'])
-        cbar_f.ax.tick_params(labelsize=settings['fontsize']-2)
+        cbar_f.ax.set_title(r'$^\circ\mathrm{F}$', fontsize=fontsize)
+        cbar_f.ax.tick_params(labelsize=fontsize-2)
 
     def draw_temp_circles(self, ax: plt.Axes, num_rows: int = 1) -> None:
         """
@@ -167,22 +175,18 @@ class Visualizer:
             ax: Polar axes to draw on.
             num_rows: Number of rows in subplot grid (for font scaling).
         """
-        settings=self.all_settings[self.layout]['figure']
+        settings = SettingsManager(self.all_settings[self.layout], num_rows)
         
-        # Reduce radial label font size based on number of rows
-        if num_rows >= 4:
-            ytick_fontsize = max(3, settings['ytick_fontsize'] - 3)  # Reduce by 3 for 4+ rows, min 3
-        elif num_rows > 2:
-            ytick_fontsize = max(4, settings['ytick_fontsize'] - 2)  # Reduce by 2 for 3 rows, min 4
-        else:
-            ytick_fontsize = settings['ytick_fontsize']
+        temp_step = settings.get('figure.temp_step')
+        ytick_fontsize = settings.get('figure.ytick_fontsize')
+        ytick_colour = settings.get('figure.ytick_colour')
             
-        for t in np.arange(np.ceil(self.tmin_c/settings['temp_step'])*settings['temp_step'], self.tmax_c+1, settings['temp_step']):
+        for t in np.arange(np.ceil(self.tmin_c/temp_step)*temp_step, self.tmax_c+1, temp_step):
             ax.plot(np.linspace(0, 2*np.pi, 361), np.full(361, t), '--', color='gray', lw=0.7, alpha=0.7)
             # °C label above X-axis
-            ax.text(np.pi/2, t, f'{int(t)}°C', color=settings['ytick_colour'], fontsize=ytick_fontsize, ha='center', va='bottom', alpha=0.8)
+            ax.text(np.pi/2, t, f'{int(t)}°C', color=ytick_colour, fontsize=ytick_fontsize, ha='center', va='bottom', alpha=0.8)
             # °F label below X-axis
-            ax.text(3*np.pi/2, t, f'{int(self.temp_c_to_f(t))}°F', color=settings['ytick_colour'], fontsize=ytick_fontsize, ha='center', va='top', alpha=0.8)
+            ax.text(3*np.pi/2, t, f'{int(self.temp_c_to_f(t))}°F', color=ytick_colour, fontsize=ytick_fontsize, ha='center', va='top', alpha=0.8)
 
     def create_polar_plot(self, ax: plt.Axes, df: pd.DataFrame, num_rows: int = 1) -> None:
         """
@@ -193,23 +197,17 @@ class Visualizer:
             df: DataFrame with temperature and angle columns.
             num_rows: Number of rows in subplot grid (for font scaling).
         """
-        settings = self.all_settings[self.layout]
+        settings = SettingsManager(self.all_settings[self.layout], num_rows)
         c = self.norm(df["temp_C"])
-        ax.scatter(df['angle'], df["temp_C"], c=self.cmap(c), s=2)
+        
+        marker_size = settings.get('figure.marker_size')
+        xtick_fontsize = settings.get('figure.xtick_fontsize')
+        
+        ax.scatter(df['angle'], df["temp_C"], c=self.cmap(c), s=marker_size)
         self.draw_temp_circles(ax, num_rows)
         ax.set_theta_offset(np.pi/2)
         ax.set_theta_direction(-1)
         ax.set_xticks(np.arange(0, 2 * np.pi, np.pi / 6))
-        figure_settings=settings['figure']
-        
-        # Reduce month label font size based on number of rows
-        if num_rows >= 4:
-            xtick_fontsize = max(6, figure_settings['xtick_fontsize'] - 3)  # Reduce by 3 for 4+ rows, min 6
-        elif num_rows > 2:
-            xtick_fontsize = max(7, figure_settings['xtick_fontsize'] - 2)  # Reduce by 2 for 3 rows, min 7
-        else:
-            xtick_fontsize = figure_settings['xtick_fontsize']
-            
         ax.set_xticklabels(self.MONTH_LABELS, fontsize=xtick_fontsize)
         ax.set_yticks([])
         
@@ -247,12 +245,18 @@ class Visualizer:
         except Exception as e:
             raise(f"Error loading settings layout {layout}: {e}")
         
-        fig = plt.figure(figsize=(settings['figure']['fig_width_in'], settings['figure']['fig_height_in']))
+        mgr = SettingsManager(settings, num_rows=1)
+        
+        fig_width = mgr.get('figure.fig_width_in')
+        fig_height = mgr.get('figure.fig_height_in')
+        fig = plt.figure(figsize=(fig_width, fig_height))
         
         # Make left and right margins symmetrical (match colorbar width)
-        colourbar_settings = settings['colourbar']
-        plot_width = 1.0 - 2 * colourbar_settings['width']  # Remaining width for polar plot
-        ax = fig.add_axes([colourbar_settings['width'], colourbar_settings['bottom'], plot_width, colourbar_settings['height']], polar=True)
+        cbar_width = mgr.get('colourbar.width')
+        cbar_bottom = mgr.get('colourbar.bottom')
+        cbar_height = mgr.get('colourbar.height')
+        plot_width = 1.0 - 2 * cbar_width  # Remaining width for polar plot
+        ax = fig.add_axes([cbar_width, cbar_bottom, plot_width, cbar_height], polar=True)
         self.create_polar_plot(ax, self.df)
 
         # Show temp range under the subplot using the parent figure
@@ -262,22 +266,31 @@ class Visualizer:
 
         # Place the text just below the subplot
         bbox = ax.get_position()
-        figure_settings = settings['figure']
-        fig.text(bbox.x0 + bbox.width/2, bbox.y0 - figure_settings['temp_label_vspace'], temp_range_text,
-            ha='center', va='top', fontsize=figure_settings['temp_label_fontsize'],
-            color=figure_settings['temp_label_colour'])
+        temp_label_vspace = mgr.get('figure.temp_label_vspace')
+        temp_label_fontsize = mgr.get('figure.temp_label_fontsize')
+        temp_label_colour = mgr.get('figure.temp_label_colour')
+        fig.text(bbox.x0 + bbox.width/2, bbox.y0 - temp_label_vspace, temp_range_text,
+            ha='center', va='top', fontsize=temp_label_fontsize,
+            color=temp_label_colour)
         
         # Add dual colorbars further from the polar plot
         self.add_dual_colourbars(fig)
 
         # Centre the title over the polar plot (not the whole figure) and move it down slightly
-        page_settings = settings['page']
-        ax.set_title(title, fontsize=page_settings['title_fontsize'], pad=12, color=page_settings['title_colour'])
-        plt.figtext(page_settings['label_left'], page_settings['label_bottom'], credit, verticalalignment='center', horizontalalignment='left', fontsize=page_settings['label_fontsize'])
-        plt.figtext(page_settings['label_right'], page_settings['label_bottom'], data_source, verticalalignment='center', horizontalalignment='right', fontsize=page_settings['label_fontsize'])
+        title_fontsize = mgr.get('page.title_fontsize')
+        title_colour = mgr.get('page.title_colour')
+        label_fontsize = mgr.get('page.label_fontsize')
+        label_left = mgr.get('page.label_left')
+        label_right = mgr.get('page.label_right')
+        label_bottom = mgr.get('page.label_bottom')
+        dpi = mgr.get('page.dpi')
+        
+        ax.set_title(title, fontsize=title_fontsize, pad=12, color=title_colour)
+        plt.figtext(label_left, label_bottom, credit, verticalalignment='center', horizontalalignment='left', fontsize=label_fontsize)
+        plt.figtext(label_right, label_bottom, data_source, verticalalignment='center', horizontalalignment='right', fontsize=label_fontsize)
         if show_plot:
             plt.show()
-        fig.savefig(save_file, dpi=page_settings['dpi'], bbox_inches="tight")
+        fig.savefig(save_file, dpi=dpi, bbox_inches="tight")
         plt.close(fig)
 
     def subplot_polar(
@@ -299,40 +312,34 @@ class Visualizer:
             num_rows: Number of rows in subplot grid (for font scaling).
         """
         settings = self.all_settings[self.layout]
-        page_settings = settings['page']
-        figure_settings = settings['figure']
+        mgr = SettingsManager(settings, num_rows)
 
         fig = ax.get_figure()
         self.create_polar_plot(ax, df, num_rows)
 
         # Move month xticklabels closer to the polar plot
-        ax.tick_params(axis='x', pad=figure_settings['xtick_pad'])
+        xtick_pad = mgr.get('figure.xtick_pad')
+        ax.tick_params(axis='x', pad=xtick_pad)
         
-        # Reduce font sizes based on number of rows
-        if num_rows >= 4:
-            # More aggressive reduction for 4+ rows
-            title_fontsize = max(7, page_settings['title_fontsize'] - 5)  # Reduce by 5, min 7
-            temp_label_fontsize = max(3, figure_settings['temp_label_fontsize'] - 4)  # Reduce by 4, min 3
-        elif num_rows > 2:
-            # Moderate reduction for 3 rows
-            title_fontsize = max(8, page_settings['title_fontsize'] - 3)  # Reduce by 3, min 8
-            temp_label_fontsize = max(4, figure_settings['temp_label_fontsize'] - 3)  # Reduce by 3, min 4
-        else:
-            title_fontsize = page_settings['title_fontsize']
-            temp_label_fontsize = figure_settings['temp_label_fontsize']
+        # Get row-based scaled settings
+        title_fontsize = mgr.get('page.title_fontsize')
+        title_colour = mgr.get('page.title_colour')
+        temp_label_fontsize = mgr.get('figure.temp_label_fontsize')
+        temp_label_vspace = mgr.get('figure.temp_label_vspace')
+        temp_label_colour = mgr.get('figure.temp_label_colour')
             
-        ax.set_title(title if title else '', fontsize=title_fontsize, pad=0, color=page_settings['title_colour'])
+        ax.set_title(title if title else '', fontsize=title_fontsize, pad=0, color=title_colour)
 
         # Show temp range under the subplot using the parent figure
         plot_tmin_c = df["temp_C"].min()
         plot_tmax_c = df["temp_C"].max()
         temp_range_text = f"{plot_tmin_c:.1f}°C to {plot_tmax_c:.1f}°C; ({self.temp_c_to_f(plot_tmin_c):.1f}°F to {self.temp_c_to_f(plot_tmax_c):.1f}°F)"
 
-        # Place the text just below the subplot
+        # Place the text just below the subplot using scaled vspace
         bbox = ax.get_position()
-        fig.text(bbox.x0 + bbox.width/2, bbox.y0 - figure_settings['temp_label_vspace'], temp_range_text,
+        fig.text(bbox.x0 + bbox.width/2, bbox.y0 - temp_label_vspace, temp_range_text,
             ha='center', va='top', fontsize=temp_label_fontsize,
-            color=figure_settings['temp_label_colour'])
+            color=temp_label_colour)
         if cbar:
             self.add_dual_colourbars(fig)
 
@@ -346,8 +353,7 @@ class Visualizer:
         data_source: str = "",
         save_file: str = "",
         layout: str = "polar_subplot",
-        show_plot: bool = True,
-        scale_height: bool = True
+        show_plot: bool = True
     ) -> None:
         """
         Plot multiple polar subplots for each unique value in a DataFrame field.
@@ -362,7 +368,6 @@ class Visualizer:
             save_file: Output file path.
             layout: Settings layout to use (default 'polar_subplot').
             show_plot: Whether to display the plot on screen (default True).
-            scale_height: Whether to scale figure height for 3+ rows (default True).
         """
         try:
             self.layout = layout if layout else self.layout
@@ -375,34 +380,26 @@ class Visualizer:
         if num_cols is None:
             num_cols = int(np.ceil(num_plots / num_rows))
             
-        # Adjust the figure so that colorbars are inside the page boundaries
-        # Reserve space on the right for the colorbars within the page width
-        figure_settings = settings['figure']
+        # Use SettingsManager for row-based settings
+        mgr = SettingsManager(settings, num_rows)
         
         # Always use A3 landscape size (13.34" × 7.5")
-        base_height = figure_settings['fig_height_in']
-        base_width = figure_settings['fig_width_in']
+        base_width = mgr.get('figure.fig_width_in')
+        base_height = mgr.get('figure.fig_height_in')
         logger.debug(f"Using A3 landscape size: {base_width:.2f}\" × {base_height:.2f}\"")
             
         fig, axs = plt.subplots(num_rows, num_cols, figsize=(base_width, base_height), subplot_kw={'polar': True})
     
-        # Adjust spacing based on number of rows
-        subplot_settings = settings['subplot']
-        if scale_height and num_rows > 2:
-            # Smart adjustments for 3+ rows to fit in A3 landscape
-            adjusted_hspace = 0.25
-            adjusted_top = 0.92
-            adjusted_bottom = 0.08
-            logger.debug(f"SMART SCALING ENABLED - {num_rows} rows with hspace={adjusted_hspace}, top={adjusted_top}, bottom={adjusted_bottom}")
-        else:
-            # Use default settings (will likely cause overlap for 3+ rows)
-            adjusted_hspace = subplot_settings['hspace']
-            adjusted_top = subplot_settings['top']
-            adjusted_bottom = subplot_settings['bottom']
-            if num_rows > 2:
-                logger.debug(f"SMART SCALING DISABLED - Using default spacing (will likely overlap)")
-            
-        plt.subplots_adjust(left=subplot_settings['left'], right=subplot_settings['right'], hspace=adjusted_hspace, wspace=subplot_settings['wspace'], top=adjusted_top, bottom=adjusted_bottom)
+        # Get spacing settings (already row-scaled via SettingsManager)
+        adjusted_hspace = mgr.get('subplot.hspace')
+        adjusted_top = mgr.get('subplot.top')
+        adjusted_bottom = mgr.get('subplot.bottom')
+        subplot_left = mgr.get('subplot.left')
+        subplot_right = mgr.get('subplot.right')
+        wspace = mgr.get('subplot.wspace')
+        
+        logger.debug(f"Grid {num_rows}x{num_cols} spacing: hspace={adjusted_hspace}, top={adjusted_top}, bottom={adjusted_bottom}")
+        plt.subplots_adjust(left=subplot_left, right=subplot_right, hspace=adjusted_hspace, wspace=wspace, top=adjusted_top, bottom=adjusted_bottom)
 
         for row in range(num_rows):
             for col in range(num_cols):
@@ -419,38 +416,36 @@ class Visualizer:
                     place = place_list[plot_idx]
                     df_place = self.df[self.df[subplot_field] == place].sort_values('day_of_year')
 
-                    # Explicitly control subplot size
+                    # Control subplot size using row-scaled settings
                     pos = ax.get_position()
-                    if scale_height and num_rows > 2:
-                        # Smart sizing for 3+ rows to fit in A3 landscape
-                        # Calculate available vertical space and divide among rows
+                    height_scale = mgr.get('subplot.height_scale')
+                    width_scale = mgr.get('subplot.width_scale')
+                    
+                    if num_rows > 2:
+                        # For 3+ rows: calculate size based on allocated space
                         available_height = adjusted_top - adjusted_bottom
                         height_per_row = available_height / num_rows
-                        target_height = height_per_row * 0.62  # Use 62% of space
+                        target_height = height_per_row * height_scale
                         
-                        # Calculate width similarly
-                        available_width = subplot_settings['right'] - subplot_settings['left']
+                        available_width = subplot_right - subplot_left
                         width_per_col = available_width / num_cols
-                        target_width = width_per_col * 0.83  # Use 83% of space
+                        target_width = width_per_col * width_scale
                         
                         # Center the subplot in its allocated space
-                        center_x = subplot_settings['left'] + (col + 0.5) * width_per_col
+                        center_x = subplot_left + (col + 0.5) * width_per_col
                         center_y = adjusted_bottom + (num_rows - row - 0.5) * height_per_row
                         new_x = center_x - target_width / 2
                         new_y = center_y - target_height / 2
                         
-                        logger.debug(f"Row {row}, Col {col} - Smart sizing: {target_width:.3f}x{target_height:.3f} at ({new_x:.3f}, {new_y:.3f})")
+                        logger.debug(f"Row {row}, Col {col} - Sizing: {target_width:.3f}x{target_height:.3f} at ({new_x:.3f}, {new_y:.3f})")
                         ax.set_position([new_x, new_y, target_width, target_height])
-                    elif num_rows <= 2:
-                        # For 1-2 rows, expand slightly for better appearance
-                        scale_factor = 1.08
-                        new_width = pos.width * scale_factor
-                        new_height = pos.height * scale_factor
+                    else:
+                        # For 1-2 rows: expand from default position using scale factors
+                        new_width = pos.width * width_scale
+                        new_height = pos.height * height_scale
                         logger.debug(f"Row {row}, Col {col} - Expanding: {new_width:.3f}x{new_height:.3f}")
                         ax.set_position([pos.x0, pos.y0, new_width, new_height])
-                    else:
-                        # No smart scaling - keep matplotlib's default (will overlap)
-                        logger.debug(f"Row {row}, Col {col} - Using default sizing (no adjustment)")
+                        
                     if self.first_year != self.last_year:
                         title = f"{place} ({self.first_year}-{self.last_year})"
                     else:
@@ -461,10 +456,11 @@ class Visualizer:
 
         self.add_dual_colourbars(fig)
 
-        page_settings = settings['page']
-        plt.figtext(0.05, 0.03, credit, verticalalignment='center', horizontalalignment='left', fontsize=page_settings['label_fontsize'])
-        plt.figtext(0.93, 0.03, data_source, verticalalignment='center', horizontalalignment='right', fontsize=page_settings['label_fontsize'])
+        label_fontsize = mgr.get('page.label_fontsize')
+        dpi = mgr.get('page.dpi')
+        plt.figtext(0.05, 0.03, credit, verticalalignment='center', horizontalalignment='left', fontsize=label_fontsize)
+        plt.figtext(0.93, 0.03, data_source, verticalalignment='center', horizontalalignment='right', fontsize=label_fontsize)
         if show_plot:
             plt.show()
-        fig.savefig(save_file, dpi=page_settings['dpi'], bbox_inches="tight")
+        fig.savefig(save_file, dpi=dpi, bbox_inches="tight")
         plt.close(fig)

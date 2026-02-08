@@ -84,7 +84,7 @@ def main() -> None:
         return
     
     df_overall = retrieve_and_concat_data(place_list, start_year, end_year, args.cache_dir, args.data_cache_dir)
-    plot_all(df_overall, place_list, start_year, end_year, args.out_dir, args.config, args.settings, args.show, args.show, True, grid, list_name)
+    plot_all(df_overall, place_list, start_year, end_year, args.out_dir, args.config, args.settings, args.show, args.show, grid, list_name)
 
 
 if __name__ == "__main__":

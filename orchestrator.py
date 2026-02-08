@@ -63,7 +63,6 @@ def create_batch_subplot(
     settings: Path,
     t_min_c: float,
     t_max_c: float,
-    scale_height: bool,
     list_name: str | None = None
 ) -> str:
     """
@@ -82,7 +81,6 @@ def create_batch_subplot(
         settings: Path to plot settings YAML file.
         t_min_c: Minimum temperature across all data.
         t_max_c: Maximum temperature across all data.
-        scale_height: Whether to scale figure height for 3+ rows.
         list_name: Name of place list for filename (e.g., "all", "arctic"), None for default.
     Returns:
         Path to the saved plot file.
@@ -118,8 +116,7 @@ def create_batch_subplot(
         data_source=data_source,
         save_file=str(plot_file),
         layout="polar_subplot",
-        show_plot=False,
-        scale_height=scale_height
+        show_plot=False
     )
     
     logger.info(f"Saved overall plot to {plot_file}")
@@ -137,7 +134,6 @@ def create_main_plots(
     t_min_c: float,
     t_max_c: float,
     grid: tuple[int, int] | None,
-    scale_height: bool,
     list_name: str | None = None
 ) -> list[str]:
     """
@@ -154,7 +150,6 @@ def create_main_plots(
         t_min_c: Minimum temperature across all data.
         t_max_c: Maximum temperature across all data.
         grid: Optional fixed grid dimensions (rows, cols).
-        scale_height: Whether to scale figure height for 3+ rows.
         list_name: Name of place list for filename (e.g., "all", "arctic"), None for default.
     Returns:
         List of paths to saved plot files.
@@ -194,7 +189,6 @@ def create_main_plots(
             settings=settings,
             t_min_c=t_min_c,
             t_max_c=t_max_c,
-            scale_height=scale_height,
             list_name=list_name
         )
         batch_plot_files.append(plot_file)
@@ -258,7 +252,6 @@ def plot_all(
     settings: Path,
     show_main: bool,
     show_individual: bool,
-    scale_height: bool = True,
     grid: tuple[int, int] | None = None,
     list_name: str | None = None
 ) -> None:
@@ -275,7 +268,6 @@ def plot_all(
         settings: Path to plot settings YAML file (for styling).
         show_main: Whether to display the main subplot on screen.
         show_individual: Whether to display individual plots on screen.
-        scale_height: Whether to scale figure height for 3+ rows to prevent overlap.
         grid: Optional fixed grid dimensions (rows, cols). If None, auto-calculate.
         list_name: Name of place list (e.g., "all", "arctic"). Not currently used.
     """
@@ -319,7 +311,6 @@ def plot_all(
             t_min_c=t_min_c,
             t_max_c=t_max_c,
             grid=grid,
-            scale_height=scale_height,
             list_name=list_name
         )
         
