@@ -24,7 +24,7 @@ plot_text:
   # Filename patterns (can use {location}, {list_name}, {start_year}, {end_year}, {batch}, {total_batches})
   # Note: {location} will be sanitized (spaces->underscores, commas removed)
   single_plot_filename: "{location}_noon_temperatures_{start_year}_{end_year}.png"
-  subplot_filename: "{list_name}_noon_temperature_{start_year}_{end_year}.png"
+  subplot_filename: "{list_name}_noon_temperatures_{start_year}_{end_year}.png"
   subplot_filename_with_batch: "{list_name}_noon_temperatures_{start_year}_{end_year}_part{batch}of{total_batches}.png"
   
   # Credit and attribution text
