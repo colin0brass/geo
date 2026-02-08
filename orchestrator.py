@@ -63,7 +63,8 @@ def create_batch_subplot(
     settings: Path,
     t_min_c: float,
     t_max_c: float,
-    scale_height: bool
+    scale_height: bool,
+    list_name: str | None = None
 ) -> str:
     """
     Create a single batch subplot and save to file.
@@ -82,6 +83,7 @@ def create_batch_subplot(
         t_min_c: Minimum temperature across all data.
         t_max_c: Maximum temperature across all data.
         scale_height: Whether to scale figure height for 3+ rows.
+        list_name: Name of place list for filename (e.g., "all", "arctic"), None for default.
     Returns:
         Path to the saved plot file.
     """
@@ -92,8 +94,14 @@ def create_batch_subplot(
     else:
         batch_suffix = ""
     
+    # Use list name in filename if provided, otherwise use "Overall"
+    filename_prefix = list_name if list_name else "Overall"
+    
+    # Ensure output directory exists
+    out_dir.mkdir(parents=True, exist_ok=True)
+    
     vis = Visualizer(df_batch, out_dir=out_dir, t_min_c=t_min_c, t_max_c=t_max_c, settings_file=settings)
-    plot_file = out_dir / f"Overall_noon_temps_polar_{start_year}_{end_year}{batch_suffix}.png"
+    plot_file = out_dir / f"{filename_prefix}_noon_temps_polar_{start_year}_{end_year}{batch_suffix}.png"
     title = f"Mid-Day Temperatures ({start_year}-{end_year})"
     if num_batches > 1:
         title += f" - Part {batch_idx + 1}/{num_batches}"
@@ -129,7 +137,8 @@ def create_main_plots(
     t_min_c: float,
     t_max_c: float,
     grid: tuple[int, int] | None,
-    scale_height: bool
+    scale_height: bool,
+    list_name: str | None = None
 ) -> list[str]:
     """
     Create all main subplot plots, potentially split into batches.
@@ -146,6 +155,7 @@ def create_main_plots(
         t_max_c: Maximum temperature across all data.
         grid: Optional fixed grid dimensions (rows, cols).
         scale_height: Whether to scale figure height for 3+ rows.
+        list_name: Name of place list for filename (e.g., "all", "arctic"), None for default.
     Returns:
         List of paths to saved plot files.
     """
@@ -184,7 +194,8 @@ def create_main_plots(
             settings=settings,
             t_min_c=t_min_c,
             t_max_c=t_max_c,
-            scale_height=scale_height
+            scale_height=scale_height,
+            list_name=list_name
         )
         batch_plot_files.append(plot_file)
     
@@ -216,6 +227,9 @@ def create_individual_plot(
     Returns:
         Path to the saved plot file.
     """
+    # Ensure output directory exists
+    out_dir.mkdir(parents=True, exist_ok=True)
+    
     vis = Visualizer(df, out_dir=out_dir, t_min_c=t_min_c, t_max_c=t_max_c, settings_file=settings)
     plot_file = out_dir / f"{loc.name.replace(' ', '_').replace(',', '')}_noon_temps_polar_{start_year}_{end_year}.png"
     title = f"{loc.name} Mid-Day Temperatures ({start_year}-{end_year})"
@@ -245,7 +259,8 @@ def plot_all(
     show_main: bool,
     show_individual: bool,
     scale_height: bool = True,
-    grid: tuple[int, int] | None = None
+    grid: tuple[int, int] | None = None,
+    list_name: str | None = None
 ) -> None:
     """
     Generate all plots (overall subplot and individual plots) for the temperature data.
@@ -262,27 +277,19 @@ def plot_all(
         show_individual: Whether to display individual plots on screen.
         scale_height: Whether to scale figure height for 3+ rows to prevent overlap.
         grid: Optional fixed grid dimensions (rows, cols). If None, auto-calculate.
+        list_name: Name of place list (e.g., "all", "arctic"). Not currently used.
     """
     t_min_c = df_overall["temp_C"].min()
     t_max_c = df_overall["temp_C"].max()
     logger.info(f"Overall temperature range across all locations: {t_min_c:.2f} °C to {t_max_c:.2f} °C")
     
-    # Create main subplot plots (potentially split into batches)
-    batch_plot_files = create_main_plots(
-        df_overall=df_overall,
-        place_list=place_list,
-        start_year=start_year,
-        end_year=end_year,
-        out_dir=out_dir,        config=config,        settings=settings,
-        t_min_c=t_min_c,
-        t_max_c=t_max_c,
-        grid=grid,
-        scale_height=scale_height
-    )
+    num_places = len(place_list)
     
-    # Create individual plots for each location
-    individual_plot_files = []
-    for loc in place_list:
+    # For single place: create individual plot only (combined would be redundant)
+    # For multiple places: create combined plot only (too many individual files)
+    if num_places == 1:
+        logger.info(f"Creating individual plot for single location")
+        loc = place_list[0]
         df = df_overall[df_overall['place_name'] == loc.name]
         plot_file = create_individual_plot(
             loc=loc,
@@ -294,15 +301,28 @@ def plot_all(
             t_min_c=t_min_c,
             t_max_c=t_max_c
         )
-        individual_plot_files.append(plot_file)
-    
-    # Show plots on screen if requested
-    # Combine all plots to show them simultaneously
-    plots_to_show = []
-    if show_main:
-        plots_to_show.extend(batch_plot_files)
-    if show_individual:
-        plots_to_show.extend(individual_plot_files)
-    
-    if plots_to_show:
-        Visualizer.show_saved_plots(plots_to_show)
+        
+        # Show plot if requested
+        if show_main or show_individual:
+            Visualizer.show_saved_plots([plot_file])
+    else:
+        logger.info(f"Creating combined plot for {num_places} locations")
+        # Create main subplot plots (potentially split into batches)
+        batch_plot_files = create_main_plots(
+            df_overall=df_overall,
+            place_list=place_list,
+            start_year=start_year,
+            end_year=end_year,
+            out_dir=out_dir,
+            config=config,
+            settings=settings,
+            t_min_c=t_min_c,
+            t_max_c=t_max_c,
+            grid=grid,
+            scale_height=scale_height,
+            list_name=list_name
+        )
+        
+        # Show plots if requested
+        if show_main or show_individual:
+            Visualizer.show_saved_plots(batch_plot_files)

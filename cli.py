@@ -141,12 +141,8 @@ Examples:
     display_group = parser.add_argument_group("display options")
     display_group.add_argument(
         "-s", "--show",
-        type=str,
-        nargs='?',
-        const="main",
-        choices=["none", "main", "all"],
-        default="none",
-        help="Show plots interactively: 'none' (default), 'main' (combined plot only), 'all' (all plots). Use -s without argument for 'main'"
+        action="store_true",
+        help="Show plots interactively after generation"
     )
     display_group.add_argument(
         "--grid",
@@ -211,7 +207,7 @@ def parse_years(years_str: str) -> tuple[int, int]:
     return start_year, end_year
 
 
-def get_place_list(args: argparse.Namespace, places: dict[str, Location], default_place: str, place_lists: dict[str, list[str]]) -> list[Location]:
+def get_place_list(args: argparse.Namespace, places: dict[str, Location], default_place: str, place_lists: dict[str, list[str]]) -> tuple[list[Location], str | None]:
     """
     Determine the list of places to process based on command-line arguments.
     
@@ -222,14 +218,14 @@ def get_place_list(args: argparse.Namespace, places: dict[str, Location], defaul
         place_lists: Dictionary of predefined place lists.
         
     Returns:
-        list[Location]: List of Location objects to process.
+        tuple: (List of Location objects to process, list name or None for single places)
         
     Raises:
         SystemExit: If invalid place or place list is specified.
     """
     # --all takes precedence
     if args.all:
-        return list(places.values())
+        return list(places.values()), "all"
     
     # --place-list uses a named list
     if args.place_list:
@@ -237,26 +233,26 @@ def get_place_list(args: argparse.Namespace, places: dict[str, Location], defaul
             logger.error(f"Unknown place list '{args.place_list}'. Available lists: {list(place_lists.keys())}")
             sys.exit(1)
         place_names = place_lists[args.place_list]
-        return [places[name] for name in place_names if name in places]
+        return [places[name] for name in place_names if name in places], args.place_list
     
     # --place uses a specific place
     if args.place:
         if args.place in places:
             # Use configured place
-            return [places[args.place]]
+            return [places[args.place]], None
         # Custom place - require coordinates
         if args.lat is None or args.lon is None:
             logger.error(f"Unknown place '{args.place}'. Please provide --lat and --lon for custom locations.")
             sys.exit(1)
         # Create custom location (tz will auto-detect if not provided)
         if args.tz:
-            return [Location(name=args.place, lat=args.lat, lon=args.lon, tz=args.tz)]
+            return [Location(name=args.place, lat=args.lat, lon=args.lon, tz=args.tz)], None
         else:
-            return [Location(name=args.place, lat=args.lat, lon=args.lon)]
+            return [Location(name=args.place, lat=args.lat, lon=args.lon)], None
     
     # No arguments: use default place
     if default_place in places:
-        return [places[default_place]]
+        return [places[default_place]], None
     else:
         logger.error(f"Default place '{default_place}' not found in config.yaml")
         sys.exit(1)

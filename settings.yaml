@@ -44,7 +44,7 @@ polar_subplot:
     fig_height_in: 7.5
     xtick_fontsize: 9
     xtick_pad: -3
-    temp_label_fontsize: 7
+    temp_label_fontsize: 9
     temp_label_colour: gray
     temp_label_vspace: 0.04
     temp_step: 10.0

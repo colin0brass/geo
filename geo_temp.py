@@ -69,7 +69,7 @@ def main() -> None:
     start_year, end_year = parse_years(args.years)
     grid = parse_grid(args.grid)
     places, default_place, place_lists = load_places()
-    place_list = get_place_list(args, places, default_place, place_lists)
+    place_list, list_name = get_place_list(args, places, default_place, place_lists)
     
     # Dry-run mode: show what would be done without executing
     if args.dry_run:
@@ -84,9 +84,7 @@ def main() -> None:
         return
     
     df_overall = retrieve_and_concat_data(place_list, start_year, end_year, args.cache_dir, args.data_cache_dir)
-    show_main = args.show.lower() in ("main", "all")
-    show_individual = args.show.lower() == "all"
-    plot_all(df_overall, place_list, start_year, end_year, args.out_dir, args.config, args.settings, show_main, show_individual, True, grid)
+    plot_all(df_overall, place_list, start_year, end_year, args.out_dir, args.config, args.settings, args.show, args.show, True, grid, list_name)
 
 
 if __name__ == "__main__":

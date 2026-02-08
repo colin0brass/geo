@@ -284,7 +284,8 @@ def test_plot_all_no_show(mock_create_main, mock_create_individual, mock_visuali
         grid=None
     )
     
-    mock_create_main.assert_called_once()
+    # Single place: should create individual plot only, not combined
+    mock_create_main.assert_not_called()
     mock_create_individual.assert_called_once()
     # show_saved_plots should not be called when both show flags are False
     mock_visualizer_class.show_saved_plots.assert_not_called()
@@ -325,8 +326,8 @@ def test_plot_all_show_main(mock_create_main, mock_create_individual, mock_visua
         grid=None
     )
     
-    # Should show only main plot
-    mock_visualizer_class.show_saved_plots.assert_called_once_with([main_plot])
+    # Single place: should create and show individual plot only
+    mock_visualizer_class.show_saved_plots.assert_called_once_with([individual_plot])
 
 
 @patch('orchestrator.Visualizer')
@@ -364,8 +365,8 @@ def test_plot_all_show_all(mock_create_main, mock_create_individual, mock_visual
         grid=None
     )
     
-    # Should show both main and individual plots
-    mock_visualizer_class.show_saved_plots.assert_called_once_with([main_plot, individual_plot])
+    # Single place: should create and show individual plot only (combined would be redundant)
+    mock_visualizer_class.show_saved_plots.assert_called_once_with([individual_plot])
 
 
 @patch('orchestrator.Visualizer')
@@ -404,8 +405,9 @@ def test_plot_all_multiple_locations(mock_create_main, mock_create_individual, m
         grid=None
     )
     
-    # Should create individual plot for each location
-    assert mock_create_individual.call_count == 2
+    # Multiple places: should create combined plot only, no individual plots
+    mock_create_main.assert_called_once()
+    mock_create_individual.assert_not_called()
 # Unit testing these functions would require either:
 # - Significant refactoring to inject dependencies
 # - Complex mock setups that are brittle and hard to maintain

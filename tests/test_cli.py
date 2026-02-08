@@ -45,7 +45,7 @@ def test_parse_args_default():
         assert args.place is None
         assert args.place_list is None
         assert args.all is False
-        assert args.show == "none"
+        assert args.show is False
 
 
 def test_parse_args_with_place():
@@ -88,9 +88,9 @@ def test_parse_args_with_years():
 
 
 def test_parse_args_with_show():
-    with patch('sys.argv', ['geo_temp.py', '--show', 'all']):
+    with patch('sys.argv', ['geo_temp.py', '--show']):
         args = parse_args()
-        assert args.show == 'all'
+        assert args.show is True
 
 
 # Test get_place_list function
@@ -111,9 +111,10 @@ def test_get_place_list_default():
         lon = None
         tz = None
     
-    result = get_place_list(Args(), places, default_place, place_lists)
+    result, list_name = get_place_list(Args(), places, default_place, place_lists)
     assert len(result) == 1
     assert result[0].name == 'Austin, TX'
+    assert list_name is None
 
 
 def test_get_place_list_all():
@@ -132,9 +133,10 @@ def test_get_place_list_all():
         lon = None
         tz = None
     
-    result = get_place_list(Args(), places, default_place, place_lists)
+    result, list_name = get_place_list(Args(), places, default_place, place_lists)
     assert len(result) == 2
     assert set(p.name for p in result) == {'Austin, TX', 'Cambridge, MA'}
+    assert list_name == 'all'
 
 
 def test_get_place_list_place_list():
@@ -156,9 +158,10 @@ def test_get_place_list_place_list():
         lon = None
         tz = None
     
-    result = get_place_list(Args(), places, default_place, place_lists)
+    result, list_name = get_place_list(Args(), places, default_place, place_lists)
     assert len(result) == 2
     assert set(p.name for p in result) == {'Austin, TX', 'Bangalore'}
+    assert list_name == 'preferred'
 
 
 def test_get_place_list_single_place():
@@ -177,9 +180,10 @@ def test_get_place_list_single_place():
         lon = None
         tz = None
     
-    result = get_place_list(Args(), places, default_place, place_lists)
+    result, list_name = get_place_list(Args(), places, default_place, place_lists)
     assert len(result) == 1
     assert result[0].name == 'Cambridge, MA'
+    assert list_name is None
 
 
 def test_get_place_list_custom_location():
@@ -195,12 +199,13 @@ def test_get_place_list_custom_location():
         lon = -73.0
         tz = 'America/New_York'
     
-    result = get_place_list(Args(), places, default_place, place_lists)
+    result, list_name = get_place_list(Args(), places, default_place, place_lists)
     assert len(result) == 1
     assert result[0].name == 'Custom City'
     assert result[0].lat == 40.0
     assert result[0].lon == -73.0
     assert result[0].tz == 'America/New_York'
+    assert list_name is None
 
 
 def test_get_place_list_invalid_place_list():

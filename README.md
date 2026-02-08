@@ -54,7 +54,7 @@ python geo_temp.py --version
 
 **Single location:**
 ```bash
-python geo_temp.py -p "Austin, TX" -y 2020-2025 -s main
+python geo_temp.py -p "Austin, TX" -y 2020-2025 -s
 ```
 
 **Predefined place list:**
@@ -68,7 +68,7 @@ python geo_temp.py -L extreme_range -y 2024 -s
 
 **All locations:**
 ```bash
-python geo_temp.py -a -y 2024 -s main
+python geo_temp.py -a -y 2024 -s
 ```
 
 **Custom location (timezone auto-detected):**
@@ -83,8 +83,8 @@ python geo_temp.py -L -y 2024 --grid 4x3
 
 # If places exceed grid capacity, multiple images are generated
 python geo_temp.py -a -y 2024 --grid 4x4
-# Creates: Overall_noon_temps_polar_2024_2024_part1of2.png (16 places)
-#          Overall_noon_temps_polar_2024_2024_part2of2.png (remaining places)
+# Creates: all_noon_temps_polar_2024_2024_part1of2.png (16 places)
+#          all_noon_temps_polar_2024_2024_part2of2.png (remaining places)
 ```
 
 **Advanced options:**
@@ -245,16 +245,16 @@ python geo_temp.py -p "MyCity" --lat 40.7 --lon -74.0 -y 2024
 
 | Option | Short | Description | Default |
 |--------|-------|-------------|---------|
-| `--show [MODE]` | `-s` | Display plots on screen: none/main/all | none |
+| `--show` | `-s` | Display plots on screen after generation | off |
 | `--grid COLSxROWS` | | Manual grid (e.g., 4x3) | auto |
 
 **Notes:**
-- `-s` without argument defaults to "main" (opens the combined subplot)
-- `-s all` opens all plots (combined + individual)
-- Plots open in your system's default image viewer (not matplotlib windows)
-
-### Output Options
-
+- Individual plots are only created for single places (using `--place`)
+- Place lists (`--all`, `--list`) only create combined subplot images
+- Combined plots use the list name in filenames:
+  - Single place: `Overall_noon_temps_polar_2020_2025.png`
+  - Place list: `default_noon_temps_polar_2020_2025.png`
+  - All places: `all_noon_temps_polar_2020_2025.png`
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--out-dir DIR` | output | Output directory for plots |
