@@ -10,7 +10,7 @@ from cds import Location
 
 
 def test_cli_help():
-    result = subprocess.run([sys.executable, '-m', 'geo_temp', '--help'], capture_output=True, text=True)
+    result = subprocess.run([sys.executable, '-m', 'geo', '--help'], capture_output=True, text=True)
     assert result.returncode == 0
     assert 'usage' in result.stdout.lower() or 'help' in result.stdout.lower()
 
@@ -46,7 +46,7 @@ def test_parse_years_reversed_range():
 
 # Test parse_args function
 def test_parse_args_default():
-    with patch('sys.argv', ['geo_temp.py']):
+    with patch('sys.argv', ['geo.py']):
         args = parse_args()
         assert args.place is None
         assert args.place_list is None
@@ -56,7 +56,7 @@ def test_parse_args_default():
 
 
 def test_parse_args_with_place():
-    with patch('sys.argv', ['geo_temp.py', '--place', 'Austin, TX']):
+    with patch('sys.argv', ['geo.py', '--place', 'Austin, TX']):
         args = parse_args()
         assert args.place == 'Austin, TX'
         assert args.place_list is None
@@ -64,7 +64,7 @@ def test_parse_args_with_place():
 
 
 def test_parse_args_with_place_list():
-    with patch('sys.argv', ['geo_temp.py', '--list', 'preferred']):
+    with patch('sys.argv', ['geo.py', '--list', 'preferred']):
         args = parse_args()
         assert args.place_list == 'preferred'
         assert args.place is None
@@ -72,14 +72,14 @@ def test_parse_args_with_place_list():
 
 
 def test_parse_args_with_list_all_alias():
-    with patch('sys.argv', ['geo_temp.py', '--list', 'all']):
+    with patch('sys.argv', ['geo.py', '--list', 'all']):
         args = parse_args()
         assert args.place_list == 'all'
         assert args.all is False
 
 
 def test_parse_args_with_all():
-    with patch('sys.argv', ['geo_temp.py', '--all']):
+    with patch('sys.argv', ['geo.py', '--all']):
         args = parse_args()
         assert args.all is True
         assert args.place is None
@@ -87,7 +87,7 @@ def test_parse_args_with_all():
 
 
 def test_parse_args_with_custom_location():
-    with patch('sys.argv', ['geo_temp.py', '--place', 'Custom', '--lat', '40.0', '--lon', '-73.0', '--tz', 'America/New_York']):
+    with patch('sys.argv', ['geo.py', '--place', 'Custom', '--lat', '40.0', '--lon', '-73.0', '--tz', 'America/New_York']):
         args = parse_args()
         assert args.place == 'Custom'
         assert args.lat == 40.0
@@ -96,19 +96,19 @@ def test_parse_args_with_custom_location():
 
 
 def test_parse_args_with_years():
-    with patch('sys.argv', ['geo_temp.py', '--years', '2020-2024']):
+    with patch('sys.argv', ['geo.py', '--years', '2020-2024']):
         args = parse_args()
         assert args.years == '2020-2024'
 
 
 def test_parse_args_with_show():
-    with patch('sys.argv', ['geo_temp.py', '--show']):
+    with patch('sys.argv', ['geo.py', '--show']):
         args = parse_args()
         assert args.show is True
 
 
 def test_parse_args_with_measure():
-    with patch('sys.argv', ['geo_temp.py', '--measure', 'daily_precipitation']):
+    with patch('sys.argv', ['geo.py', '--measure', 'daily_precipitation']):
         args = parse_args()
         assert args.measure == 'daily_precipitation'
 
@@ -124,19 +124,19 @@ def test_validate_measure_support_precipitation_not_implemented():
 
 
 def test_parse_args_with_colour_mode():
-    with patch('sys.argv', ['geo_temp.py', '--colour-mode', 'year']):
+    with patch('sys.argv', ['geo.py', '--colour-mode', 'year']):
         args = parse_args()
         assert args.colour_mode == 'year'
 
 
 def test_parse_args_with_color_mode_alias():
-    with patch('sys.argv', ['geo_temp.py', '--color-mode', 'year']):
+    with patch('sys.argv', ['geo.py', '--color-mode', 'year']):
         args = parse_args()
         assert args.colour_mode == 'year'
 
 
 def test_parse_args_invalid_argument_hint_for_start_year():
-    with patch('sys.argv', ['geo_temp.py', '--start-year', '2025']):
+    with patch('sys.argv', ['geo.py', '--start-year', '2025']):
         with pytest.raises(CLIError) as exc_info:
             parse_args()
     assert "--years" in str(exc_info.value)
@@ -483,13 +483,13 @@ def test_parse_grid_invalid_negative():
 
 # Test CLI with --grid argument
 def test_parse_args_with_grid():
-    with patch('sys.argv', ['geo_temp.py', '--grid', '4x3']):
+    with patch('sys.argv', ['geo.py', '--grid', '4x3']):
         args = parse_args()
         assert args.grid == '4x3'
 
 
 def test_parse_args_grid_default():
-    with patch('sys.argv', ['geo_temp.py']):
+    with patch('sys.argv', ['geo.py']):
         args = parse_args()
         assert args.grid is None
 
@@ -548,21 +548,21 @@ def test_condense_year_ranges_two_years():
 
 def test_parse_args_with_list_years():
     """Test parsing --list-years argument."""
-    with patch('sys.argv', ['geo_temp.py', '-ly']):
+    with patch('sys.argv', ['geo.py', '-ly']):
         args = parse_args()
         assert args.list_years is True
 
 
 def test_parse_args_list_years_long_form():
     """Test parsing --list-years with long form."""
-    with patch('sys.argv', ['geo_temp.py', '--list-years']):
+    with patch('sys.argv', ['geo.py', '--list-years']):
         args = parse_args()
         assert args.list_years is True
 
 
 def test_parse_args_list_years_default():
     """Test that list_years is False by default."""
-    with patch('sys.argv', ['geo_temp.py']):
+    with patch('sys.argv', ['geo.py']):
         args = parse_args()
         assert args.list_years is False
 

@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-logger = logging.getLogger("geo_temp")
+logger = logging.getLogger("geo")
 
 try:
     from zoneinfo import ZoneInfo  # Python 3.9+

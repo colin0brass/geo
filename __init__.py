@@ -1,6 +1,6 @@
 
 """
-geo_temp: ERA5 temperature data tools
+geo: ERA5 temperature data tools
 -------------------------------------
 Provides utilities for downloading, caching, analyzing, and plotting ERA5 temperature data.
 """

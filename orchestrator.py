@@ -1,5 +1,5 @@
 """
-Plot orchestration for geo_temp.
+Plot orchestration for geo.
 
 Coordinates the creation of main subplots and individual plots,
 handling batching, grid layouts, and display logic.
@@ -17,7 +17,7 @@ from cli import calculate_grid_layout, load_grid_settings
 from config_manager import load_plot_text_config, get_plot_text
 from plot import Visualizer
 
-logger = logging.getLogger("geo_temp")
+logger = logging.getLogger("geo")
 
 
 def calculate_grid_dimensions(num_places: int, grid: tuple[int, int] | None, config: Path) -> tuple[int, int, int]:

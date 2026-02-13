@@ -1,5 +1,5 @@
 """
-CLI and configuration utilities for geo_temp.
+CLI and configuration utilities for geo.
 
 Handles command-line argument parsing and grid layout calculations.
 """
@@ -20,7 +20,7 @@ from matplotlib import colormaps as mpl_colormaps
 from cds import Location
 from config_manager import load_places
 
-logger = logging.getLogger("geo_temp")
+logger = logging.getLogger("geo")
 
 __version__ = "1.0.0"
 VALID_COLOUR_MODES = ("temperature", "year")
@@ -68,7 +68,7 @@ def _suggest_values(value: str, options: list[str], max_suggestions: int = 5) ->
 
 def parse_args() -> argparse.Namespace:
     """
-    Parse command-line arguments for geo_temp.
+    Parse command-line arguments for geo.
     
     Returns:
         argparse.Namespace: Parsed command-line arguments.

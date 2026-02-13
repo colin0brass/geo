@@ -8,7 +8,7 @@ from matplotlib import cm
 from matplotlib.colors import Normalize
 from settings_manager import SettingsManager
 
-logger = logging.getLogger("geo_temp")
+logger = logging.getLogger("geo")
 
 
 class Visualizer:

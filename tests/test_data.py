@@ -10,6 +10,7 @@ from data import (
     DATA_KEY,
     NOON_TEMP_VAR,
     SCHEMA_VERSION,
+    _load_cache_schema_registry,
     get_cached_years,
     read_data_file,
     retrieve_and_concat_data,
@@ -558,6 +559,51 @@ def test_read_data_file_rejects_newer_schema_version(tmp_path):
         yaml.safe_dump(future_doc, f)
 
     with pytest.raises(ValueError, match='newer schema_version'):
+        read_data_file(yaml_file)
+
+
+def test_schema_registry_rejects_invalid_required_list_type(tmp_path):
+    """Schema registry should fail if required_* fields are malformed."""
+    schema_file = tmp_path / "schema.yaml"
+    schema_file.write_text(
+        """
+current_version: 2
+versions:
+  1:
+    required: place
+  2:
+    data_key: data
+    variables_key: variables
+    primary_variable: noon_temp_C
+""".strip()
+    )
+
+    with pytest.raises(ValueError, match="required"):
+        _load_cache_schema_registry(schema_file)
+
+
+def test_read_data_file_schema_v1_missing_required_place_field_fails(tmp_path):
+    """Schema v1 documents missing required place fields should fail migration."""
+    yaml_file = tmp_path / "v1_missing_place_field.yaml"
+    v1_doc = {
+        'schema_version': 1,
+        'place': {
+            'name': 'V1 Place',
+            'lat': 40.0,
+            'lon': -73.0,
+            'timezone': 'America/New_York',
+            'grid_lat': 40.0,
+        },
+        'noon_temperatures': {
+            2024: {
+                1: {1: 14.25}
+            }
+        }
+    }
+    with open(yaml_file, 'w') as f:
+        yaml.safe_dump(v1_doc, f)
+
+    with pytest.raises(ValueError, match='missing required path'):
         read_data_file(yaml_file)
 
 

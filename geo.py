@@ -1,7 +1,7 @@
 """
-geo_temp: ERA5 temperature data analysis and visualization.
+geo: ERA5 temperature data analysis and visualization.
 
-Main entry point for the geo_temp application. Orchestrates data retrieval,
+Main entry point for the geo application. Orchestrates data retrieval,
 processing, and visualization of ERA5 temperature data.
 """
 
@@ -18,7 +18,7 @@ from progress import get_progress_manager, ConsoleProgressHandler
 
 def main() -> int:
     """
-    Main entry point for geo_temp.
+    Main entry point for geo.
     
     Parses command-line arguments, loads places configuration, retrieves temperature data,
     and generates visualizations according to the specified options.
@@ -31,14 +31,14 @@ def main() -> int:
     
     # Initialize logging
     setup_logging()
-    logger = get_logger("geo_temp")  # Use explicit name, not __name__
+    logger = get_logger("geo")  # Use explicit name, not __name__
     
     # Register progress handler for console output
     progress_manager = get_progress_manager()
     progress_manager.register_handler(ConsoleProgressHandler())
     
     # Handle verbose/quiet flags for console output
-    geo_logger = logging.getLogger("geo_temp")
+    geo_logger = logging.getLogger("geo")
     if args.verbose:
         # Set console handler to DEBUG level for verbose output
         for handler in geo_logger.handlers:

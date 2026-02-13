@@ -1,5 +1,5 @@
 """
-Configuration file management for geo_temp.
+Configuration file management for geo.
 
 Handles loading and saving of config.yaml with proper formatting.
 """
@@ -110,7 +110,7 @@ def save_config(config: dict, config_path: Path = Path("config.yaml")) -> None:
     lines = []
     
     # File header comment
-    lines.append("# geo_temp configuration file")
+    lines.append("# geo configuration file")
     lines.append("# Programmatic updates (e.g., --add-place) will reformat this file")
     lines.append("")
     
@@ -206,7 +206,7 @@ def add_place_to_config(place_name: str, config_path: Path = Path("config.yaml")
     """
     # Geocode the place
     print(f"Looking up coordinates for '{place_name}'...")
-    geolocator = Nominatim(user_agent="geo_temp")
+    geolocator = Nominatim(user_agent="geo")
     
     try:
         location = geolocator.geocode(place_name)

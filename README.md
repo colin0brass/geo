@@ -1,7 +1,7 @@
 
-# geo_temp
+# geo
 
-**geo_temp** is a Python package for downloading, caching, analyzing, and visualizing ERA5 temperature data, with a focus on daily local noon temperatures for specified locations. It supports batch processing, flexible configuration, and publication-quality polar plots.
+**geo** is a Python package for downloading, caching, analyzing, and visualizing ERA5 temperature data, with a focus on daily local noon temperatures for specified locations. It supports batch processing, flexible configuration, and publication-quality polar plots.
 
 ---
 
@@ -39,53 +39,53 @@ pip install -r requirements.txt
 **Quick start:**
 ```bash
 # Default place, display plots on screen
-python geo_temp.py -y 2024 -s
+python geo.py -y 2024 -s
 
 # List available places
-python geo_temp.py -l
+python geo.py -l
 
 # List places with their cached years
-python geo_temp.py -ly
+python geo.py -ly
 
 # Show help and version
-python geo_temp.py --help
-python geo_temp.py --version
+python geo.py --help
+python geo.py --version
 ```
 
 **Single location:**
 ```bash
-python geo_temp.py -p "Austin, TX" -y 2020-2025 -s
+python geo.py -p "Austin, TX" -y 2020-2025 -s
 ```
 
 **Predefined place list:**
 ```bash
 # Use default list
-python geo_temp.py -L -y 2024 -s
+python geo.py -L -y 2024 -s
 
 # Use specific list
-python geo_temp.py -L extreme_range -y 2024 -s
+python geo.py -L extreme_range -y 2024 -s
 
 # Alias for --all
-python geo_temp.py -L all -y 2024 -s
+python geo.py -L all -y 2024 -s
 ```
 
 **All locations:**
 ```bash
-python geo_temp.py -a -y 2024 -s
+python geo.py -a -y 2024 -s
 ```
 
 **Custom location (timezone auto-detected):**
 ```bash
-python geo_temp.py -p "Custom Location" --lat 40.7128 --lon -74.0060 -y 2024
+python geo.py -p "Custom Location" --lat 40.7128 --lon -74.0060 -y 2024
 ```
 
 **Specify grid layout:**
 ```bash
 # 4 columns by 3 rows = 12 places max per image
-python geo_temp.py -L -y 2024 --grid 4x3
+python geo.py -L -y 2024 --grid 4x3
 
 # If places exceed grid capacity, multiple images are generated
-python geo_temp.py -a -y 2024 --grid 4x4
+python geo.py -a -y 2024 --grid 4x4
 # Creates: all_noon_temperatures_2024_2024_part1of2.png (16 places)
 #          all_noon_temperatures_2024_2024_part2of2.png (remaining places)
 ```
@@ -93,22 +93,22 @@ python geo_temp.py -a -y 2024 --grid 4x4
 **Advanced options:**
 ```bash
 # Add a new place to config (looks up coordinates automatically)
-python geo_temp.py --add-place "Seattle, WA"
+python geo.py --add-place "Seattle, WA"
 
 # Colour points by year to reveal long-term trend shifts
-python geo_temp.py -p "Austin, TX" -y 1990-2025 --colour-mode year
+python geo.py -p "Austin, TX" -y 1990-2025 --colour-mode year
 
 # Choose data measure (currently noon_temperature is implemented)
-python geo_temp.py -p "Austin, TX" -y 2024 --measure noon_temperature
+python geo.py -p "Austin, TX" -y 2024 --measure noon_temperature
 
 # Dry-run mode (preview without executing)
-python geo_temp.py -a -y 2024 --dry-run
+python geo.py -a -y 2024 --dry-run
 
 # Verbose logging
-python geo_temp.py -p "Austin, TX" -y 2024 -v
+python geo.py -p "Austin, TX" -y 2024 -v
 
 # Quiet mode (errors only)
-python geo_temp.py -a -y 2024 -q
+python geo.py -a -y 2024 -q
 ```
 
 
@@ -116,7 +116,7 @@ python geo_temp.py -a -y 2024 -q
 
 ```python
 from datetime import date
-from geo_temp import read_data_file, save_data_file
+from geo import read_data_file, save_data_file
 from cds import CDS, Location
 from plot import Visualizer
 
@@ -132,7 +132,7 @@ vis.plot_polar(title="Austin 2020 Noon Temps", save_file="output/austin_2020.png
 ---
 
 ## Project Structure
-- `geo_temp.py`: Main entry point and orchestration
+- `geo.py`: Main entry point and orchestration
 - `cli.py`: Command-line argument parsing, configuration loading, and validation
 - `config_manager.py`: Configuration file management and place geocoding
 - `cds.py`: ERA5 data download, caching, and processing
@@ -189,22 +189,22 @@ pip install -r requirements.txt
 
 ```bash
 # Add a new place (looks up coordinates online)
-python geo_temp.py --add-place "Seattle, WA"
+python geo.py --add-place "Seattle, WA"
 
 # List all available places and place lists
-python geo_temp.py -l
+python geo.py -l
 
 # Alias for --all (all configured places)
-python geo_temp.py -L all -y 2024
+python geo.py -L all -y 2024
 
 # List places with their cached years (from data cache)
-python geo_temp.py -ly
+python geo.py -ly
 
 # Show version
-python geo_temp.py --version
+python geo.py --version
 
 # Show help
-python geo_temp.py --help
+python geo.py --help
 ```
 
 ### Location Options (choose one)
@@ -240,10 +240,10 @@ Data cache directory: data_cache
 
 ```bash
 # Add a new place to config (looks up coordinates)
-python geo_temp.py --add-place "Seattle, WA"
+python geo.py --add-place "Seattle, WA"
 
 # Use custom coordinates without adding to config
-python geo_temp.py -p "MyCity" --lat 40.7 --lon -74.0 -y 2024
+python geo.py -p "MyCity" --lat 40.7 --lon -74.0 -y 2024
 # Timezone auto-detected; use --tz to override
 ```
 
@@ -292,7 +292,7 @@ python geo_temp.py -p "MyCity" --lat 40.7 --lon -74.0 -y 2024
 | `--verbose` | `-v` | Show DEBUG messages on console (log file always at DEBUG) |
 | `--quiet` | `-q` | Show only errors on console (log file unaffected) |
 
-**Note:** The log file (`geo_temp.log`) always captures all DEBUG messages regardless of console verbosity. It's cleared at the start of each run.
+**Note:** The log file (`geo.log`) always captures all DEBUG messages regardless of console verbosity. It's cleared at the start of each run.
 
 ---
 
@@ -305,7 +305,7 @@ Stores application configuration with five main sections:
 #### 1. Logging
 ```yaml
 logging:
-  log_file: geo_temp.log
+  log_file: geo.log
   console_level: WARNING  # DEBUG, INFO, WARNING, ERROR, CRITICAL
 ```
 
@@ -467,9 +467,15 @@ See comments in the file for detailed options and row-based configuration patter
 - Newly written files use schema v2 with place metadata, variable metadata, and data arrays
 - Format: `schema_version` + place info + variables metadata + daily data organized by year/month/day
 - Schema versions and keys are defined in `schema.yaml` (currently includes v1 and v2; used for automatic migration, including v1→v2 field mappings)
-- When an older cache file is loaded, geo_temp automatically migrates it and saves it in the current schema before continuing
+- When an older cache file is loaded, geo automatically migrates it and saves it in the current schema before continuing
 - Compact format: 1 line per month for 31% size reduction
 - Git-friendly with clear diffs when adding new data
+
+Schema registry notes (`schema.yaml`):
+- `required`: list of required key paths (dot notation) for a schema version
+- `required_any_of`: list of alternative path groups where at least one path in each group must exist
+- `primary_data_path` and `legacy_data_paths`: generic root-level data aliases used for legacy extraction/migration
+- `migration.from_version` + `migration.field_mappings`: declarative mapping from older schema fields to current schema fields
 
 Example YAML structure:
 ```yaml
@@ -544,7 +550,7 @@ Tests are organized across dedicated modules:
 When places exceed grid capacity, multiple images are automatically generated:
 
 ```bash
-python geo_temp.py -a -y 2024 --grid 4x4
+python geo.py -a -y 2024 --grid 4x4
 # Outputs:
 #   all_noon_temperatures_2024_2024_part1of2.png (16 places)
 #   all_noon_temperatures_2024_2024_part2of2.png (remaining places)
@@ -577,7 +583,7 @@ The `SettingsManager` class automatically selects the appropriate value based on
 Preview operations without execution:
 
 ```bash
-python geo_temp.py -a -y 2024 --dry-run
+python geo.py -a -y 2024 --dry-run
 # Shows: places, years, grid, directories
 # Downloads/creates nothing
 ```
@@ -610,7 +616,7 @@ python geo_temp.py -a -y 2024 --dry-run
 
 **Current version:** 1.0.0
 
-Check version: `python geo_temp.py --version`
+Check version: `python geo.py --version`
 
 ---
 

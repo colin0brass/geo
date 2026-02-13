@@ -1,5 +1,5 @@
 """
-Progress reporting system for geo_temp.
+Progress reporting system for geo.
 
 Provides a callback-based progress reporting mechanism with pluggable handlers.
 """

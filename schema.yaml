@@ -2,11 +2,32 @@ current_version: 2
 versions:
   1:
     description: Legacy noon temperature schema with root-level temperature map
-    temperature_key: noon_temperatures
-    legacy_temperature_keys:
+    required:
+      - place
+      - place.name
+      - place.lat
+      - place.lon
+      - place.timezone
+      - place.grid_lat
+      - place.grid_lon
+    required_any_of:
+      - [temp_map_v1, noon_temperatures, temperatures]
+    primary_data_path: noon_temperatures
+    legacy_data_paths:
       - temperatures
   2:
     description: Noon temperature cache schema with explicit variable metadata
+    required:
+      - schema_version
+      - place
+      - variables
+      - data
+      - place.name
+      - place.lat
+      - place.lon
+      - place.timezone
+      - place.grid_lat
+      - place.grid_lon
     data_key: data
     variables_key: variables
     primary_variable: noon_temp_C

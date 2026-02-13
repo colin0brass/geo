@@ -19,7 +19,7 @@ def test_load_places_basic(tmp_path):
     config_file = tmp_path / "config.yaml"
     config_content = """
 logging:
-  log_file: geo_temp.log
+  log_file: geo.log
   console_level: WARNING
 
 places:

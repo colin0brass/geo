@@ -1,9 +1,9 @@
-# geo_temp configuration file
+# geo configuration file
 # Programmatic updates (e.g., --add-place) will reformat this file
 
 # Logging configuration
 logging:
-  log_file: geo_temp.log
+  log_file: geo.log
   console_level: WARNING
 
 # Grid layout configuration

@@ -1,4 +1,4 @@
-"""Centralized logging configuration for geo_temp.
+"""Centralized logging configuration for geo.
 
 Reads logging configuration from config.yaml.
 """
@@ -25,11 +25,11 @@ def setup_logging(config_path: Path = Path("config.yaml")) -> logging.Logger:
         config = yaml.safe_load(f)
     
     logging_config = config.get('logging', {})
-    log_file = logging_config.get('log_file', 'geo_temp.log')
+    log_file = logging_config.get('log_file', 'geo.log')
     console_level = logging_config.get('console_level', 'WARNING')
     
     # Create logger
-    logger = logging.getLogger("geo_temp")
+    logger = logging.getLogger("geo")
     logger.setLevel(logging.DEBUG)  # Capture everything
     
     # Avoid adding handlers multiple times if called repeatedly
@@ -72,12 +72,12 @@ def setup_logging(config_path: Path = Path("config.yaml")) -> logging.Logger:
     return logger
 
 
-def get_logger(name: str = "geo_temp") -> logging.Logger:
+def get_logger(name: str = "geo") -> logging.Logger:
     """
     Get a logger instance.
     
     Args:
-        name: Logger name (default: "geo_temp").
+        name: Logger name (default: "geo").
     
     Returns:
         Logger instance.

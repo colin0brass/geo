@@ -1,5 +1,5 @@
 """
-Data pipeline utilities for geo_temp.
+Data pipeline utilities for geo.
 
 Handles data retrieval, caching, and I/O operations for temperature data.
 """
@@ -17,7 +17,7 @@ import yaml
 from cds import CDS, Location
 from progress import get_progress_manager
 
-logger = logging.getLogger("geo_temp")
+logger = logging.getLogger("geo")
 
 SCHEMA_REGISTRY_FILE = Path(__file__).with_name('schema.yaml')
 
@@ -39,6 +39,46 @@ def _load_cache_schema_registry(schema_file: Path = SCHEMA_REGISTRY_FILE) -> dic
             f"Cache schema version {current_version} not found in registry: {schema_file}"
         )
 
+    for version_key, schema_def in normalized_versions.items():
+        if not isinstance(schema_def, dict):
+            raise ValueError(f"Schema version {version_key} definition must be a mapping")
+
+        for list_field in ('required', 'required_paths'):
+            field_value = schema_def.get(list_field)
+            if field_value is not None and not (
+                isinstance(field_value, list)
+                and all(isinstance(item, str) and item for item in field_value)
+            ):
+                raise ValueError(
+                    f"Schema version {version_key} field '{list_field}' must be a non-empty string list"
+                )
+
+        any_of_groups = schema_def.get('required_any_of')
+        if any_of_groups is None:
+            any_of_groups = schema_def.get('required_any_of_paths')
+        if any_of_groups is not None:
+            if not isinstance(any_of_groups, list):
+                raise ValueError(
+                    f"Schema version {version_key} field 'required_any_of' must be a list of path groups"
+                )
+            for group in any_of_groups:
+                if not (
+                    isinstance(group, list)
+                    and group
+                    and all(isinstance(item, str) and item for item in group)
+                ):
+                    raise ValueError(
+                        f"Schema version {version_key} field 'required_any_of' must contain non-empty string lists"
+                    )
+
+        if version_key == current_key:
+            for required_field in ('data_key', 'variables_key', 'primary_variable'):
+                required_value = schema_def.get(required_field)
+                if not isinstance(required_value, str) or not required_value:
+                    raise ValueError(
+                        f"Current schema version {version_key} must define '{required_field}'"
+                    )
+
     return {
         'current_version': int(current_version),
         'versions': normalized_versions,
@@ -55,6 +95,24 @@ NOON_TEMP_VAR = CURRENT_SCHEMA['primary_variable']
 VARIABLES_METADATA_TEMPLATE = CURRENT_SCHEMA.get('variables', {})
 
 
+def _schema_legacy_data_paths(schema_def: dict) -> list[str]:
+    """Collect candidate legacy root-level data paths from a schema definition."""
+    candidates: list[str] = []
+
+    primary = schema_def.get('primary_data_path')
+    if primary is None:
+        primary = schema_def.get('temperature_key')
+    if isinstance(primary, str) and primary and primary not in candidates:
+        candidates.append(primary)
+
+    for list_field in ('legacy_data_paths', 'legacy_temperature_keys'):
+        for key in schema_def.get(list_field, []):
+            if isinstance(key, str) and key and key not in candidates:
+                candidates.append(key)
+
+    return candidates
+
+
 def _get_legacy_schema_keys() -> list[str]:
     """Collect root-level legacy temperature keys from prior schema versions."""
     collected: list[str] = []
@@ -67,13 +125,9 @@ def _get_legacy_schema_keys() -> list[str]:
         if version >= SCHEMA_VERSION:
             continue
 
-        primary_key = schema_def.get('temperature_key')
-        if isinstance(primary_key, str) and primary_key and primary_key not in collected:
-            collected.append(primary_key)
-
-        for legacy_key in schema_def.get('legacy_temperature_keys', []):
-            if isinstance(legacy_key, str) and legacy_key and legacy_key not in collected:
-                collected.append(legacy_key)
+        for key in _schema_legacy_data_paths(schema_def):
+            if key not in collected:
+                collected.append(key)
 
     return collected
 
@@ -89,6 +143,16 @@ def _get_by_path(data: dict, path: str):
             return None
         node = node[part]
     return node
+
+
+def _has_path(data: dict, path: str) -> bool:
+    """Check whether a dot-separated key path exists in a mapping."""
+    node = data
+    for part in path.split('.'):
+        if not isinstance(node, dict) or part not in node:
+            return False
+        node = node[part]
+    return True
 
 
 def _extract_temp_map_from_schema_mapping(data: dict) -> dict:
@@ -178,11 +242,7 @@ def _extract_legacy_noon_temps(data: dict) -> dict:
     schema_version = data.get('schema_version')
     if schema_version is not None:
         schema_def = _SCHEMA_REGISTRY['versions'].get(str(schema_version), {})
-        schema_key = schema_def.get('temperature_key')
-        if isinstance(schema_key, str) and schema_key in data:
-            return data[schema_key]
-
-        for legacy_key in schema_def.get('legacy_temperature_keys', []):
+        for legacy_key in _schema_legacy_data_paths(schema_def):
             if legacy_key in data:
                 return data[legacy_key]
 
@@ -190,6 +250,28 @@ def _extract_legacy_noon_temps(data: dict) -> dict:
         if legacy_key in data:
             return data[legacy_key]
     return {}
+
+
+def _validate_required_schema_fields(data: dict, schema_def: dict, yaml_file: Path) -> None:
+    """Validate required key-path contracts declared in schema metadata."""
+    required_paths = schema_def.get('required')
+    if required_paths is None:
+        required_paths = schema_def.get('required_paths', [])
+
+    for path in required_paths:
+        if not _has_path(data, path):
+            raise ValueError(f"Cannot migrate {yaml_file}: missing required path '{path}'")
+
+    required_any_of = schema_def.get('required_any_of')
+    if required_any_of is None:
+        required_any_of = schema_def.get('required_any_of_paths', [])
+
+    for group in required_any_of:
+        if not any(_has_path(data, candidate) for candidate in group):
+            group_str = ', '.join(group)
+            raise ValueError(
+                f"Cannot migrate {yaml_file}: missing required key path group; expected one of [{group_str}]"
+            )
 
 
 def _is_v2_schema(data: dict) -> bool:
@@ -291,6 +373,11 @@ def migrate_cache_file_to_v2(yaml_file: Path) -> bool:
         raise ValueError(
             f"Cannot migrate {yaml_file}: schema_version {schema_version} is newer than supported {SCHEMA_VERSION}"
         )
+
+    if schema_version is not None:
+        schema_def = _SCHEMA_REGISTRY['versions'].get(str(schema_version), {})
+        if isinstance(schema_def, dict):
+            _validate_required_schema_fields(data, schema_def, yaml_file)
 
     legacy_temps = _extract_legacy_noon_temps(data)
     if not legacy_temps or 'place' not in data:

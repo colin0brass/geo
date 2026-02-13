@@ -23,13 +23,13 @@ places:
     config_file.write_text(config_content)
     
     # Clear any existing handlers
-    logger = logging.getLogger("geo_temp")
+    logger = logging.getLogger("geo")
     logger.handlers.clear()
     
     result = setup_logging(config_file)
     
     assert result is not None
-    assert result.name == "geo_temp"
+    assert result.name == "geo"
     assert result.level == logging.DEBUG
     assert len(result.handlers) == 2  # File and console handlers
 
@@ -47,7 +47,7 @@ places:
     config_file = tmp_path / "config.yaml"
     config_file.write_text(config_content)
     
-    logger = logging.getLogger("geo_temp")
+    logger = logging.getLogger("geo")
     logger.handlers.clear()
     
     result = setup_logging(config_file)
@@ -67,7 +67,7 @@ places:
     config_file = tmp_path / "config.yaml"
     config_file.write_text(config_content)
     
-    logger = logging.getLogger("geo_temp")
+    logger = logging.getLogger("geo")
     logger.handlers.clear()
     
     result = setup_logging(config_file)
@@ -96,7 +96,7 @@ places:
     os.chdir(tmp_path)
     
     try:
-        logger = logging.getLogger("geo_temp")
+        logger = logging.getLogger("geo")
         logger.handlers.clear()
         
         setup_logging(config_file)
@@ -124,7 +124,7 @@ places:
     config_file = tmp_path / "config.yaml"
     config_file.write_text(config_content)
     
-    logger = logging.getLogger("geo_temp")
+    logger = logging.getLogger("geo")
     logger.handlers.clear()
     
     setup_logging(config_file)
@@ -149,7 +149,7 @@ places:
     config_file = tmp_path / "config.yaml"
     config_file.write_text(config_content)
     
-    logger = logging.getLogger("geo_temp")
+    logger = logging.getLogger("geo")
     logger.handlers.clear()
     
     result = setup_logging(config_file)
@@ -173,7 +173,7 @@ places:
         config_file = tmp_path / "config.yaml"
         config_file.write_text(config_content)
         
-        logger = logging.getLogger("geo_temp")
+        logger = logging.getLogger("geo")
         logger.handlers.clear()
         
         result = setup_logging(config_file)
@@ -187,7 +187,7 @@ def test_get_logger():
     """Test get_logger function."""
     logger = get_logger()
     assert logger is not None
-    assert logger.name == "geo_temp"
+    assert logger.name == "geo"
     
     custom_logger = get_logger("custom")
     assert custom_logger.name == "custom"
@@ -206,7 +206,7 @@ places:
     config_file = tmp_path / "config.yaml"
     config_file.write_text(config_content)
     
-    logger = logging.getLogger("geo_temp")
+    logger = logging.getLogger("geo")
     logger.handlers.clear()
     
     result = setup_logging(config_file)
@@ -225,7 +225,7 @@ def test_setup_logging_missing_file(tmp_path):
     """Test setup_logging with missing config file."""
     missing_file = tmp_path / "nonexistent.yaml"
     
-    logger = logging.getLogger("geo_temp")
+    logger = logging.getLogger("geo")
     logger.handlers.clear()
     
     with pytest.raises(FileNotFoundError):
