@@ -448,6 +448,38 @@ class CDS:
                 "place_name",
             ])
 
+        day_span = (end_d - start_d).days + 1
+
+        if day_span <= 62:
+            all_dfs = []
+            month_pairs = list(self._month_range(start_d, end_d))
+            total_months = len(month_pairs)
+
+            for month_idx, (year, month) in enumerate(month_pairs, 1):
+                if self.progress_manager and notify_progress:
+                    self.progress_manager.notify_year_start(
+                        location.name,
+                        year,
+                        month_idx,
+                        total_months,
+                    )
+
+                df_month = self.get_month_daily_noon_data(location, year, month, half_box_deg)
+                all_dfs.append(df_month)
+
+                if self.progress_manager and notify_progress:
+                    self.progress_manager.notify_year_complete(
+                        location.name,
+                        year,
+                        month_idx,
+                        total_months,
+                    )
+
+            df_all = pd.concat(all_dfs, ignore_index=True)
+            df_all["date"] = pd.to_datetime(df_all["date"]).dt.date
+            mask = (df_all["date"] >= start_d) & (df_all["date"] <= end_d)
+            return df_all.loc[mask].reset_index(drop=True)
+
         all_dfs = []
 
         # Get list of years to process

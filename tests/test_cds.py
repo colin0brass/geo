@@ -10,8 +10,24 @@ class DummyCDS(CDS):
         self.client = None
         self.cache_dir = cache_dir
         self.progress_manager = None
+        self.year_calls = 0
+        self.month_calls = 0
+
+    def get_month_daily_noon_data(self, location, year, month, half_box_deg=0.25):
+        self.month_calls += 1
+        return pd.DataFrame({
+            'date': [f'{year}-{month:02d}-01'],
+            'local_noon': [f'{year}-{month:02d}-01T12:00:00+00:00'],
+            'utc_time_used': [f'{year}-{month:02d}-01T12:00:00+00:00'],
+            'temp_C': [10.0],
+            'temp_F': [50.0],
+            'grid_lat': [location.lat],
+            'grid_lon': [location.lon],
+            'place_name': [location.name],
+        })
 
     def get_year_daily_noon_data(self, location, year, half_box_deg=0.25):
+        self.year_calls += 1
         return pd.DataFrame({
             'date': [f'{year}-01-01'],
             'local_noon': [f'{year}-01-01T12:00:00+00:00'],
@@ -56,10 +72,23 @@ def test_cds_get_noon_series_monkeypatch(tmp_path):
     df = cds.get_noon_series(loc, pd.Timestamp('2025-01-01').date(), pd.Timestamp('2025-01-01').date())
     assert not df.empty
     assert df['place_name'].iloc[0] == "Test"
+    assert cds.month_calls == 1
+    assert cds.year_calls == 0
+
+
+def test_cds_get_noon_series_long_range_uses_year_fetch(tmp_path):
+    cds = DummyCDS(cache_dir=tmp_path)
+    loc = Location(name="Test", lat=1.0, lon=2.0, tz="UTC")
+    _ = cds.get_noon_series(loc, pd.Timestamp('2025-01-01').date(), pd.Timestamp('2025-04-15').date())
+    assert cds.year_calls == 1
+    assert cds.month_calls == 0
 
 
 def test_cds_invalid_location():
     class DummyInvalidCDS(DummyCDS):
+        def get_month_daily_noon_data(self, location, year, month, half_box_deg=0.25):
+            raise ValueError("Invalid location coordinates")
+
         def get_year_daily_noon_data(self, location, year, half_box_deg=0.25):
             raise ValueError("Invalid location coordinates")
 
