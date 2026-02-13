@@ -46,11 +46,14 @@ plotting:
       label: "Mid-Day Temperature"
       unit: "°C"
       y_value_column: "temp_C"
+      y_step: 10
       range_text: "{min_temp_c:.1f}°C to {max_temp_c:.1f}°C; ({min_temp_f:.1f}°F to {max_temp_f:.1f}°F)"
     daily_precipitation:
       label: "Daily Precipitation"
       unit: "mm"
       y_value_column: "precip_mm"
+      y_min: 0
+      y_step: 5
       range_text: "{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}"
   # Allowed colormaps for plotting (first entry is used as default fallback)
   valid_colormaps: [turbo, viridis, plasma, inferno, magma, cividis]

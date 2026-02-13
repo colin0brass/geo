@@ -320,6 +320,62 @@ def test_load_measure_labels_config_missing_required_field_raises(tmp_path):
         load_measure_labels_config(config_file)
 
 
+def test_load_measure_labels_config_optional_range_controls(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "plotting:\n"
+        "  measure_labels:\n"
+        "    daily_precipitation:\n"
+        "      label: Daily Precipitation\n"
+        "      unit: mm\n"
+        "      y_value_column: precip_mm\n"
+        "      y_min: 0\n"
+        "      y_max: 50\n"
+        "      y_step: 5\n"
+        "      range_text: '{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}'\n"
+    )
+
+    labels = load_measure_labels_config(config_file)
+    assert labels["daily_precipitation"]["y_min"] == 0.0
+    assert labels["daily_precipitation"]["y_max"] == 50.0
+    assert labels["daily_precipitation"]["y_step"] == 5.0
+
+
+def test_load_measure_labels_config_invalid_y_step_raises(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "plotting:\n"
+        "  measure_labels:\n"
+        "    daily_precipitation:\n"
+        "      label: Daily Precipitation\n"
+        "      unit: mm\n"
+        "      y_value_column: precip_mm\n"
+        "      y_step: 0\n"
+        "      range_text: '{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}'\n"
+    )
+
+    with pytest.raises(ValueError):
+        load_measure_labels_config(config_file)
+
+
+def test_load_measure_labels_config_invalid_y_min_max_raises(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "plotting:\n"
+        "  measure_labels:\n"
+        "    daily_precipitation:\n"
+        "      label: Daily Precipitation\n"
+        "      unit: mm\n"
+        "      y_value_column: precip_mm\n"
+        "      y_min: 10\n"
+        "      y_max: 5\n"
+        "      range_text: '{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}'\n"
+    )
+
+    with pytest.raises(ValueError):
+        load_measure_labels_config(config_file)
+
+
 def test_get_plot_text_missing_placeholder_raises():
     config = {
         "subplot_title": "{measure_label} ({start_year}-{end_year})",

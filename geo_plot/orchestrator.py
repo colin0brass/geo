@@ -20,7 +20,7 @@ from .plot import Visualizer
 logger = logging.getLogger("geo")
 
 
-def _measure_plot_context(measure: str, measure_labels: dict[str, dict[str, str]]) -> dict[str, str]:
+def _measure_plot_context(measure: str, measure_labels: dict[str, dict[str, object]]) -> dict[str, str]:
     """Build template context values for plot text based on selected measure."""
     default_label = measure.replace('_', ' ').title()
     measure_metadata = measure_labels.get(measure, {})
@@ -33,6 +33,25 @@ def _measure_plot_context(measure: str, measure_labels: dict[str, dict[str, str]
         'measure_unit': measure_unit,
         'y_value_label': measure_label,
     }
+
+
+def _resolve_measure_range(df: pd.DataFrame, measure_meta: dict[str, object], y_value_column: str) -> tuple[float, float]:
+    """Resolve y-axis bounds using optional measure overrides and data values."""
+    if y_value_column not in df.columns:
+        raise KeyError(f"Missing measure value column '{y_value_column}' in overall DataFrame")
+
+    data_min = float(df[y_value_column].min())
+    data_max = float(df[y_value_column].max())
+
+    y_min_override = measure_meta.get('y_min')
+    y_max_override = measure_meta.get('y_max')
+
+    t_min_c = float(y_min_override) if y_min_override is not None else data_min
+    t_max_c = float(y_max_override) if y_max_override is not None else data_max
+    if t_min_c > t_max_c:
+        raise ValueError("Resolved y-axis range is invalid: min must be <= max")
+
+    return t_min_c, t_max_c
 
 
 def calculate_grid_dimensions(num_places: int, grid: tuple[int, int] | None, config: Path) -> tuple[int, int, int]:
@@ -171,6 +190,7 @@ def create_batch_subplot(
         out_dir=out_dir,
         t_min_c=t_min_c,
         t_max_c=t_max_c,
+        y_step=measure_meta.get('y_step'),
         settings_file=settings,
         y_value_column=y_value_column,
         range_text_template=range_text_template,
@@ -348,6 +368,7 @@ def create_individual_plot(
         out_dir=out_dir,
         t_min_c=t_min_c,
         t_max_c=t_max_c,
+        y_step=measure_meta.get('y_step'),
         settings_file=settings,
         y_value_column=y_value_column,
         range_text_template=range_text_template,
@@ -403,9 +424,14 @@ def plot_all(
         colour_mode: Colour mapping mode ('y_value' or 'year').
         colormap_name: Matplotlib colormap name.
     """
-    t_min_c = df_overall["temp_C"].min()
-    t_max_c = df_overall["temp_C"].max()
-    logger.info(f"Overall temperature range across all locations: {t_min_c:.2f} °C to {t_max_c:.2f} °C")
+    measure_labels = load_measure_labels_config(config)
+    measure_meta = measure_labels.get(measure, {})
+    y_value_column = measure_meta['y_value_column']
+    t_min_c, t_max_c = _resolve_measure_range(df_overall, measure_meta, y_value_column)
+    logger.info(
+        f"Overall value range across all locations ({measure}, column={y_value_column}): "
+        f"{t_min_c:.2f} to {t_max_c:.2f}"
+    )
 
     num_places = len(place_list)
 

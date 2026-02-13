@@ -19,6 +19,7 @@ class Visualizer:
     PAGE_A3_WIDTH_CM = 33.87  # A3 width in cm
     PAGE_A3_HEIGHT_CM = 19.05  # A3 height in cm
     CM_PER_INCH = 2.54
+    DEFAULT_Y_STEP = 10.0
     MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -27,6 +28,7 @@ class Visualizer:
         df: pd.DataFrame,
         t_min_c: float = None,
         t_max_c: float = None,
+        y_step: float | None = None,
         out_dir: str = 'output',
         settings_file: str = 'geo_plot/settings.yaml',
         y_value_column: str = 'temp_C',
@@ -42,6 +44,7 @@ class Visualizer:
             df: DataFrame containing temperature and date columns (must include 'date' and 'temp_C').
             t_min_c: Minimum temperature for color normalization (optional).
             t_max_c: Maximum temperature for color normalization (optional).
+            y_step: Optional explicit y-axis step override.
             out_dir: Output directory for plots.
             settings_file: Path to YAML settings file.
             y_value_column: DataFrame column used for y-value range text.
@@ -58,7 +61,11 @@ class Visualizer:
 
         self.df = df
         self.out_dir = out_dir
+        self.y_step = float(y_step) if y_step is not None else None
+        if self.y_step is not None and self.y_step <= 0:
+            raise ValueError("y_step must be > 0")
         self.y_value_column = y_value_column
+        self.measure_unit = str((range_text_context or {}).get('measure_unit', '')).strip()
         if range_text_template is None:
             self.range_text_template = "{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}"
         elif not isinstance(range_text_template, str) or not range_text_template.strip():
@@ -77,6 +84,8 @@ class Visualizer:
             self.all_settings = {}
 
         self.df = self.add_data_fields(df)
+        if self.y_value_column not in self.df.columns:
+            raise KeyError(f"Missing y_value_column '{self.y_value_column}' in DataFrame")
 
         valid_modes = {"y_value", "year"}
         if colour_mode not in valid_modes:
@@ -86,8 +95,8 @@ class Visualizer:
         self.first_year = pd.to_datetime(self.df['date'].min()).year
         self.last_year = pd.to_datetime(self.df['date'].max()).year
 
-        self.tmin_c = t_min_c if t_min_c is not None else np.min(self.df["temp_C"])
-        self.tmax_c = t_max_c if t_max_c is not None else np.max(self.df["temp_C"])
+        self.tmin_c = t_min_c if t_min_c is not None else np.min(self.df[self.y_value_column])
+        self.tmax_c = t_max_c if t_max_c is not None else np.max(self.df[self.y_value_column])
         try:
             self.cmap = plt.get_cmap(colormap_name)
         except Exception as e:
@@ -242,6 +251,17 @@ class Visualizer:
                 cbar_year.set_ticks([self.first_year])
             return
 
+        if self.y_value_column != 'temp_C':
+            left_single = (left_c + left_f) / 2.0
+            cbar_ax = fig.add_axes([left_single, bottom, width, height], frameon=False)
+            cbar_ax.set_yticks([]), cbar_ax.set_xticks([])
+            norm = Normalize(vmin=self.tmin_c, vmax=self.tmax_c)
+            cbar = plt.colorbar(cm.ScalarMappable(norm=norm, cmap=self.cmap), ax=cbar_ax, orientation='vertical')
+            cbar_title = self.measure_unit if self.measure_unit else self.y_value_column
+            cbar.ax.set_title(cbar_title, fontsize=fontsize)
+            cbar.ax.tick_params(labelsize=fontsize-2)
+            return
+
         # Celsius colorbar
         cbar_ax_c = fig.add_axes([left_c, bottom, width, height], frameon=False)
         cbar_ax_c.set_yticks([]), cbar_ax_c.set_xticks([])
@@ -272,12 +292,12 @@ class Visualizer:
             years = pd.to_datetime(df['date']).dt.year.astype(float)
             return self.year_cmap(self.year_norm(years))
 
-        c = self.norm(df["temp_C"])
+        c = self.norm(df[self.y_value_column])
         return self.cmap(c)
 
     def draw_temp_circles(self, ax: plt.Axes, num_rows: int = 1) -> None:
         """
-        Draw circles and temperature labels at every 10°C boundary on the polar plot.
+        Draw value circles and labels at configured step boundaries on the polar plot.
 
         Args:
             ax: Polar axes to draw on.
@@ -285,16 +305,29 @@ class Visualizer:
         """
         settings = SettingsManager(self.all_settings[self.layout], num_rows)
 
-        temp_step = settings.get('figure.temp_step')
+        temp_step = self.y_step if self.y_step is not None else self.DEFAULT_Y_STEP
         ytick_fontsize = settings.get('figure.ytick_fontsize')
         ytick_colour = settings.get('figure.ytick_colour')
 
         for t in np.arange(np.ceil(self.tmin_c/temp_step)*temp_step, self.tmax_c+1, temp_step):
             ax.plot(np.linspace(0, 2*np.pi, 361), np.full(361, t), '--', color='gray', lw=0.7, alpha=0.7)
-            # °C label above X-axis
-            ax.text(np.pi/2, t, f'{int(t)}°C', color=ytick_colour, fontsize=ytick_fontsize, ha='center', va='bottom', alpha=0.8)
-            # °F label below X-axis
-            ax.text(3*np.pi/2, t, f'{int(self.temp_c_to_f(t))}°F', color=ytick_colour, fontsize=ytick_fontsize, ha='center', va='top', alpha=0.8)
+            if self.y_value_column == 'temp_C':
+                # °C label above X-axis
+                ax.text(np.pi/2, t, f'{int(t)}°C', color=ytick_colour, fontsize=ytick_fontsize, ha='center', va='bottom', alpha=0.8)
+                # °F label below X-axis
+                ax.text(3*np.pi/2, t, f'{int(self.temp_c_to_f(t))}°F', color=ytick_colour, fontsize=ytick_fontsize, ha='center', va='top', alpha=0.8)
+            else:
+                unit_suffix = self.measure_unit if self.measure_unit else self.y_value_column
+                ax.text(
+                    np.pi/2,
+                    t,
+                    f"{int(t)} {unit_suffix}",
+                    color=ytick_colour,
+                    fontsize=ytick_fontsize,
+                    ha='center',
+                    va='bottom',
+                    alpha=0.8,
+                )
 
     def create_polar_plot(self, ax: plt.Axes, df: pd.DataFrame, num_rows: int = 1) -> None:
         """
@@ -311,7 +344,7 @@ class Visualizer:
         marker_size = settings.get('figure.marker_size')
         xtick_fontsize = settings.get('figure.xtick_fontsize')
 
-        ax.scatter(df['angle'], df["temp_C"], c=point_colours, s=marker_size)
+        ax.scatter(df['angle'], df[self.y_value_column], c=point_colours, s=marker_size)
         self.draw_temp_circles(ax, num_rows)
         ax.set_theta_offset(np.pi/2)
         ax.set_theta_direction(-1)

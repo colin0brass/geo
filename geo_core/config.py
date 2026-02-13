@@ -210,7 +210,7 @@ def load_retrieval_settings(config_file: Path = Path("config.yaml")) -> dict[str
     return settings
 
 
-def load_measure_labels_config(config_path: Path = Path("config.yaml")) -> dict[str, dict[str, str]]:
+def load_measure_labels_config(config_path: Path = Path("config.yaml")) -> dict[str, dict[str, object]]:
     """Load and validate measure label/unit mappings from config."""
     with open(config_path, 'r') as f:
         config = yaml.safe_load(f) or {}
@@ -223,14 +223,14 @@ def load_measure_labels_config(config_path: Path = Path("config.yaml")) -> dict[
     if not isinstance(configured, dict) or not configured:
         raise ValueError(f"Invalid plotting.measure_labels section in {config_path}; expected non-empty mapping.")
 
-    validated: dict[str, dict[str, str]] = {}
+    validated: dict[str, dict[str, object]] = {}
     for measure_key, metadata in configured.items():
         if not isinstance(measure_key, str) or not measure_key.strip():
             raise ValueError("plotting.measure_labels keys must be non-empty strings")
         if not isinstance(metadata, dict):
             raise ValueError(f"plotting.measure_labels.{measure_key} must be a mapping")
 
-        entry: dict[str, str] = {}
+        entry: dict[str, object] = {}
         for field_name in REQUIRED_MEASURE_LABEL_KEYS:
             value = metadata.get(field_name)
             if not isinstance(value, str) or not value.strip():
@@ -238,6 +238,23 @@ def load_measure_labels_config(config_path: Path = Path("config.yaml")) -> dict[
                     f"plotting.measure_labels.{measure_key}.{field_name} must be a non-empty string"
                 )
             entry[field_name] = value
+
+        for numeric_field in ('y_min', 'y_max', 'y_step'):
+            if numeric_field in metadata and metadata[numeric_field] is not None:
+                try:
+                    entry[numeric_field] = float(metadata[numeric_field])
+                except (TypeError, ValueError) as exc:
+                    raise ValueError(
+                        f"plotting.measure_labels.{measure_key}.{numeric_field} must be numeric"
+                    ) from exc
+
+        y_min = entry.get('y_min')
+        y_max = entry.get('y_max')
+        y_step = entry.get('y_step')
+        if y_step is not None and y_step <= 0:
+            raise ValueError(f"plotting.measure_labels.{measure_key}.y_step must be > 0")
+        if y_min is not None and y_max is not None and y_min >= y_max:
+            raise ValueError(f"plotting.measure_labels.{measure_key}.y_min must be < y_max")
 
         validated[measure_key] = entry
 

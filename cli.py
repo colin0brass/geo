@@ -215,7 +215,7 @@ Examples:
         help=f"Path to plot settings YAML file (default: {runtime_paths['settings_file']})"
     )
     output_group.add_argument(
-        "--measure",
+        "-m", "--measure",
         choices=VALID_MEASURES,
         default=DEFAULT_MEASURE,
         help="Data measure to use: 'noon_temperature' or 'daily_precipitation'"

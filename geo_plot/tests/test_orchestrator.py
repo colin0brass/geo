@@ -19,7 +19,18 @@ def test_calculate_grid_dimensions_no_custom_grid(tmp_path):
     """Test automatic grid dimension calculation."""
     # Create config file with grid config
     config_file = tmp_path / "config.yaml"
-    config_file.write_text("grid:\n  max_auto_rows: 4\n  max_auto_cols: 6\n")
+    config_file.write_text(
+        "grid:\n"
+        "  max_auto_rows: 4\n"
+        "  max_auto_cols: 6\n"
+        "plotting:\n"
+        "  measure_labels:\n"
+        "    noon_temperature:\n"
+        "      label: Mid-Day Temperature\n"
+        "      unit: °C\n"
+        "      y_value_column: temp_C\n"
+        "      range_text: '{min_temp_c:.1f}°C to {max_temp_c:.1f}°C; ({min_temp_f:.1f}°F to {max_temp_f:.1f}°F)'\n"
+    )
 
     # Single place: grid 1x1, max capacity 24 (4x6)
     rows, cols, max_capacity = calculate_grid_dimensions(1, None, config_file)
@@ -42,7 +53,18 @@ def test_calculate_grid_dimensions_with_custom_grid(tmp_path):
     """Test grid dimensions with custom grid specification."""
     # Create dummy config file (not used when grid is specified)
     config_file = tmp_path / "config.yaml"
-    config_file.write_text("grid:\n  max_auto_rows: 4\n  max_auto_cols: 6\n")
+    config_file.write_text(
+        "grid:\n"
+        "  max_auto_rows: 4\n"
+        "  max_auto_cols: 6\n"
+        "plotting:\n"
+        "  measure_labels:\n"
+        "    noon_temperature:\n"
+        "      label: Mid-Day Temperature\n"
+        "      unit: °C\n"
+        "      y_value_column: temp_C\n"
+        "      range_text: '{min_temp_c:.1f}°C to {max_temp_c:.1f}°C; ({min_temp_f:.1f}°F to {max_temp_f:.1f}°F)'\n"
+    )
 
     # Custom 3x4 grid
     rows, cols, total = calculate_grid_dimensions(8, (3, 4), config_file)
@@ -57,7 +79,18 @@ def test_calculate_grid_dimensions_zero_places(tmp_path):
     """Test handling of zero places."""
     # Create config file
     config_file = tmp_path / "config.yaml"
-    config_file.write_text("grid:\n  max_auto_rows: 4\n  max_auto_cols: 6\n")
+    config_file.write_text(
+        "grid:\n"
+        "  max_auto_rows: 4\n"
+        "  max_auto_cols: 6\n"
+        "plotting:\n"
+        "  measure_labels:\n"
+        "    noon_temperature:\n"
+        "      label: Mid-Day Temperature\n"
+        "      unit: °C\n"
+        "      y_value_column: temp_C\n"
+        "      range_text: '{min_temp_c:.1f}°C to {max_temp_c:.1f}°C; ({min_temp_f:.1f}°F to {max_temp_f:.1f}°F)'\n"
+    )
 
     # With 0 places, grid is 1x1 but max capacity is still 24 (4x6)
     rows, cols, max_capacity = calculate_grid_dimensions(0, None, config_file)
@@ -258,7 +291,18 @@ def test_create_main_plots_single_batch(mock_grid_layout, mock_create_batch, tmp
 
     # Create dummy config file
     config_file = tmp_path / "config.yaml"
-    config_file.write_text("grid:\n  max_auto_rows: 4\n  max_auto_cols: 6\n")
+    config_file.write_text(
+        "grid:\n"
+        "  max_auto_rows: 4\n"
+        "  max_auto_cols: 6\n"
+        "plotting:\n"
+        "  measure_labels:\n"
+        "    noon_temperature:\n"
+        "      label: Mid-Day Temperature\n"
+        "      unit: °C\n"
+        "      y_value_column: temp_C\n"
+        "      range_text: '{min_temp_c:.1f}°C to {max_temp_c:.1f}°C; ({min_temp_f:.1f}°F to {max_temp_f:.1f}°F)'\n"
+    )
 
     result = create_main_plots(
         df_overall=df,
@@ -299,7 +343,18 @@ def test_create_main_plots_multiple_batches(mock_create_batch, tmp_path):
 
     # Create dummy config file
     config_file = tmp_path / "config.yaml"
-    config_file.write_text("grid:\n  max_auto_rows: 4\n  max_auto_cols: 6\n")
+    config_file.write_text(
+        "grid:\n"
+        "  max_auto_rows: 4\n"
+        "  max_auto_cols: 6\n"
+        "plotting:\n"
+        "  measure_labels:\n"
+        "    noon_temperature:\n"
+        "      label: Mid-Day Temperature\n"
+        "      unit: °C\n"
+        "      y_value_column: temp_C\n"
+        "      range_text: '{min_temp_c:.1f}°C to {max_temp_c:.1f}°C; ({min_temp_f:.1f}°F to {max_temp_f:.1f}°F)'\n"
+    )
 
     # Fixed grid 2x2 = 4 places per batch, so 5 places needs 2 batches
     result = create_main_plots(
@@ -335,7 +390,18 @@ def test_plot_all_no_show(mock_create_main, mock_create_individual, mock_visuali
 
     # Create dummy config file
     config_file = tmp_path / "config.yaml"
-    config_file.write_text("grid:\n  max_auto_rows: 4\n  max_auto_cols: 6\n")
+    config_file.write_text(
+        "grid:\n"
+        "  max_auto_rows: 4\n"
+        "  max_auto_cols: 6\n"
+        "plotting:\n"
+        "  measure_labels:\n"
+        "    noon_temperature:\n"
+        "      label: Mid-Day Temperature\n"
+        "      unit: °C\n"
+        "      y_value_column: temp_C\n"
+        "      range_text: '{min_temp_c:.1f}°C to {max_temp_c:.1f}°C; ({min_temp_f:.1f}°F to {max_temp_f:.1f}°F)'\n"
+    )
 
     plot_all(
         df_overall=df,
@@ -376,7 +442,18 @@ def test_plot_all_show_main(mock_create_main, mock_create_individual, mock_visua
 
     # Create dummy config file
     config_file = tmp_path / "config.yaml"
-    config_file.write_text("grid:\n  max_auto_rows: 4\n  max_auto_cols: 6\n")
+    config_file.write_text(
+        "grid:\n"
+        "  max_auto_rows: 4\n"
+        "  max_auto_cols: 6\n"
+        "plotting:\n"
+        "  measure_labels:\n"
+        "    noon_temperature:\n"
+        "      label: Mid-Day Temperature\n"
+        "      unit: °C\n"
+        "      y_value_column: temp_C\n"
+        "      range_text: '{min_temp_c:.1f}°C to {max_temp_c:.1f}°C; ({min_temp_f:.1f}°F to {max_temp_f:.1f}°F)'\n"
+    )
 
     plot_all(
         df_overall=df,
@@ -414,7 +491,18 @@ def test_plot_all_show_all(mock_create_main, mock_create_individual, mock_visual
 
     # Create dummy config file
     config_file = tmp_path / "config.yaml"
-    config_file.write_text("grid:\n  max_auto_rows: 4\n  max_auto_cols: 6\n")
+    config_file.write_text(
+        "grid:\n"
+        "  max_auto_rows: 4\n"
+        "  max_auto_cols: 6\n"
+        "plotting:\n"
+        "  measure_labels:\n"
+        "    noon_temperature:\n"
+        "      label: Mid-Day Temperature\n"
+        "      unit: °C\n"
+        "      y_value_column: temp_C\n"
+        "      range_text: '{min_temp_c:.1f}°C to {max_temp_c:.1f}°C; ({min_temp_f:.1f}°F to {max_temp_f:.1f}°F)'\n"
+    )
 
     plot_all(
         df_overall=df,
@@ -453,7 +541,18 @@ def test_plot_all_multiple_locations(mock_create_main, mock_create_individual, m
 
     # Create dummy config file
     config_file = tmp_path / "config.yaml"
-    config_file.write_text("grid:\n  max_auto_rows: 4\n  max_auto_cols: 6\n")
+    config_file.write_text(
+        "grid:\n"
+        "  max_auto_rows: 4\n"
+        "  max_auto_cols: 6\n"
+        "plotting:\n"
+        "  measure_labels:\n"
+        "    noon_temperature:\n"
+        "      label: Mid-Day Temperature\n"
+        "      unit: °C\n"
+        "      y_value_column: temp_C\n"
+        "      range_text: '{min_temp_c:.1f}°C to {max_temp_c:.1f}°C; ({min_temp_f:.1f}°F to {max_temp_f:.1f}°F)'\n"
+    )
 
     plot_all(
         df_overall=df,
@@ -475,6 +574,61 @@ def test_plot_all_multiple_locations(mock_create_main, mock_create_individual, m
     assert mock_create_main.call_args[1]['colour_mode'] == 'year'
     assert mock_create_main.call_args[1]['colormap_name'] == 'plasma'
     mock_create_individual.assert_not_called()
+
+
+@patch('geo_plot.orchestrator.create_individual_plot')
+def test_plot_all_daily_precipitation_uses_measure_column(mock_create_individual, tmp_path):
+    """plot_all should compute ranges from configured y_value_column, not hard-coded temp_C."""
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "\n".join([
+            "plot_text:",
+            "  single_plot_title: '{location} {measure_label} ({start_year}-{end_year})'",
+            "  subplot_title: '{measure_label} ({start_year}-{end_year})'",
+            "  subplot_title_with_batch: '{measure_label} ({start_year}-{end_year}) - Part {batch}/{total_batches}'",
+            "  single_plot_filename: '{location}_{measure_key}_{start_year}_{end_year}.png'",
+            "  subplot_filename: '{list_name}_{measure_key}_{start_year}_{end_year}.png'",
+            "  subplot_filename_with_batch: '{list_name}_{measure_key}_{start_year}_{end_year}_part{batch}of{total_batches}.png'",
+            "  credit: 'Climate Data Analysis & Visualisation by Colin Osborne'",
+            "  single_plot_credit: 'Analysis & visualisation by Colin Osborne'",
+            "  data_source: 'Data from: ERA5 via CDS'",
+            "plotting:",
+            "  measure_labels:",
+            "    daily_precipitation:",
+            "      label: Daily Precipitation",
+            "      unit: mm",
+            "      y_value_column: precip_mm",
+            "      y_min: 0",
+            "      y_max: 10",
+            "      y_step: 2",
+            "      range_text: '{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}'",
+        ])
+    )
+
+    df = pd.DataFrame({
+        'place_name': ['Cambridge, UK'],
+        'precip_mm': [1.2],
+        'date': ['2025-01-01'],
+    })
+    loc = Location(name="Cambridge, UK", lat=52.21, lon=0.12, tz="Europe/London")
+    mock_create_individual.return_value = str(tmp_path / "plot.png")
+
+    plot_all(
+        df_overall=df,
+        place_list=[loc],
+        start_year=2025,
+        end_year=2025,
+        out_dir=tmp_path,
+        config=config_file,
+        settings=Path("geo_plot/settings.yaml"),
+        show_main=False,
+        show_individual=False,
+        measure='daily_precipitation',
+    )
+
+    kwargs = mock_create_individual.call_args[1]
+    assert kwargs['t_min_c'] == 0.0
+    assert kwargs['t_max_c'] == 10.0
 # Unit testing these functions would require either:
 # - Significant refactoring to inject dependencies
 # - Complex mock setups that are brittle and hard to maintain

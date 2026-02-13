@@ -180,3 +180,53 @@ def test_visualizer_requires_range_text_template():
     df = pd.DataFrame({'date': ['2025-01-01'], 'temp_C': [10]})
     with pytest.raises(ValueError):
         Visualizer(df, range_text_template="")
+
+
+def test_plot_polar_precipitation_without_temp_column(tmp_path):
+    """Visualizer should support non-temperature measures via y_value_column."""
+    df = pd.DataFrame({
+        'date': pd.date_range('2025-01-01', periods=30),
+        'precip_mm': [float(i % 7) for i in range(30)],
+    })
+
+    vis = Visualizer(
+        df,
+        y_value_column='precip_mm',
+        range_text_template="{measure_label}: {min_value:.1f}-{max_value:.1f} {measure_unit}",
+        range_text_context={'measure_label': 'Daily Precipitation', 'measure_unit': 'mm'},
+    )
+    output_file = tmp_path / "precip_polar.png"
+
+    vis.plot_polar(title="Precipitation Test", save_file=str(output_file), show_plot=False)
+
+    assert output_file.exists()
+
+
+def test_visualizer_accepts_custom_y_step():
+    df = pd.DataFrame({
+        'date': pd.date_range('2025-01-01', periods=5),
+        'precip_mm': [0.0, 1.0, 2.0, 3.0, 4.0],
+    })
+    vis = Visualizer(
+        df,
+        y_value_column='precip_mm',
+        y_step=0.5,
+        range_text_template="{measure_label}: {min_value:.1f}-{max_value:.1f} {measure_unit}",
+        range_text_context={'measure_label': 'Daily Precipitation', 'measure_unit': 'mm'},
+    )
+    assert vis.y_step == 0.5
+
+
+def test_visualizer_rejects_non_positive_y_step():
+    df = pd.DataFrame({
+        'date': pd.date_range('2025-01-01', periods=2),
+        'precip_mm': [0.0, 1.0],
+    })
+    with pytest.raises(ValueError):
+        Visualizer(
+            df,
+            y_value_column='precip_mm',
+            y_step=0,
+            range_text_template="{measure_label}: {min_value:.1f}-{max_value:.1f} {measure_unit}",
+            range_text_context={'measure_label': 'Daily Precipitation', 'measure_unit': 'mm'},
+        )

@@ -26,7 +26,6 @@ polar_single:
     temp_label_fontsize: 12
     temp_label_colour: gray
     temp_label_vspace: 0.04
-    temp_step: 10.0
     ytick_fontsize: 10
     ytick_colour: gray
   colourbar:  # Dual colourbar settings (Celsius on left, Fahrenheit on right)
@@ -64,7 +63,6 @@ polar_subplot:
     temp_label_fontsize: {default: 9, 3: 7, 4: 6}  # Auto-scaled based on grid rows
     temp_label_colour: gray
     temp_label_vspace: {default: 0.04, 3: 0.03, 4: 0.02}  # Auto-scaled based on grid rows
-    temp_step: 10.0
     ytick_fontsize: {default: 6.5, 3: 4, 4: 3.5}  # Auto-scaled based on grid rows
     ytick_colour: black
   subplot:  # Subplot grid layout settings with row-based margins and spacing

@@ -118,6 +118,12 @@ def test_parse_args_with_measure():
         assert args.measure == 'daily_precipitation'
 
 
+def test_parse_args_with_measure_short_option():
+    with patch('sys.argv', ['geo.py', '-m', 'daily_precipitation']):
+        args = parse_args()
+        assert args.measure == 'daily_precipitation'
+
+
 def test_parse_args_runtime_paths_from_custom_config(tmp_path):
     config_file = tmp_path / "custom.yaml"
     config_file.write_text(

@@ -381,12 +381,28 @@ runtime_paths:
 ```yaml
 plotting:
   colour_mode: y_value  # y_value or year
+  measure_labels:
+    noon_temperature:
+      label: "Mid-Day Temperature"
+      unit: "°C"
+      y_value_column: "temp_C"
+      range_text: "{min_temp_c:.1f}°C to {max_temp_c:.1f}°C; ({min_temp_f:.1f}°F to {max_temp_f:.1f}°F)"
+    daily_precipitation:
+      label: "Daily Precipitation"
+      unit: "mm"
+      y_value_column: "precip_mm"
+      y_min: 0           # optional fixed lower bound
+      y_max: 50          # optional fixed upper bound
+      y_step: 5          # optional ring/colorbar interval step
+      range_text: "{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}"
   valid_colormaps: [turbo, viridis, plasma, inferno, magma, cividis]  # first item is default fallback
   colormap: turbo           # must be one of valid_colormaps
 ```
 
 - `y_value`: colours points by plotted y-axis value (current/default behaviour for temperature plots)
 - `year`: colours points by year progression to make long-term trend shifts easier to spot
+- `measure_labels.*.y_min` / `y_max`: optional fixed y-axis bounds per measure (if omitted, bounds are derived from data)
+- `measure_labels.*.y_step`: optional per-measure radial ring interval; if omitted, an internal default is used
 - `valid_colormaps`: controls which colormaps are allowed and sets default fallback by first item
 - `colormap`: controls the active colour palette used by both modes
 
@@ -509,7 +525,7 @@ Controls plot appearance and styling with automatic row-based scaling.
 - Row-scaled fonts (title, xticks, yticks, temperature labels)
 - Row-scaled marker sizes and spacing
 - Row-scaled subplot margins and dimensions
-- Colors, colormaps, and temperature step intervals
+- Colors and colormaps
 
 See comments in the file for detailed options and row-based configuration patterns.
 
