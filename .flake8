@@ -2,6 +2,3 @@
 max-line-length = 180
 extend-ignore = E203,W503
 exclude = .venv,__pycache__,htmlcov,era5_cache,data_cache,output
-per-file-ignores =
-	__init__.py:F401
-	cds.py:E402

@@ -9,6 +9,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import xarray as xr
+import cdsapi
 
 logger = logging.getLogger("geo")
 
@@ -17,8 +18,6 @@ try:
 except ImportError:
     logger.error("This script requires Python 3.9+ (zoneinfo).")
     sys.exit(1)
-
-import cdsapi
 
 try:
     from timezonefinder import TimezoneFinder
