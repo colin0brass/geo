@@ -5,7 +5,7 @@ import yaml
 import logging
 from matplotlib import cm
 from matplotlib.colors import Normalize
-from settings_manager import SettingsManager
+from .settings_manager import SettingsManager
 
 logger = logging.getLogger("geo")
 
@@ -28,7 +28,7 @@ class Visualizer:
         t_min_c: float = None,
         t_max_c: float = None,
         out_dir: str = 'output',
-        settings_file: str = 'settings.yaml',
+        settings_file: str = 'geo_plot/settings.yaml',
         y_value_column: str = 'temp_C',
         range_text_template: str | None = None,
         range_text_context: dict[str, str] | None = None,

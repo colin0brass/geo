@@ -9,20 +9,23 @@ from __future__ import annotations
 import argparse
 import difflib
 import logging
-import math
 from datetime import datetime
 from pathlib import Path
 
-import yaml
-from matplotlib import colormaps as mpl_colormaps
-
 from geo_data.cds import Location
 from config_manager import load_places
+from geo_core.config import (
+    VALID_COLOUR_MODES,
+    load_colormap as core_load_colormap,
+    load_colour_mode as core_load_colour_mode,
+    load_grid_settings as core_load_grid_settings,
+)
+from geo_core.formatting import condense_year_ranges
+from geo_core.grid import calculate_grid_layout as core_calculate_grid_layout
 
 logger = logging.getLogger("geo")
 
 __version__ = "1.0.0"
-VALID_COLOUR_MODES = ("y_value", "year")
 VALID_MEASURES = ("noon_temperature", "daily_precipitation")
 DEFAULT_COLOUR_MODE = VALID_COLOUR_MODES[0]
 DEFAULT_MEASURE = VALID_MEASURES[0]
@@ -176,8 +179,8 @@ Examples:
     output_group.add_argument(
         "--settings",
         type=Path,
-        default=Path("settings.yaml"),
-        help="Path to plot settings YAML file (default: settings.yaml)"
+        default=Path("geo_plot/settings.yaml"),
+        help="Path to plot settings YAML file (default: geo_plot/settings.yaml)"
     )
     output_group.add_argument(
         "--measure",
@@ -393,16 +396,7 @@ def load_grid_settings(config_file: Path) -> tuple[int, int]:
     Returns:
         tuple[int, int]: (max_rows, max_cols) from config, or defaults (4, 6).
     """
-    try:
-        with open(config_file, 'r') as f:
-            config = yaml.safe_load(f)
-            grid_config = config.get('grid', {})
-            max_rows = grid_config.get('max_auto_rows', 4)
-            max_cols = grid_config.get('max_auto_cols', 6)
-            return (max_rows, max_cols)
-    except Exception as e:
-        logger.warning(f"Failed to load grid settings from {config_file}: {e}. Using defaults (4x6).")
-        return (4, 6)
+    return core_load_grid_settings(config_file)
 
 
 def load_colour_mode(config_file: Path, cli_colour_mode: str | None = None) -> str:
@@ -424,27 +418,10 @@ def load_colour_mode(config_file: Path, cli_colour_mode: str | None = None) -> s
     Raises:
         CLIError: If plotting.colour_mode is configured with an invalid value.
     """
-    if cli_colour_mode is not None:
-        return cli_colour_mode
-
-    default_mode = DEFAULT_COLOUR_MODE
     try:
-        with open(config_file, 'r') as f:
-            config = yaml.safe_load(f) or {}
-
-        config_mode = config.get('plotting', {}).get('colour_mode', default_mode)
-        if config_mode not in VALID_COLOUR_MODES:
-            raise CLIError(
-                f"Invalid plotting.colour_mode '{config_mode}' in {config_file}.",
-                f"Use one of: {', '.join(VALID_COLOUR_MODES)}."
-            )
-
-        return config_mode
-    except CLIError:
-        raise
-    except Exception as e:
-        logger.warning(f"Failed to load colour mode from {config_file}: {e}. Using default '{default_mode}'.")
-        return default_mode
+        return core_load_colour_mode(config_file, cli_colour_mode)
+    except ValueError as exc:
+        raise CLIError(str(exc)) from exc
 
 
 def load_colormap(config_file: Path) -> str:
@@ -457,53 +434,7 @@ def load_colormap(config_file: Path) -> str:
     Returns:
         str: Valid configured colormap name.
     """
-    try:
-        with open(config_file, 'r') as f:
-            config = yaml.safe_load(f) or {}
-
-        plotting_config = config.get('plotting', {})
-
-        configured_valid_colormaps = plotting_config.get('valid_colormaps')
-        valid_colormaps = None
-        if configured_valid_colormaps is not None:
-            parsed_colormaps = []
-            if isinstance(configured_valid_colormaps, (list, tuple)):
-                for cmap_name in configured_valid_colormaps:
-                    if isinstance(cmap_name, str):
-                        cmap_name = cmap_name.strip()
-                        if cmap_name and cmap_name in mpl_colormaps:
-                            parsed_colormaps.append(cmap_name)
-
-            if parsed_colormaps:
-                valid_colormaps = parsed_colormaps
-            else:
-                logger.warning(
-                    f"Invalid plotting.valid_colormaps in {config_file}. "
-                    "Ignoring this setting and using matplotlib colormap validation."
-                )
-
-        default_colormap = valid_colormaps[0] if valid_colormaps else DEFAULT_COLORMAP
-
-        colormap = plotting_config.get('colormap', default_colormap)
-        if not isinstance(colormap, str) or not colormap.strip():
-            logger.warning(
-                f"Invalid plotting.colormap '{colormap}' in {config_file}. "
-                f"Using default '{default_colormap}'."
-            )
-            return default_colormap
-
-        colormap = colormap.strip()
-        if valid_colormaps and colormap not in valid_colormaps:
-            logger.warning(
-                f"Unknown plotting.colormap '{colormap}' in {config_file}. "
-                f"Allowed values: {', '.join(valid_colormaps)}. Using default '{default_colormap}'."
-            )
-            return default_colormap
-
-        return colormap
-    except Exception as e:
-        logger.warning(f"Failed to load colormap from {config_file}: {e}. Using default '{DEFAULT_COLORMAP}'.")
-        return DEFAULT_COLORMAP
+    return core_load_colormap(config_file)
 
 
 def validate_measure_support(measure: str) -> None:
@@ -546,72 +477,74 @@ def calculate_grid_layout(num_places: int, max_rows: int = 4, max_cols: int = 6)
         >>> calculate_grid_layout(30, 4, 6)  # 4×6 (capped at max, needs batching)
         (4, 6)
     """
-    if num_places == 0:
-        return (1, 1)
+    return core_calculate_grid_layout(num_places, max_rows, max_cols)
 
-    # Cap at maximum grid size
-    max_grid_size = max_rows * max_cols
-    places_to_fit = min(num_places, max_grid_size)
 
-    # For small numbers, use simple logic
-    if places_to_fit <= 2:
-        return (1, places_to_fit)
-    if places_to_fit <= 4:
-        return (2, 2)
+def build_places_report() -> str:
+    """Build a formatted report of available places and place lists."""
+    places, default_place, place_lists = load_places()
+    lines: list[str] = []
 
-    # For larger numbers, find best balanced layout within constraints
-    # Start with square-ish layout
-    num_cols = min(max_cols, math.ceil(math.sqrt(places_to_fit)))
-    num_rows = math.ceil(places_to_fit / num_cols)
+    lines.append("\n=== Available Places ===")
+    lines.append(f"Default place: {default_place}\n")
+    lines.append(f"Total places: {len(places)}\n")
 
-    # Cap rows at maximum
-    if num_rows > max_rows:
-        num_rows = max_rows
-        num_cols = min(max_cols, math.ceil(places_to_fit / num_rows))
+    for place_name in sorted(places.keys()):
+        loc = places[place_name]
+        lines.append(f"  • {place_name:30s}  ({loc.lat:7.4f}, {loc.lon:8.4f})  {loc.tz}")
 
-    # Optimize: try to reduce empty spaces while maintaining good aspect ratio
-    # Check if we can reduce columns and still fit everything
-    for cols in range(num_cols, 0, -1):
-        rows = math.ceil(places_to_fit / cols)
+    if place_lists:
+        lines.append("\n=== Place Lists ===")
+        for list_name, places_in_list in sorted(place_lists.items()):
+            lines.append(f"\n  {list_name}:")
+            for place in places_in_list:
+                lines.append(f"    - {place}")
 
-        # Skip if exceeds row limit
-        if rows > max_rows:
-            continue
-
-        empty_spaces = (rows * cols) - places_to_fit
-
-        # Accept layout if it doesn't waste too many spaces
-        # and maintains reasonable aspect ratio (rows ≤ cols + 1)
-        if empty_spaces <= cols and rows <= cols + 1:
-            return (rows, cols)
-
-    return (num_rows, num_cols)
+    lines.append("")
+    return "\n".join(lines)
 
 
 def list_places_and_exit() -> None:
     """
     Print all available places and place lists, then exit.
     """
-    places, default_place, place_lists = load_places()
+    print(build_places_report())
+    raise SystemExit(0)
 
-    print("\n=== Available Places ===")
-    print(f"Default place: {default_place}\n")
-    print(f"Total places: {len(places)}\n")
 
-    # Sort places alphabetically for display
+def build_cached_years_report(data_cache_dir: Path = Path("data_cache")) -> str:
+    """Build a formatted report of cached years by place."""
+    from geo_data.data import cache_yaml_path_for_place, get_cached_years
+
+    places, _default_place, _place_lists = load_places()
+    lines: list[str] = []
+
+    lines.append("\n=== Cached Years by Place ===")
+    lines.append(f"Data cache directory: {data_cache_dir}\n")
+
+    places_with_cache = 0
+    places_without_cache = 0
+
     for place_name in sorted(places.keys()):
-        loc = places[place_name]
-        print(f"  • {place_name:30s}  ({loc.lat:7.4f}, {loc.lon:8.4f})  {loc.tz}")
+        yaml_file = cache_yaml_path_for_place(data_cache_dir, place_name)
+        cached_years = get_cached_years(yaml_file)
 
-    if place_lists:
-        print("\n=== Place Lists ===")
-        for list_name, places_in_list in sorted(place_lists.items()):
-            print(f"\n  {list_name}:")
-            for place in places_in_list:
-                print(f"    - {place}")
+        if cached_years:
+            places_with_cache += 1
+            year_list = sorted(cached_years)
+            year_str = condense_year_ranges(year_list)
+            lines.append(f"  • {place_name:30s}  Years: {year_str}")
+        else:
+            places_without_cache += 1
+            lines.append(f"  • {place_name:30s}  (no cached data)")
 
-    print()
-    exit(0)
+    lines.append(f"\n{'='*60}")
+    lines.append(f"Total places: {len(places)}")
+    lines.append(f"Places with cached data: {places_with_cache}")
+    lines.append(f"Places without cached data: {places_without_cache}")
+    lines.append(f"{'='*60}\n")
+
+    return "\n".join(lines)
 
 
 def list_years_and_exit(data_cache_dir: Path = Path("data_cache")) -> None:
@@ -621,76 +554,5 @@ def list_years_and_exit(data_cache_dir: Path = Path("data_cache")) -> None:
     Args:
         data_cache_dir: Directory containing cached YAML data files.
     """
-    from geo_data.data import cache_yaml_path_for_place, get_cached_years
-
-    def condense_year_ranges(years: list[int]) -> str:
-        """
-        Condense contiguous year ranges into readable format.
-
-        Args:
-            years: Sorted list of years.
-
-        Returns:
-            String representation with ranges (e.g., "1990-2000, 2005, 2010-2015").
-        """
-        if not years:
-            return ""
-
-        ranges = []
-        start = years[0]
-        end = years[0]
-
-        for i in range(1, len(years)):
-            if years[i] == end + 1:
-                # Contiguous year
-                end = years[i]
-            else:
-                # Gap found, save previous range
-                if start == end:
-                    ranges.append(str(start))
-                else:
-                    ranges.append(f"{start}-{end}")
-                start = years[i]
-                end = years[i]
-
-        # Add the last range
-        if start == end:
-            ranges.append(str(start))
-        else:
-            ranges.append(f"{start}-{end}")
-
-        return ", ".join(ranges)
-
-    places, default_place, place_lists = load_places()
-
-    print("\n=== Cached Years by Place ===")
-    print(f"Data cache directory: {data_cache_dir}\n")
-
-    # Track statistics
-    places_with_cache = 0
-    places_without_cache = 0
-
-    # Sort places alphabetically for display
-    for place_name in sorted(places.keys()):
-        yaml_file = cache_yaml_path_for_place(data_cache_dir, place_name)
-
-        # Check for cached years
-        cached_years = get_cached_years(yaml_file)
-
-        if cached_years:
-            places_with_cache += 1
-            year_list = sorted(cached_years)
-            year_str = condense_year_ranges(year_list)
-            print(f"  • {place_name:30s}  Years: {year_str}")
-        else:
-            places_without_cache += 1
-            print(f"  • {place_name:30s}  (no cached data)")
-
-    # Print summary
-    print(f"\n{'='*60}")
-    print(f"Total places: {len(places)}")
-    print(f"Places with cached data: {places_with_cache}")
-    print(f"Places without cached data: {places_without_cache}")
-    print(f"{'='*60}\n")
-
-    exit(0)
+    print(build_cached_years_report(data_cache_dir))
+    raise SystemExit(0)

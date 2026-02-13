@@ -23,6 +23,7 @@
 ## Quickstart
 
 Package docs:
+- Core shared helpers: [geo_core/README.md](geo_core/README.md)
 - Data layer: [geo_data/README.md](geo_data/README.md)
 - Plot layer: [geo_plot/README.md](geo_plot/README.md)
 
@@ -141,6 +142,10 @@ vis.plot_polar(title="Austin 2020 Noon Temps", save_file="output/austin_2020.png
 - `config_manager.py`: Configuration file management and place geocoding
 - `progress.py`: Progress reporting system with callback handlers
 - `logging_config.py`: Centralized logging configuration
+- `geo_core/`: Shared core helpers (config/grid utilities and core tests)
+  - `geo_core/config.py`: Shared config/text/colormap helpers
+  - `geo_core/grid.py`: Shared grid layout logic
+  - `geo_core/tests/`: Core-layer tests
 - `geo_data/`: Data-layer package (CDS client, cache pipeline, schema, and data tests)
   - `geo_data/cds.py`: ERA5 retrieval and location handling
   - `geo_data/data.py`: Measure-aware data retrieval and cache I/O
@@ -148,16 +153,18 @@ vis.plot_polar(title="Austin 2020 Noon Temps", save_file="output/austin_2020.png
   - `geo_data/tests/`: Data-layer tests
 - `geo_plot/`: Plot-layer package (visualization, orchestration, and plot tests)
   - `geo_plot/plot.py`: Polar plotting (`Visualizer`)
+  - `geo_plot/settings_manager.py`: Plot settings accessor with row-based scaling
+  - `geo_plot/settings.yaml`: Plot styling configuration
   - `geo_plot/orchestrator.py`: Plot coordination and batching
   - `geo_plot/tests/`: Plot-layer tests
 - `config.yaml`: Application configuration (places, logging)
-- `settings.yaml`: Plot styling configuration
 - `era5_cache/`: Cached NetCDF files (auto-created)
 - `data_cache/`: Cached YAML data files (auto-created)
 - `output/`: Generated plots (auto-created)
 - `tests/`: Application-layer tests (CLI, config, progress, logging)
 
 Package docs:
+- `geo_core/README.md`
 - `geo_data/README.md`
 - `geo_plot/README.md`
 
@@ -295,7 +302,7 @@ python geo.py -p "MyCity" --lat 40.7 --lon -74.0 -y 2024
 | `--out-dir DIR` | output | Output directory for plots |
 | `--cache-dir DIR` | era5_cache | Cache directory for NetCDF files |
 | `--data-cache-dir DIR` | data_cache | Cache directory for YAML data files |
-| `--settings FILE` | settings.yaml | Plot settings YAML file |
+| `--settings FILE` | geo_plot/settings.yaml | Plot settings YAML file |
 
 ### Advanced Options
 
@@ -446,7 +453,7 @@ places:
 - `europe_north`, `europe_south`, `us_west`, `asia_pacific`: Regional groups
 - `comparison_similar_lat`: Cities at similar latitude (~52°N)
 
-### settings.yaml
+### geo_plot/settings.yaml
 
 Controls plot appearance and styling with automatic row-based scaling.
 
@@ -529,6 +536,7 @@ Run tests with pytest:
 ```bash
 pytest                    # All tests
 pytest tests/test_cli.py  # Specific application-layer module
+pytest geo_core/tests/test_config.py  # Specific core-layer module
 pytest geo_data/tests/test_data.py  # Specific data-layer module
 pytest -v                 # Verbose output
 pytest -k "timezone"      # Run tests matching pattern
@@ -580,10 +588,17 @@ Tests are organized across dedicated modules:
 
 | Module | Focus |
 |--------|-------|
-| test_cli.py | Argument parsing, grid layout, validation, year condensing, grid settings |
+| test_cli.py | Argument parsing, place selection, validation, year condensing |
 | test_config_manager.py | Config loading, saving, place management |
 | test_progress.py | Progress handlers, place/year numbering |
 | test_logging_config.py | Logging setup and configuration |
+
+Core-layer test modules are under `geo_core/tests/`:
+
+| Module | Focus |
+|--------|-------|
+| test_config.py | Shared config parsing/resolution helpers |
+| test_grid.py | Shared grid layout algorithm |
 
 Plot-layer test modules are under `geo_plot/tests/`:
 
@@ -632,7 +647,7 @@ python geo.py -a -y 2024 --grid 4x4
 
 The plotting system automatically scales all visual parameters based on the number of rows in your grid:
 
-**Row-based settings** (configured in `settings.yaml`):
+**Row-based settings** (configured in `geo_plot/settings.yaml`):
 - **1-2 rows:** Default values - larger markers (2.0), larger fonts (9-12pt), generous spacing
 - **3 rows:** Medium scale - markers (0.5), fonts (7-9pt), tighter spacing (hspace=0.25)
 - **4+ rows:** Compact scale - small markers (0.25), small fonts (6-7pt), optimized spacing (hspace=0.30)
@@ -642,7 +657,7 @@ The plotting system automatically scales all visual parameters based on the numb
 - Subplot spacing (hspace, wspace) and margins (top, bottom)
 - Subplot dimensions (height_scale, width_scale)
 
-All scaling is controlled via `settings.yaml` using row-based dictionaries:
+All scaling is controlled via `geo_plot/settings.yaml` using row-based dictionaries:
 ```yaml
 marker_size: {default: 2.0, 3: 0.5, 4: 0.25}
 xtick_fontsize: {default: 9, 3: 7, 4: 6}

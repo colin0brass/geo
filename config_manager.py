@@ -14,6 +14,11 @@ from geopy.geocoders import Nominatim
 from timezonefinder import TimezoneFinder
 
 from geo_data.cds import Location
+from geo_core.config import (
+    get_plot_text as core_get_plot_text,
+    load_measure_labels_config as core_load_measure_labels_config,
+    load_plot_text_config as core_load_plot_text_config,
+)
 
 
 def load_plot_text_config(config_path: Path = Path("config.yaml")) -> dict:
@@ -26,12 +31,7 @@ def load_plot_text_config(config_path: Path = Path("config.yaml")) -> dict:
     Returns:
         dict: Plot text configuration with default fallbacks.
     """
-    try:
-        with open(config_path, 'r') as f:
-            config = yaml.safe_load(f)
-            return config.get('plot_text', {})
-    except Exception:
-        return {}
+    return core_load_plot_text_config(config_path)
 
 
 def load_measure_labels_config(config_path: Path = Path("config.yaml")) -> dict[str, dict[str, str]]:
@@ -44,48 +44,7 @@ def load_measure_labels_config(config_path: Path = Path("config.yaml")) -> dict[
     Returns:
         dict[str, dict[str, str]]: Mapping of measure key to label/unit dict.
     """
-    defaults = {
-        "noon_temperature": {
-            "label": "Mid-Day Temperature",
-            "unit": "°C",
-            "y_value_column": "temp_C",
-            "range_text": "{min_temp_c:.1f}°C to {max_temp_c:.1f}°C; ({min_temp_f:.1f}°F to {max_temp_f:.1f}°F)",
-        },
-        "daily_precipitation": {
-            "label": "Daily Precipitation",
-            "unit": "mm",
-            "y_value_column": "precip_mm",
-            "range_text": "{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}",
-        },
-    }
-
-    try:
-        with open(config_path, 'r') as f:
-            config = yaml.safe_load(f) or {}
-
-        configured = config.get('plotting', {}).get('measure_labels', {})
-        if not isinstance(configured, dict):
-            return defaults
-
-        merged = {key: value.copy() for key, value in defaults.items()}
-        for measure_key, metadata in configured.items():
-            if not isinstance(metadata, dict):
-                continue
-            label = metadata.get('label')
-            unit = metadata.get('unit')
-            y_value_column = metadata.get('y_value_column')
-            range_text = metadata.get('range_text')
-            merged_label = label if isinstance(label, str) else measure_key.replace('_', ' ').title()
-            merged_unit = unit if isinstance(unit, str) else ''
-            merged[measure_key] = {
-                'label': merged_label,
-                'unit': merged_unit,
-                'y_value_column': y_value_column if isinstance(y_value_column, str) else 'temp_C',
-                'range_text': range_text if isinstance(range_text, str) else '',
-            }
-        return merged
-    except Exception:
-        return defaults
+    return core_load_measure_labels_config(config_path)
 
 
 def get_plot_text(config: dict, key: str, **kwargs) -> str:
@@ -100,31 +59,7 @@ def get_plot_text(config: dict, key: str, **kwargs) -> str:
     Returns:
         str: Formatted text string.
     """
-    # Default patterns if config is missing
-    defaults = {
-        'single_plot_title': "{location} {measure_label} ({start_year}-{end_year})",
-        'subplot_title': "{measure_label} ({start_year}-{end_year})",
-        'subplot_title_with_batch': "{measure_label} ({start_year}-{end_year}) - Part {batch}/{total_batches}",
-        'range_text': "{min_temp_c:.1f}°C to {max_temp_c:.1f}°C; ({min_temp_f:.1f}°F to {max_temp_f:.1f}°F)",
-        'single_plot_filename': "{location}_{measure_key}_{start_year}_{end_year}.png",
-        'subplot_filename': "{list_name}_{measure_key}_{start_year}_{end_year}.png",
-        'subplot_filename_with_batch': "{list_name}_{measure_key}_{start_year}_{end_year}_part{batch}of{total_batches}.png",
-        'credit': "Climate Data Analysis & Visualisation by Colin Osborne",
-        'data_source': "Data from: ERA5 via CDS",
-        'single_plot_credit': "Analysis & visualisation by Colin Osborne"
-    }
-
-    pattern = config.get(key, defaults.get(key, ""))
-
-    # Sanitize location name for filenames if present
-    if 'location' in kwargs and ('filename' in key):
-        kwargs['location'] = kwargs['location'].replace(' ', '_').replace(',', '')
-
-    try:
-        return pattern.format(**kwargs)
-    except KeyError:
-        # Missing format parameter - return pattern as-is
-        return pattern
+    return core_get_plot_text(config, key, **kwargs)
 
 
 def load_places(yaml_path: Path = Path("config.yaml")) -> tuple[dict, str, dict]:

@@ -18,7 +18,9 @@ Data retrieval, caching, and schema migration live in `geo_data`.
 - `plot.py`
   - `Visualizer` class for single and multi-subplot polar charts
   - colour modes (`y_value`, `year`) and colormap handling
-  - settings-driven rendering via `settings.yaml`
+  - settings-driven rendering via `geo_plot/settings.yaml`
+- `settings_manager.py`
+  - row-aware settings resolution for plot/layout parameter scaling
 - `orchestrator.py`
   - plot batching and grid coordination
   - title/filename text templating via config

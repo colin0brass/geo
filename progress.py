@@ -111,8 +111,6 @@ class ProgressManager:
         """
         for handler in self.handlers:
             handler.on_location_start(location_name, location_num, total_locations, total_years)
-        for handler in self.handlers:
-            handler.on_location_start(location_name, location_num, total_locations)
 
     def notify_year_start(self, location_name: str, year: int, current_year: int, total_years: int) -> None:
         """Notify all handlers that year processing started."""

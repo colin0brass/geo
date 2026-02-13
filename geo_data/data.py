@@ -11,6 +11,7 @@ import inspect
 from copy import deepcopy
 from datetime import date, datetime
 from pathlib import Path
+from collections.abc import Callable
 
 import pandas as pd
 import yaml
@@ -506,13 +507,35 @@ def get_cached_years(yaml_file: Path, measure: str = 'noon_temperature') -> set[
         return set()
 
 
+def format_cds_retrieval_summary(places_needing_cds: list[str]) -> str:
+    """Build a user-facing summary for CDS retrieval requirements."""
+    if places_needing_cds:
+        lines = [
+            "",
+            f"{'='*60}",
+            f"CDS Retrieval Required: {len(places_needing_cds)} place(s)",
+            f"{'='*60}",
+        ]
+        lines.extend([f"  • {place_name}" for place_name in places_needing_cds])
+        lines.append(f"{'='*60}\n")
+        return "\n".join(lines)
+
+    return "\n".join([
+        "",
+        f"{'='*60}",
+        "All data already cached - no CDS retrieval needed",
+        f"{'='*60}\n",
+    ])
+
+
 def retrieve_and_concat_data(
     place_list: list[Location],
     start_year: int,
     end_year: int,
-    cache_dir: Path,
-    data_cache_dir: Path,
+    cache_dir: Path = Path("era5_cache"),
+    data_cache_dir: Path = Path("data_cache"),
     measure: str = 'noon_temperature',
+    status_reporter: Callable[[str], None] | None = print,
 ) -> pd.DataFrame:
     """
     Retrieve measure data for all places and concatenate into a single DataFrame.
@@ -523,6 +546,8 @@ def retrieve_and_concat_data(
         end_year: End year for data retrieval.
         cache_dir: Directory for caching NetCDF files.
         data_cache_dir: Directory for caching YAML data files.
+        status_reporter: Optional callback that receives formatted status text.
+            Pass None to suppress user-facing status output.
 
     Returns:
         pd.DataFrame: Concatenated DataFrame with selected measure data for all places.
@@ -547,18 +572,9 @@ def retrieve_and_concat_data(
         if missing_years:
             places_needing_cds.append(loc.name)
 
-    # Print summary of CDS retrieval needs
-    if places_needing_cds:
-        print(f"\n{'='*60}")
-        print(f"CDS Retrieval Required: {len(places_needing_cds)} place(s)")
-        print(f"{'='*60}")
-        for place_name in places_needing_cds:
-            print(f"  • {place_name}")
-        print(f"{'='*60}\n")
-    else:
-        print(f"\n{'='*60}")
-        print("All data already cached - no CDS retrieval needed")
-        print(f"{'='*60}\n")
+    summary_text = format_cds_retrieval_summary(places_needing_cds)
+    if status_reporter:
+        status_reporter(summary_text)
 
     # Second pass: process each location
     cds_place_num = 0  # Track place number for CDS retrieval

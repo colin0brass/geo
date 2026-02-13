@@ -13,8 +13,8 @@ from pathlib import Path
 import pandas as pd
 
 from geo_data.cds import Location
-from cli import calculate_grid_layout, load_grid_settings
-from config_manager import get_plot_text, load_measure_labels_config, load_plot_text_config
+from geo_core.config import get_plot_text, load_grid_settings, load_measure_labels_config, load_plot_text_config
+from geo_core.grid import calculate_grid_layout
 from .plot import Visualizer
 
 logger = logging.getLogger("geo")

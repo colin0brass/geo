@@ -3,7 +3,7 @@
 Quick test script to visualize grid layout for debugging subplot overlap
 """
 
-from cli import calculate_grid_layout
+from geo_core.grid import calculate_grid_layout
 
 print("Testing grid layout calculation:\n")
 

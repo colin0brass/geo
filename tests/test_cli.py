@@ -5,12 +5,7 @@ import sys
 from unittest.mock import patch
 from cli import (
     CLIError,
-    DEFAULT_COLORMAP,
-    calculate_grid_layout,
     get_place_list,
-    load_colormap,
-    load_colour_mode,
-    load_grid_settings,
     parse_args,
     parse_grid,
     parse_years,
@@ -150,85 +145,11 @@ def test_parse_args_invalid_argument_hint_for_start_year():
     assert "--years" in str(exc_info.value)
 
 
-def test_load_colour_mode_default(tmp_path):
-    config_file = tmp_path / "config.yaml"
-    config_file.write_text("grid:\n  max_auto_rows: 4\n")
-    assert load_colour_mode(config_file) == 'y_value'
-
-
-def test_load_colour_mode_from_config(tmp_path):
-    config_file = tmp_path / "config.yaml"
-    config_file.write_text("plotting:\n  colour_mode: year\n")
-    assert load_colour_mode(config_file) == 'year'
-
-
-def test_load_colour_mode_cli_override(tmp_path):
-    config_file = tmp_path / "config.yaml"
-    config_file.write_text("plotting:\n  colour_mode: y_value\n")
-    assert load_colour_mode(config_file, cli_colour_mode='year') == 'year'
-
-
-def test_load_colour_mode_invalid_temperature_config_value(tmp_path):
-    config_file = tmp_path / "config.yaml"
-    config_file.write_text("plotting:\n  colour_mode: temperature\n")
-    with pytest.raises(CLIError) as exc_info:
-        load_colour_mode(config_file)
-    assert "Invalid plotting.colour_mode" in str(exc_info.value)
-
-
 def test_parse_args_rejects_legacy_colour_mode_temperature():
     with patch('sys.argv', ['geo.py', '--colour-mode', 'temperature']):
         with pytest.raises(CLIError) as exc_info:
             parse_args()
     assert "invalid choice" in str(exc_info.value)
-
-
-def test_load_colour_mode_invalid_config_value(tmp_path):
-    config_file = tmp_path / "config.yaml"
-    config_file.write_text("plotting:\n  colour_mode: invalid\n")
-    with pytest.raises(CLIError) as exc_info:
-        load_colour_mode(config_file)
-    assert "Invalid plotting.colour_mode" in str(exc_info.value)
-
-
-def test_load_colormap_default(tmp_path):
-    config_file = tmp_path / "config.yaml"
-    config_file.write_text("plotting:\n  valid_colormaps: [viridis, plasma]\n")
-    assert load_colormap(config_file) == 'viridis'
-
-
-def test_colormap_default_constant():
-    assert DEFAULT_COLORMAP == 'turbo'
-
-
-def test_load_colormap_from_config(tmp_path):
-    config_file = tmp_path / "config.yaml"
-    config_file.write_text("plotting:\n  valid_colormaps: [viridis, plasma]\n  colormap: plasma\n")
-    assert load_colormap(config_file) == 'plasma'
-
-
-def test_load_colormap_invalid_value(tmp_path):
-    config_file = tmp_path / "config.yaml"
-    config_file.write_text("plotting:\n  valid_colormaps: [viridis, plasma]\n  colormap: not_a_cmap\n")
-    assert load_colormap(config_file) == 'viridis'
-
-
-def test_load_colormap_blank_value(tmp_path):
-    config_file = tmp_path / "config.yaml"
-    config_file.write_text("plotting:\n  valid_colormaps: [viridis, plasma]\n  colormap: \"\"\n")
-    assert load_colormap(config_file) == 'viridis'
-
-
-def test_load_colormap_non_string_value(tmp_path):
-    config_file = tmp_path / "config.yaml"
-    config_file.write_text("plotting:\n  valid_colormaps: [viridis, plasma]\n  colormap: 123\n")
-    assert load_colormap(config_file) == 'viridis'
-
-
-def test_load_colormap_invalid_valid_colormap_list_falls_back(tmp_path):
-    config_file = tmp_path / "config.yaml"
-    config_file.write_text("plotting:\n  valid_colormaps: [not_a_map, also_bad]\n")
-    assert load_colormap(config_file) == DEFAULT_COLORMAP
 
 
 # Test get_place_list function
@@ -404,70 +325,6 @@ def test_get_place_list_invalid_place_no_coords():
     assert "Unknown place" in str(exc_info.value)
 
 
-# Test calculate_grid_layout function
-def test_calculate_grid_layout_single():
-    # With default 4x6 max
-    assert calculate_grid_layout(1, 4, 6) == (1, 1)
-
-
-def test_calculate_grid_layout_two():
-    # With default 4x6 max
-    assert calculate_grid_layout(2, 4, 6) == (1, 2)
-
-
-def test_calculate_grid_layout_four():
-    # With default 4x6 max
-    assert calculate_grid_layout(4, 4, 6) == (2, 2)
-
-
-def test_calculate_grid_layout_six():
-    # With default 4x6 max
-    assert calculate_grid_layout(6, 4, 6) == (2, 3)
-
-
-def test_calculate_grid_layout_eight():
-    # Should be 3×3 (9 cells, 1 empty) for better aspect ratio
-    # With default 4x6 max
-    rows, cols = calculate_grid_layout(8, 4, 6)
-    assert rows == 3 and cols == 3
-
-
-def test_calculate_grid_layout_ten():
-    # Should be 3×4 (12 cells, 2 empty) instead of 2×5
-    # With default 4x6 max
-    rows, cols = calculate_grid_layout(10, 4, 6)
-    assert rows == 3 and cols == 4
-
-
-def test_calculate_grid_layout_twelve():
-    # With default 4x6 max
-    assert calculate_grid_layout(12, 4, 6) == (3, 4)
-
-
-def test_calculate_grid_layout_sixteen():
-    # Should be 4×4 instead of 2×8
-    # With default 4x6 max
-    assert calculate_grid_layout(16, 4, 6) == (4, 4)
-
-
-def test_calculate_grid_layout_twenty():
-    # With 4x6 max grid (24 places max), should be 4×5 for 20 places
-    rows, cols = calculate_grid_layout(20, 4, 6)
-    assert rows == 4 and cols == 5
-
-
-def test_calculate_grid_layout_zero():
-    # With default 4x6 max
-    assert calculate_grid_layout(0, 4, 6) == (1, 1)
-
-
-def test_calculate_grid_layout_custom_max_cols():
-    # Test with custom max_cols=3 and max_rows=5
-    rows, cols = calculate_grid_layout(10, max_rows=5, max_cols=3)
-    assert cols <= 3
-    assert rows * cols >= 10
-
-
 # Test parse_grid function
 def test_parse_grid_valid():
     assert parse_grid("4x3") == (3, 4)  # 4 cols, 3 rows
@@ -519,58 +376,6 @@ def test_parse_args_grid_default():
         assert args.grid is None
 
 
-# Helper function for testing year range condensing logic
-def _condense_year_ranges(years):
-    """Helper to test year range condensing logic."""
-    if not years:
-        return ""
-    ranges = []
-    start = years[0]
-    end = years[0]
-    for i in range(1, len(years)):
-        if years[i] == end + 1:
-            end = years[i]
-        else:
-            if start == end:
-                ranges.append(str(start))
-            else:
-                ranges.append(f"{start}-{end}")
-            start = years[i]
-            end = years[i]
-    if start == end:
-        ranges.append(str(start))
-    else:
-        ranges.append(f"{start}-{end}")
-    return ", ".join(ranges)
-
-
-def test_condense_year_ranges_single_year():
-    """Test condensing a single year."""
-    assert _condense_year_ranges([2025]) == "2025"
-
-
-def test_condense_year_ranges_contiguous():
-    """Test condensing contiguous year ranges."""
-    assert _condense_year_ranges([1990, 1991, 1992, 1993, 1994, 1995]) == "1990-1995"
-    assert _condense_year_ranges([2020, 2021, 2022, 2023, 2024, 2025]) == "2020-2025"
-
-
-def test_condense_year_ranges_with_gaps():
-    """Test condensing years with gaps."""
-    assert _condense_year_ranges([1990, 1991, 1995, 2000, 2001, 2002]) == "1990-1991, 1995, 2000-2002"
-    assert _condense_year_ranges([2020, 2022, 2024]) == "2020, 2022, 2024"
-
-
-def test_condense_year_ranges_empty():
-    """Test condensing empty list."""
-    assert _condense_year_ranges([]) == ""
-
-
-def test_condense_year_ranges_two_years():
-    """Test condensing two contiguous years."""
-    assert _condense_year_ranges([2024, 2025]) == "2024-2025"
-
-
 def test_parse_args_with_list_years():
     """Test parsing --list-years argument."""
     with patch('sys.argv', ['geo.py', '-ly']):
@@ -590,43 +395,3 @@ def test_parse_args_list_years_default():
     with patch('sys.argv', ['geo.py']):
         args = parse_args()
         assert args.list_years is False
-
-
-# Test load_grid_settings function
-def test_load_grid_settings_valid(tmp_path):
-    """Test loading grid settings from valid YAML file."""
-    config_file = tmp_path / "config.yaml"
-    config_file.write_text("grid:\n  max_auto_rows: 5\n  max_auto_cols: 8\n")
-
-    max_rows, max_cols = load_grid_settings(config_file)
-    assert max_rows == 5
-    assert max_cols == 8
-
-
-def test_load_grid_settings_defaults(tmp_path):
-    """Test that defaults are returned when grid section is missing."""
-    config_file = tmp_path / "config.yaml"
-    config_file.write_text("other_section:\n  key: value\n")
-
-    max_rows, max_cols = load_grid_settings(config_file)
-    assert max_rows == 4
-    assert max_cols == 6
-
-
-def test_load_grid_settings_partial(tmp_path):
-    """Test partial grid settings with only one value specified."""
-    config_file = tmp_path / "config.yaml"
-    config_file.write_text("grid:\n  max_auto_rows: 3\n")
-
-    max_rows, max_cols = load_grid_settings(config_file)
-    assert max_rows == 3
-    assert max_cols == 6  # default
-
-
-def test_load_grid_settings_missing_file(tmp_path):
-    """Test that defaults are returned when config file doesn't exist."""
-    config_file = tmp_path / "nonexistent.yaml"
-
-    max_rows, max_cols = load_grid_settings(config_file)
-    assert max_rows == 4
-    assert max_cols == 6
