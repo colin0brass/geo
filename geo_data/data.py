@@ -20,7 +20,7 @@ from progress import get_progress_manager
 
 logger = logging.getLogger("geo")
 
-SCHEMA_REGISTRY_FILE = Path(__file__).resolve().parent.parent / 'schema.yaml'
+SCHEMA_REGISTRY_FILE = Path(__file__).resolve().parent / 'schema.yaml'
 
 
 def _load_cache_schema_registry(schema_file: Path = SCHEMA_REGISTRY_FILE) -> dict:

@@ -98,7 +98,7 @@ python geo.py --add-place "Seattle, WA"
 # Colour points by year to reveal long-term trend shifts
 python geo.py -p "Austin, TX" -y 1990-2025 --colour-mode year
 
-# Choose data measure (currently noon_temperature is implemented)
+# Choose data measure
 python geo.py -p "Austin, TX" -y 2024 --measure noon_temperature
 
 # Dry-run mode (preview without executing)
@@ -135,18 +135,21 @@ vis.plot_polar(title="Austin 2020 Noon Temps", save_file="output/austin_2020.png
 - `geo.py`: Main entry point and orchestration
 - `cli.py`: Command-line argument parsing, configuration loading, and validation
 - `config_manager.py`: Configuration file management and place geocoding
-- `cds.py`: ERA5 data download, caching, and processing
 - `plot.py`: Polar plotting and visualization (Visualizer class)
-- `data.py`: Data retrieval and I/O operations
 - `orchestrator.py`: Plot coordination and batching
 - `progress.py`: Progress reporting system with callback handlers
 - `logging_config.py`: Centralized logging configuration
+- `geo_data/`: Data-layer package (CDS client, cache pipeline, schema, and data tests)
+  - `geo_data/cds.py`: ERA5 retrieval and location handling
+  - `geo_data/data.py`: Measure-aware data retrieval and cache I/O
+  - `geo_data/schema.yaml`: Cache schema registry and migration metadata
+  - `geo_data/tests/`: Data-layer tests
 - `config.yaml`: Application configuration (places, logging)
 - `settings.yaml`: Plot styling configuration
 - `era5_cache/`: Cached NetCDF files (auto-created)
 - `data_cache/`: Cached YAML data files (auto-created)
 - `output/`: Generated plots (auto-created)
-- `tests/`: Test suite
+- `tests/`: Application-layer tests (CLI, plotting, orchestrator, config, progress, logging)
 
 ---
 
@@ -469,12 +472,12 @@ See comments in the file for detailed options and row-based configuration patter
 - Naming convention: `<Place_Name>.yaml` (for example: `Austin_TX.yaml`)
 - Newly written files use schema v2 with place metadata, variable metadata, and data arrays
 - Format: `schema_version` + place info + variables metadata + daily data organized by year/month/day
-- Schema versions and keys are defined in `schema.yaml` (currently includes v1 and v2; used for automatic migration, including v1→v2 field mappings)
+- Schema versions and keys are defined in `geo_data/schema.yaml` (currently includes v1 and v2; used for automatic migration, including v1→v2 field mappings)
 - When an older cache file is loaded, geo automatically migrates it and saves it in the current schema before continuing
 - Compact format: 1 line per month for 31% size reduction
 - Git-friendly with clear diffs when adding new data
 
-Schema registry notes (`schema.yaml`):
+Schema registry notes (`geo_data/schema.yaml`):
 - `required`: list of required key paths (dot notation) for a schema version
 - `required_any_of`: list of alternative path groups where at least one path in each group must exist
 - `primary_data_path` and `legacy_data_paths`: generic root-level data aliases used for legacy extraction/migration
@@ -515,7 +518,8 @@ Run tests with pytest:
 
 ```bash
 pytest                    # All tests
-pytest tests/test_cli.py  # Specific module
+pytest tests/test_cli.py  # Specific application-layer module
+pytest geo_data/tests/test_data.py  # Specific data-layer module
 pytest -v                 # Verbose output
 pytest -k "timezone"      # Run tests matching pattern
 ```
@@ -571,9 +575,15 @@ Tests are organized across dedicated modules:
 | test_config_manager.py | Config loading, saving, place management |
 | test_visualizer.py | Polar plots, single/multi-subplot layouts |
 | test_progress.py | Progress handlers, place/year numbering |
-| test_data.py | Data I/O, retrieval, YAML caching, CDS summary |
 | test_logging_config.py | Logging setup and configuration |
+
+Data-layer test modules are under `geo_data/tests/`:
+
+| Module | Focus |
+|--------|-------|
+| test_data.py | Data I/O, retrieval, YAML caching, schema migration |
 | test_cds.py | CDS API, Location, timezone auto-detection |
+| test_cds_live.py | Opt-in live CDS integration |
 
 **Coverage highlights:**
 - ✅ CLI argument parsing and validation (including mutually exclusive groups)
