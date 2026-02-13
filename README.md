@@ -142,9 +142,10 @@ vis.plot_polar(title="Austin 2020 Noon Temps", save_file="output/austin_2020.png
 - `config_manager.py`: Configuration file management and place geocoding
 - `progress.py`: Progress reporting system with callback handlers
 - `logging_config.py`: Centralized logging configuration
-- `geo_core/`: Shared core helpers (config/grid utilities and core tests)
+- `geo_core/`: Shared core helpers (config/grid/progress utilities and core tests)
   - `geo_core/config.py`: Shared config/text/colormap helpers
   - `geo_core/grid.py`: Shared grid layout logic
+  - `geo_core/progress.py`: Shared progress protocol and manager
   - `geo_core/tests/`: Core-layer tests
 - `geo_data/`: Data-layer package (CDS client, cache pipeline, schema, and data tests)
   - `geo_data/cds.py`: ERA5 retrieval and location handling

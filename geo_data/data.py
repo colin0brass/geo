@@ -17,7 +17,7 @@ import pandas as pd
 import yaml
 
 from .cds import CDS, Location
-from progress import get_progress_manager
+from geo_core.progress import get_progress_manager
 
 logger = logging.getLogger("geo")
 

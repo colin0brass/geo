@@ -4,8 +4,10 @@
 
 ## Responsibilities
 
-- Shared configuration loading/formatting helpers (`config.py`)
+- Shared configuration loading helpers (`config.py`)
+- Shared formatting helpers (`formatting.py`)
 - Shared grid layout logic (`grid.py`)
+- Shared progress primitives (`progress.py`)
 - Core-layer tests (`tests/`)
 
 ## Design boundary
@@ -29,6 +31,9 @@ Current upstream users include:
   - year-range condensation (`condense_year_ranges`)
 - `grid.py`
   - grid shape computation (`calculate_grid_layout`)
+- `progress.py`
+  - callback protocol (`ProgressHandler`)
+  - progress manager + singleton accessor (`ProgressManager`, `get_progress_manager`)
 
 ## Tests
 
@@ -42,5 +47,8 @@ Run targeted modules:
 
 ```bash
 python -m pytest geo_core/tests/test_config.py
+python -m pytest geo_core/tests/test_formatting.py
 python -m pytest geo_core/tests/test_grid.py
+python -m pytest geo_core/tests/test_grid_layout.py
+python -m pytest geo_core/tests/test_progress.py
 ```

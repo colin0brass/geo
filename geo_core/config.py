@@ -183,3 +183,119 @@ def get_plot_text(config: dict, key: str, **kwargs) -> str:
         return pattern.format(**kwargs)
     except KeyError:
         return pattern
+
+
+def extract_places_config(config: dict) -> tuple[list[dict], str, dict]:
+    """Extract places payload from full config mapping.
+
+    Returns:
+        tuple[list[dict], str, dict]: (all_places, default_place, place_lists)
+    """
+    places_config = config.get('places', {}) if isinstance(config, dict) else {}
+    all_places = places_config.get('all_places', []) if isinstance(places_config, dict) else []
+    place_lists = places_config.get('place_lists', {}) if isinstance(places_config, dict) else {}
+
+    if not isinstance(all_places, list):
+        all_places = []
+    if not isinstance(place_lists, dict):
+        place_lists = {}
+
+    default_place = ""
+    if isinstance(places_config, dict):
+        configured_default = places_config.get('default_place')
+        if isinstance(configured_default, str):
+            default_place = configured_default
+
+    if not default_place and all_places:
+        first_place = all_places[0]
+        if isinstance(first_place, dict):
+            first_name = first_place.get('name')
+            if isinstance(first_name, str):
+                default_place = first_name
+
+    return all_places, default_place, place_lists
+
+
+def find_place_by_name(all_places: list[dict], place_name: str) -> dict | None:
+    """Return the first place entry matching a name, or None."""
+    for place in all_places:
+        if isinstance(place, dict) and place.get('name') == place_name:
+            return place
+    return None
+
+
+def render_config_yaml(config: dict) -> str:
+    """Render config mapping to the project's canonical YAML format."""
+    lines = []
+
+    lines.append("# geo configuration file")
+    lines.append("# Programmatic updates (e.g., --add-place) will reformat this file")
+    lines.append("")
+
+    handled_sections = set()
+
+    if 'logging' in config:
+        handled_sections.add('logging')
+        lines.append("# Logging configuration")
+        lines.append("logging:")
+        for key, value in config['logging'].items():
+            lines.append(f"  {key}: {value}")
+        lines.append("")
+
+    if 'grid' in config:
+        handled_sections.add('grid')
+        lines.append("# Grid layout configuration")
+        lines.append("grid:")
+        grid_config = config['grid']
+        lines.append("  # Maximum automatic grid size (rows x columns)")
+        lines.append("  # Used when no --grid option is specified")
+        lines.append("  # Locations exceeding this will be batched into multiple images")
+        for key, value in grid_config.items():
+            lines.append(f"  {key}: {value}")
+        lines.append("")
+
+    if 'places' in config:
+        handled_sections.add('places')
+        lines.append("# Places configuration")
+        lines.append("places:")
+        places_config = config['places']
+
+        if 'default_place' in places_config:
+            lines.append("  # Default place used when no location is specified")
+            lines.append(f"  default_place: {places_config['default_place']}")
+            lines.append("")
+
+        if 'all_places' in places_config:
+            lines.append("  # All available places (name, latitude, longitude)")
+            lines.append("  # Timezone is auto-detected from coordinates")
+            lines.append("  all_places:")
+            for place in places_config['all_places']:
+                name = place['name']
+                lat = place['lat']
+                lon = place['lon']
+                lines.append(f"    - {{name: \"{name}\", lat: {lat}, lon: {lon}}}")
+            lines.append("")
+
+        if 'place_lists' in places_config:
+            lines.append("  # Predefined place lists (use with --list/-L)")
+            lines.append("  place_lists:")
+            for list_name, places in places_config['place_lists'].items():
+                lines.append(f"    {list_name}:")
+                for place_name in places:
+                    lines.append(f"      - {place_name}")
+                if list_name != list(places_config['place_lists'].keys())[-1]:
+                    lines.append("")
+
+    for section_name, section_data in config.items():
+        if section_name not in handled_sections:
+            lines.append(f"# {section_name.replace('_', ' ').title()} section")
+            lines.append(f"{section_name}:")
+            section_yaml = yaml.dump(section_data, default_flow_style=False, sort_keys=False)
+            for line in section_yaml.rstrip().split('\n'):
+                lines.append(f"  {line}")
+            lines.append("")
+
+    output = "\n".join(lines)
+    if lines and lines[-1] != "":
+        output += "\n"
+    return output

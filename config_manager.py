@@ -15,51 +15,10 @@ from timezonefinder import TimezoneFinder
 
 from geo_data.cds import Location
 from geo_core.config import (
-    get_plot_text as core_get_plot_text,
-    load_measure_labels_config as core_load_measure_labels_config,
-    load_plot_text_config as core_load_plot_text_config,
+    extract_places_config,
+    find_place_by_name,
+    render_config_yaml,
 )
-
-
-def load_plot_text_config(config_path: Path = Path("config.yaml")) -> dict:
-    """
-    Load plot text configuration from config file.
-
-    Args:
-        config_path: Path to the configuration YAML file.
-
-    Returns:
-        dict: Plot text configuration with default fallbacks.
-    """
-    return core_load_plot_text_config(config_path)
-
-
-def load_measure_labels_config(config_path: Path = Path("config.yaml")) -> dict[str, dict[str, str]]:
-    """
-    Load measure label/unit mappings from config.
-
-    Args:
-        config_path: Path to the configuration YAML file.
-
-    Returns:
-        dict[str, dict[str, str]]: Mapping of measure key to label/unit dict.
-    """
-    return core_load_measure_labels_config(config_path)
-
-
-def get_plot_text(config: dict, key: str, **kwargs) -> str:
-    """
-    Get formatted plot text from configuration.
-
-    Args:
-        config: Plot text configuration dictionary.
-        key: Configuration key to retrieve.
-        **kwargs: Format parameters for string substitution.
-
-    Returns:
-        str: Formatted text string.
-    """
-    return core_get_plot_text(config, key, **kwargs)
 
 
 def load_places(yaml_path: Path = Path("config.yaml")) -> tuple[dict, str, dict]:
@@ -75,11 +34,11 @@ def load_places(yaml_path: Path = Path("config.yaml")) -> tuple[dict, str, dict]
     with open(yaml_path, "r") as f:
         config = yaml.safe_load(f)
 
-    # Extract places section from config
-    places_config = config.get('places', {})
-    places_dict = {p['name']: Location(**p) for p in places_config['all_places']}
-    default_place = places_config.get('default_place', list(places_dict.keys())[0])
-    place_lists = places_config.get('place_lists', {})
+    all_places, default_place, place_lists = extract_places_config(config)
+    places_dict = {p['name']: Location(**p) for p in all_places}
+
+    if not default_place and places_dict:
+        default_place = next(iter(places_dict.keys()))
 
     return places_dict, default_place, place_lists
 
@@ -96,94 +55,10 @@ def save_config(config: dict, config_path: Path = Path("config.yaml")) -> None:
         config: Configuration dictionary to save
         config_path: Path to the configuration YAML file
     """
-    # Build YAML string manually for better formatting control
-    lines = []
+    rendered_yaml = render_config_yaml(config)
 
-    # File header comment
-    lines.append("# geo configuration file")
-    lines.append("# Programmatic updates (e.g., --add-place) will reformat this file")
-    lines.append("")
-
-    # Track which sections we've explicitly handled
-    handled_sections = set()
-
-    # Logging section
-    if 'logging' in config:
-        handled_sections.add('logging')
-        lines.append("# Logging configuration")
-        lines.append("logging:")
-        for key, value in config['logging'].items():
-            lines.append(f"  {key}: {value}")
-        lines.append("")  # Blank line after section
-
-    # Grid section
-    if 'grid' in config:
-        handled_sections.add('grid')
-        lines.append("# Grid layout configuration")
-        lines.append("grid:")
-        grid_config = config['grid']
-        lines.append("  # Maximum automatic grid size (rows x columns)")
-        lines.append("  # Used when no --grid option is specified")
-        lines.append("  # Locations exceeding this will be batched into multiple images")
-        for key, value in grid_config.items():
-            lines.append(f"  {key}: {value}")
-        lines.append("")  # Blank line after section
-
-    # Places section
-    if 'places' in config:
-        handled_sections.add('places')
-        lines.append("# Places configuration")
-        lines.append("places:")
-        places_config = config['places']
-
-        # Default place
-        if 'default_place' in places_config:
-            lines.append("  # Default place used when no location is specified")
-            lines.append(f"  default_place: {places_config['default_place']}")
-            lines.append("")  # Blank line before all_places
-
-        # All places (compact format)
-        if 'all_places' in places_config:
-            lines.append("  # All available places (name, latitude, longitude)")
-            lines.append("  # Timezone is auto-detected from coordinates")
-            lines.append("  all_places:")
-            for place in places_config['all_places']:
-                # Use flow style (one line) for each place
-                # Quote the name to handle commas and special characters
-                name = place['name']
-                lat = place['lat']
-                lon = place['lon']
-                lines.append(f"    - {{name: \"{name}\", lat: {lat}, lon: {lon}}}")
-            lines.append("")  # Blank line after all_places
-
-        # Place lists
-        if 'place_lists' in places_config:
-            lines.append("  # Predefined place lists (use with --list/-L)")
-            lines.append("  place_lists:")
-            for list_name, places in places_config['place_lists'].items():
-                lines.append(f"    {list_name}:")
-                for place_name in places:
-                    lines.append(f"      - {place_name}")
-                if list_name != list(places_config['place_lists'].keys())[-1]:
-                    lines.append("")  # Blank line between lists
-
-    # Fallback: write any other sections using standard YAML formatting
-    # This preserves sections we don't explicitly handle above
-    for section_name, section_data in config.items():
-        if section_name not in handled_sections:
-            lines.append(f"# {section_name.replace('_', ' ').title()} section")
-            lines.append(f"{section_name}:")
-            # Use standard YAML dump for unknown sections
-            section_yaml = yaml.dump(section_data, default_flow_style=False, sort_keys=False)
-            for line in section_yaml.rstrip().split('\n'):
-                lines.append(f"  {line}")
-            lines.append("")  # Blank line after section
-
-    # Write to file
     with open(config_path, "w") as f:
-        f.write("\n".join(lines))
-        if lines and not lines[-1] == "":
-            f.write("\n")  # Ensure file ends with newline
+        f.write(rendered_yaml)
 
 
 def add_place_to_config(place_name: str, config_path: Path = Path("config.yaml")) -> None:
@@ -225,15 +100,14 @@ def add_place_to_config(place_name: str, config_path: Path = Path("config.yaml")
         places_config = config.get('places', {})
         all_places = places_config.get('all_places', [])
 
-        for place in all_places:
-            if place['name'] == place_name:
-                print(f"\nWARNING: '{place_name}' already exists in config with coordinates {place['lat']}, {place['lon']}")
-                response = input("Overwrite? (y/n): ")
-                if response.lower() != 'y':
-                    print("Cancelled.")
-                    sys.exit(0)
-                all_places.remove(place)
-                break
+        existing_place = find_place_by_name(all_places, place_name)
+        if existing_place is not None:
+            print(f"\nWARNING: '{place_name}' already exists in config with coordinates {existing_place['lat']}, {existing_place['lon']}")
+            response = input("Overwrite? (y/n): ")
+            if response.lower() != 'y':
+                print("Cancelled.")
+                sys.exit(0)
+            all_places.remove(existing_place)
 
         # Add new place
         new_place = {'name': place_name, 'lat': lat, 'lon': lon}

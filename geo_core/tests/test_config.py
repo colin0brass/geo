@@ -2,9 +2,12 @@ import pytest
 
 from geo_core.config import (
     DEFAULT_COLORMAP,
+    extract_places_config,
+    find_place_by_name,
     load_colormap,
     load_colour_mode,
     load_grid_settings,
+    render_config_yaml,
 )
 
 
@@ -115,3 +118,79 @@ def test_load_grid_settings_missing_file(tmp_path):
     max_rows, max_cols = load_grid_settings(config_file)
     assert max_rows == 4
     assert max_cols == 6
+
+
+def test_extract_places_config_basic_payload():
+    config = {
+        'places': {
+            'default_place': 'Cambridge, UK',
+            'all_places': [
+                {'name': 'Cambridge, UK', 'lat': 52.2053, 'lon': 0.1218},
+                {'name': 'Austin, TX', 'lat': 30.2672, 'lon': -97.7431},
+            ],
+            'place_lists': {
+                'default': ['Cambridge, UK', 'Austin, TX'],
+            },
+        }
+    }
+
+    all_places, default_place, place_lists = extract_places_config(config)
+
+    assert len(all_places) == 2
+    assert default_place == 'Cambridge, UK'
+    assert place_lists == {'default': ['Cambridge, UK', 'Austin, TX']}
+
+
+def test_extract_places_config_default_falls_back_to_first_place():
+    config = {
+        'places': {
+            'all_places': [
+                {'name': 'FirstPlace', 'lat': 1.0, 'lon': 2.0},
+                {'name': 'SecondPlace', 'lat': 3.0, 'lon': 4.0},
+            ]
+        }
+    }
+
+    _, default_place, _ = extract_places_config(config)
+    assert default_place == 'FirstPlace'
+
+
+def test_render_config_yaml_places_flow_style_and_comments():
+    config = {
+        'logging': {
+            'log_file': 'geo.log',
+            'console_level': 'WARNING',
+        },
+        'places': {
+            'default_place': 'São Paulo, Brazil',
+            'all_places': [
+                {'name': 'São Paulo, Brazil', 'lat': -23.55, 'lon': -46.63},
+            ],
+            'place_lists': {
+                'default': ['São Paulo, Brazil'],
+            },
+        },
+    }
+
+    rendered = render_config_yaml(config)
+
+    assert '# geo configuration file' in rendered
+    assert 'logging:' in rendered
+    assert 'places:' in rendered
+    assert 'default_place: São Paulo, Brazil' in rendered
+    assert '{name: "São Paulo, Brazil", lat: -23.55, lon: -46.63}' in rendered
+    assert 'place_lists:' in rendered
+
+
+def test_find_place_by_name_returns_match_or_none():
+    all_places = [
+        {'name': 'Cambridge, UK', 'lat': 52.2053, 'lon': 0.1218},
+        {'name': 'Austin, TX', 'lat': 30.2672, 'lon': -97.7431},
+    ]
+
+    match = find_place_by_name(all_places, 'Austin, TX')
+    assert match is not None
+    assert match['lat'] == 30.2672
+
+    missing = find_place_by_name(all_places, 'Not Found')
+    assert missing is None
