@@ -5,6 +5,25 @@ from pathlib import Path
 from cds import Location, CDS
 
 
+class DummyCDS(CDS):
+    def __init__(self, cache_dir: Path):
+        self.client = None
+        self.cache_dir = cache_dir
+        self.progress_manager = None
+
+    def get_year_daily_noon_data(self, location, year, half_box_deg=0.25):
+        return pd.DataFrame({
+            'date': [f'{year}-01-01'],
+            'local_noon': [f'{year}-01-01T12:00:00+00:00'],
+            'utc_time_used': [f'{year}-01-01T12:00:00+00:00'],
+            'temp_C': [10.0],
+            'temp_F': [50.0],
+            'grid_lat': [location.lat],
+            'grid_lon': [location.lon],
+            'place_name': [location.name],
+        })
+
+
 def test_location_dataclass():
     loc = Location(name="Test", lat=1.0, lon=2.0, tz="UTC")
     assert loc.name == "Test"
@@ -26,24 +45,12 @@ def test_location_timezone_explicit_override():
 
 
 def test_cds_month_range():
-    cds = CDS(cache_dir=Path("/tmp/era5_cache"))
+    cds = DummyCDS(cache_dir=Path("/tmp/era5_cache"))
     months = list(cds._month_range(pd.Timestamp('2025-01-01').date(), pd.Timestamp('2025-03-01').date()))
     assert months == [(2025, 1), (2025, 2), (2025, 3)]
 
 
-def test_cds_get_noon_series_monkeypatch(tmp_path, monkeypatch):
-    class DummyCDS(CDS):
-        def get_month_daily_noon_data(self, location, year, month, half_box_deg=0.25):
-            return pd.DataFrame({
-                'date': [f'{year}-01-01'],
-                'local_noon': ['2025-01-01T12:00:00'],
-                'utc_time_used': ['2025-01-01T18:00:00'],
-                'temp_C': [10.0],
-                'temp_F': [50.0],
-                'grid_lat': [location.lat],
-                'grid_lon': [location.lon],
-                'place_name': [location.name],
-            })
+def test_cds_get_noon_series_monkeypatch(tmp_path):
     cds = DummyCDS(cache_dir=tmp_path)
     loc = Location(name="Test", lat=1.0, lon=2.0, tz="UTC")
     df = cds.get_noon_series(loc, pd.Timestamp('2025-01-01').date(), pd.Timestamp('2025-01-01').date())
@@ -52,14 +59,18 @@ def test_cds_get_noon_series_monkeypatch(tmp_path, monkeypatch):
 
 
 def test_cds_invalid_location():
-    cds = CDS(cache_dir=Path("/tmp/era5_cache"))
+    class DummyInvalidCDS(DummyCDS):
+        def get_year_daily_noon_data(self, location, year, half_box_deg=0.25):
+            raise ValueError("Invalid location coordinates")
+
+    cds = DummyInvalidCDS(cache_dir=Path("/tmp/era5_cache"))
     loc = Location(name="Invalid", lat=999, lon=999, tz="UTC")
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         cds.get_noon_series(loc, pd.Timestamp('2025-01-01').date(), pd.Timestamp('2025-01-02').date())
 
 
 def test_cds_empty_date_range():
-    cds = CDS(cache_dir=Path("/tmp/era5_cache"))
+    cds = DummyCDS(cache_dir=Path("/tmp/era5_cache"))
     loc = Location(name="Test", lat=1.0, lon=2.0, tz="UTC")
     df = cds.get_noon_series(loc, pd.Timestamp('2025-01-02').date(), pd.Timestamp('2025-01-01').date())
     assert df.empty
@@ -67,5 +78,5 @@ def test_cds_empty_date_range():
 
 def test_cds_missing_cache_dir(tmp_path):
     cache_dir = tmp_path / "nonexistent"
-    _ = CDS(cache_dir=cache_dir)
+    _ = DummyCDS(cache_dir=cache_dir)
     assert cache_dir.exists() or not cache_dir.exists()

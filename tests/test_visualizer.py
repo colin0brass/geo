@@ -143,3 +143,34 @@ def test_visualizer_invalid_colormap_name():
     df = pd.DataFrame({'date': ['2025-01-01'], 'temp_C': [10]})
     with pytest.raises(ValueError):
         Visualizer(df, colormap_name='not_a_cmap')
+
+
+def test_visualizer_range_text_template_formatting():
+    df = pd.DataFrame({
+        'date': ['2025-01-01', '2025-01-02'],
+        'temp_C': [10, 12],
+        'precip_mm': [1.25, 4.75],
+    })
+    vis = Visualizer(
+        df,
+        y_value_column='precip_mm',
+        range_text_template="{measure_label}: {min_value:.1f}-{max_value:.1f} {measure_unit}",
+        range_text_context={
+            'measure_label': 'Daily Precipitation',
+            'measure_unit': 'mm',
+        }
+    )
+    min_value, max_value = vis._get_range_bounds(df)
+    text = vis._format_range_text(min_value, max_value)
+    assert text == "Daily Precipitation: 1.2-4.8 mm"
+
+
+def test_visualizer_range_text_template_fallback():
+    df = pd.DataFrame({'date': ['2025-01-01'], 'temp_C': [10]})
+    vis = Visualizer(
+        df,
+        range_text_template="{missing_key}",
+        range_text_context={'measure_label': 'Any Value', 'measure_unit': 'u'},
+    )
+    text = vis._format_range_text(1.0, 2.0)
+    assert text == "Any Value: 1.0 to 2.0 u"

@@ -29,6 +29,9 @@ class Visualizer:
         t_max_c: float = None,
         out_dir: str = 'output',
         settings_file: str = 'settings.yaml',
+        y_value_column: str = 'temp_C',
+        range_text_template: str | None = None,
+        range_text_context: dict[str, str] | None = None,
         colour_mode: str = 'y_value',
         colormap_name: str = 'turbo'
     ) -> None:
@@ -41,6 +44,9 @@ class Visualizer:
             t_max_c: Maximum temperature for color normalization (optional).
             out_dir: Output directory for plots.
             settings_file: Path to YAML settings file.
+            y_value_column: DataFrame column used for y-value range text.
+            range_text_template: Optional template used for the per-plot value range text.
+            range_text_context: Optional context values used with range_text_template.
             colour_mode: Colour mapping mode ('y_value' or 'year').
             colormap_name: Matplotlib colormap name for point colouring.
         Raises:
@@ -52,6 +58,13 @@ class Visualizer:
 
         self.df = df
         self.out_dir = out_dir
+        self.y_value_column = y_value_column
+        self.range_text_template = (
+            range_text_template
+            if isinstance(range_text_template, str) and range_text_template.strip()
+            else "{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}"
+        )
+        self.range_text_context = range_text_context or {}
 
         self.settings_file = settings_file
         try:
@@ -85,6 +98,37 @@ class Visualizer:
         else:
             self.year_norm = Normalize(vmin=self.first_year, vmax=self.last_year)
         self.year_cmap = self.cmap
+
+    def _get_range_bounds(self, df: pd.DataFrame) -> tuple[float, float]:
+        """Return min/max values for configured y-value column with safe fallback."""
+        range_column = self.y_value_column if self.y_value_column in df.columns else 'temp_C'
+        min_value = float(df[range_column].min())
+        max_value = float(df[range_column].max())
+        return min_value, max_value
+
+    def _format_range_text(self, min_value: float, max_value: float) -> str:
+        """Format value-range text using configured template/context."""
+        measure_unit = self.range_text_context.get('measure_unit', '')
+        context = {
+            'min_value': min_value,
+            'max_value': max_value,
+            'min_y_value': min_value,
+            'max_y_value': max_value,
+            'measure': self.range_text_context.get('measure', ''),
+            'measure_key': self.range_text_context.get('measure_key', ''),
+            'measure_label': self.range_text_context.get('measure_label', ''),
+            'measure_unit': measure_unit,
+            'y_value_label': self.range_text_context.get('y_value_label', ''),
+            'min_temp_c': min_value,
+            'max_temp_c': max_value,
+            'min_temp_f': self.temp_c_to_f(min_value),
+            'max_temp_f': self.temp_c_to_f(max_value),
+        }
+        try:
+            return self.range_text_template.format(**context)
+        except Exception:
+            measure_label = self.range_text_context.get('measure_label', 'Value')
+            return f"{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}".strip()
 
     @classmethod
     def load_settings_from_yaml(cls, yaml_path: str) -> dict:
@@ -322,9 +366,8 @@ class Visualizer:
         self.create_polar_plot(ax, self.df)
 
         # Show temp range under the subplot using the parent figure
-        plot_tmin_c = self.df["temp_C"].min()
-        plot_tmax_c = self.df["temp_C"].max()
-        temp_range_text = f"{plot_tmin_c:.1f}°C to {plot_tmax_c:.1f}°C; ({self.temp_c_to_f(plot_tmin_c):.1f}°F to {self.temp_c_to_f(plot_tmax_c):.1f}°F)"
+        range_min, range_max = self._get_range_bounds(self.df)
+        temp_range_text = self._format_range_text(range_min, range_max)
 
         # Place the text just below the subplot
         bbox = ax.get_position()
@@ -399,9 +442,8 @@ class Visualizer:
         ax.set_title(title if title else '', fontsize=title_fontsize, pad=0, color=title_colour)
 
         # Show temp range under the subplot using the parent figure
-        plot_tmin_c = df["temp_C"].min()
-        plot_tmax_c = df["temp_C"].max()
-        temp_range_text = f"{plot_tmin_c:.1f}°C to {plot_tmax_c:.1f}°C; ({self.temp_c_to_f(plot_tmin_c):.1f}°F to {self.temp_c_to_f(plot_tmax_c):.1f}°F)"
+        range_min, range_max = self._get_range_bounds(df)
+        temp_range_text = self._format_range_text(range_min, range_max)
 
         # Place the text just below the subplot using scaled vspace
         bbox = ax.get_position()

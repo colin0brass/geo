@@ -103,6 +103,9 @@ def test_create_batch_subplot_single_batch(mock_visualizer_class, tmp_path):
     mock_visualizer_class.assert_called_once()
     assert mock_visualizer_class.call_args[1]['colour_mode'] == 'year'
     assert mock_visualizer_class.call_args[1]['colormap_name'] == 'plasma'
+    assert mock_visualizer_class.call_args[1]['y_value_column'] == 'temp_C'
+    assert 'range_text_template' in mock_visualizer_class.call_args[1]
+    assert 'range_text_context' in mock_visualizer_class.call_args[1]
     mock_vis_instance.plot_polar_subplots.assert_called_once()
     call_kwargs = mock_vis_instance.plot_polar_subplots.call_args[1]
     assert "Mid-Day Temperature (2024-2024)" in call_kwargs['title']
@@ -152,6 +155,8 @@ def test_create_batch_subplot_uses_measure_labels_from_config(mock_visualizer_cl
             "    daily_precipitation:",
             "      label: Rainfall",
             "      unit: mm/day",
+            "      y_value_column: precip_mm",
+            "      range_text: '{measure_label}: {min_value:.1f}-{max_value:.1f} {measure_unit}'",
         ])
     )
 
@@ -180,6 +185,9 @@ def test_create_batch_subplot_uses_measure_labels_from_config(mock_visualizer_cl
 
     call_kwargs = mock_vis_instance.plot_polar_subplots.call_args[1]
     assert "Rainfall (2024-2024)" in call_kwargs['title']
+    vis_kwargs = mock_visualizer_class.call_args[1]
+    assert vis_kwargs['y_value_column'] == 'precip_mm'
+    assert vis_kwargs['range_text_template'] == '{measure_label}: {min_value:.1f}-{max_value:.1f} {measure_unit}'
 
 
 @patch('orchestrator.Visualizer')
@@ -214,6 +222,8 @@ def test_create_individual_plot(mock_visualizer_class, tmp_path):
     mock_visualizer_class.assert_called_once()
     assert mock_visualizer_class.call_args[1]['colour_mode'] == 'year'
     assert mock_visualizer_class.call_args[1]['colormap_name'] == 'plasma'
+    assert 'range_text_template' in mock_visualizer_class.call_args[1]
+    assert 'range_text_context' in mock_visualizer_class.call_args[1]
     mock_vis_instance.plot_polar.assert_called_once()
 
     call_kwargs = mock_vis_instance.plot_polar.call_args[1]

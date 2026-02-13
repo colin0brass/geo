@@ -436,6 +436,18 @@ class CDS:
         Returns:
             pd.DataFrame: DataFrame with daily local noon temperatures for the date range.
         """
+        if start_d > end_d:
+            return pd.DataFrame(columns=[
+                "date",
+                "local_noon",
+                "utc_time_used",
+                "temp_C",
+                "temp_F",
+                "grid_lat",
+                "grid_lon",
+                "place_name",
+            ])
+
         all_dfs = []
 
         # Get list of years to process

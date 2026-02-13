@@ -25,9 +25,13 @@ plotting:
     noon_temperature:
       label: "Mid-Day Temperature"
       unit: "°C"
+      y_value_column: "temp_C"
+      range_text: "{min_temp_c:.1f}°C to {max_temp_c:.1f}°C; ({min_temp_f:.1f}°F to {max_temp_f:.1f}°F)"
     daily_precipitation:
       label: "Daily Precipitation"
       unit: "mm"
+      y_value_column: "precip_mm"
+      range_text: "{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}"
   # Allowed colormaps for plotting (first entry is used as default fallback)
   valid_colormaps: [turbo, viridis, plasma, inferno, magma, cividis]
   # Matplotlib colormap name used for both colour modes
@@ -39,6 +43,10 @@ plot_text:
   single_plot_title: "{location} {measure_label} ({start_year}-{end_year})"
   subplot_title: "{measure_label} ({start_year}-{end_year})"
   subplot_title_with_batch: "{measure_label} ({start_year}-{end_year}) - Part {batch}/{total_batches}"
+  # Range text shown beneath each polar plot
+  # Available placeholders include:
+  # {min_value}, {max_value}, {min_y_value}, {max_y_value}, {measure_label}, {measure_unit}, {min_temp_c}, {max_temp_c}, {min_temp_f}, {max_temp_f}
+  range_text: "{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}"
   
   # Filename patterns (can use {location}, {list_name}, {start_year}, {end_year}, {batch}, {total_batches}, {measure_label}, {measure_key})
   # Note: {location} will be sanitized (spaces->underscores, commas removed)

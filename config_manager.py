@@ -45,8 +45,18 @@ def load_measure_labels_config(config_path: Path = Path("config.yaml")) -> dict[
         dict[str, dict[str, str]]: Mapping of measure key to label/unit dict.
     """
     defaults = {
-        "noon_temperature": {"label": "Mid-Day Temperature", "unit": "°C"},
-        "daily_precipitation": {"label": "Daily Precipitation", "unit": "mm"},
+        "noon_temperature": {
+            "label": "Mid-Day Temperature",
+            "unit": "°C",
+            "y_value_column": "temp_C",
+            "range_text": "{min_temp_c:.1f}°C to {max_temp_c:.1f}°C; ({min_temp_f:.1f}°F to {max_temp_f:.1f}°F)",
+        },
+        "daily_precipitation": {
+            "label": "Daily Precipitation",
+            "unit": "mm",
+            "y_value_column": "precip_mm",
+            "range_text": "{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}",
+        },
     }
 
     try:
@@ -63,11 +73,15 @@ def load_measure_labels_config(config_path: Path = Path("config.yaml")) -> dict[
                 continue
             label = metadata.get('label')
             unit = metadata.get('unit')
+            y_value_column = metadata.get('y_value_column')
+            range_text = metadata.get('range_text')
             merged_label = label if isinstance(label, str) else measure_key.replace('_', ' ').title()
             merged_unit = unit if isinstance(unit, str) else ''
             merged[measure_key] = {
                 'label': merged_label,
                 'unit': merged_unit,
+                'y_value_column': y_value_column if isinstance(y_value_column, str) else 'temp_C',
+                'range_text': range_text if isinstance(range_text, str) else '',
             }
         return merged
     except Exception:
@@ -91,6 +105,7 @@ def get_plot_text(config: dict, key: str, **kwargs) -> str:
         'single_plot_title': "{location} {measure_label} ({start_year}-{end_year})",
         'subplot_title': "{measure_label} ({start_year}-{end_year})",
         'subplot_title_with_batch': "{measure_label} ({start_year}-{end_year}) - Part {batch}/{total_batches}",
+        'range_text': "{min_temp_c:.1f}°C to {max_temp_c:.1f}°C; ({min_temp_f:.1f}°F to {max_temp_f:.1f}°F)",
         'single_plot_filename': "{location}_{measure_key}_{start_year}_{end_year}.png",
         'subplot_filename': "{list_name}_{measure_key}_{start_year}_{end_year}.png",
         'subplot_filename_with_batch': "{list_name}_{measure_key}_{start_year}_{end_year}_part{batch}of{total_batches}.png",

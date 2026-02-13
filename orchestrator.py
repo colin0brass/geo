@@ -116,6 +116,9 @@ def create_batch_subplot(
     # Use list name in filename if provided, otherwise use "Overall"
     filename_prefix = list_name if list_name else "Overall"
     measure_ctx = _measure_plot_context(measure, measure_labels)
+    measure_meta = measure_labels.get(measure, {})
+    range_text_template = measure_meta.get('range_text') or plot_text_config.get('range_text')
+    y_value_column = measure_meta.get('y_value_column', 'temp_C')
 
     # Ensure output directory exists
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -169,6 +172,9 @@ def create_batch_subplot(
         t_min_c=t_min_c,
         t_max_c=t_max_c,
         settings_file=settings,
+        y_value_column=y_value_column,
+        range_text_template=range_text_template,
+        range_text_context=measure_ctx,
         colour_mode=colour_mode,
         colormap_name=colormap_name
     )
@@ -309,6 +315,9 @@ def create_individual_plot(
     plot_text_config = load_plot_text_config(config)
     measure_labels = load_measure_labels_config(config)
     measure_ctx = _measure_plot_context(measure, measure_labels)
+    measure_meta = measure_labels.get(measure, {})
+    range_text_template = measure_meta.get('range_text') or plot_text_config.get('range_text')
+    y_value_column = measure_meta.get('y_value_column', 'temp_C')
 
     # Ensure output directory exists
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -340,6 +349,9 @@ def create_individual_plot(
         t_min_c=t_min_c,
         t_max_c=t_max_c,
         settings_file=settings,
+        y_value_column=y_value_column,
+        range_text_template=range_text_template,
+        range_text_context=measure_ctx,
         colour_mode=colour_mode,
         colormap_name=colormap_name
     )
