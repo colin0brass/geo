@@ -1,6 +1,8 @@
 # Test CDS class and Location dataclass
 import pytest
 import pandas as pd
+import numpy as np
+import xarray as xr
 from pathlib import Path
 from cds import Location, CDS
 
@@ -82,6 +84,49 @@ def test_cds_get_noon_series_long_range_uses_year_fetch(tmp_path):
     _ = cds.get_noon_series(loc, pd.Timestamp('2025-01-01').date(), pd.Timestamp('2025-04-15').date())
     assert cds.year_calls == 1
     assert cds.month_calls == 0
+
+
+def test_cds_get_daily_precipitation_series(tmp_path):
+    class DummyPrecipCDS(DummyCDS):
+        def _cds_retrieve_era5_month(
+            self,
+            out_nc,
+            year,
+            month,
+            loc,
+            day=None,
+            hour=None,
+            variable="2m_temperature",
+            half_box_deg=0.25,
+        ):
+            assert variable == "total_precipitation"
+            return out_nc
+
+        def _open_and_concat_for_var(self, nc_files, expected_var):
+            assert expected_var == "tp"
+            times = pd.date_range("2025-01-01T00:00:00Z", periods=24, freq="h")
+            tp = np.full((24, 1, 1), 0.001, dtype=float)  # 1 mm each hour
+            return xr.Dataset(
+                data_vars={"tp": (("time", "latitude", "longitude"), tp)},
+                coords={
+                    "time": times,
+                    "latitude": [52.21],
+                    "longitude": [0.12],
+                },
+            )
+
+    cds = DummyPrecipCDS(cache_dir=tmp_path)
+    loc = Location(name="Cambridge, UK", lat=52.21, lon=0.12, tz="UTC")
+
+    df = cds.get_daily_precipitation_series(
+        loc,
+        pd.Timestamp("2025-01-01").date(),
+        pd.Timestamp("2025-01-01").date(),
+    )
+
+    assert len(df) == 1
+    assert df["place_name"].iloc[0] == "Cambridge, UK"
+    assert df["precip_mm"].iloc[0] == pytest.approx(24.0)
 
 
 def test_cds_invalid_location():

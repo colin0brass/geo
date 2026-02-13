@@ -92,6 +92,7 @@ class CDS:
         loc: Location,
         day: int = None,
         hour: int = None,
+        variable: str = "2m_temperature",
         half_box_deg: float = 0.25
     ) -> Path:
         """
@@ -119,7 +120,7 @@ class CDS:
 
         request = {
             "product_type": "reanalysis",
-            "variable": ["2m_temperature"],
+            "variable": [variable],
             "year": f"{year:04d}",
             "month": f"{month:02d}",
             "day": day_range,
@@ -140,6 +141,7 @@ class CDS:
         out_nc: Path,
         loc: Location,
         dates_utc: pd.DatetimeIndex,
+        variable: str = "2m_temperature",
         half_box_deg: float = 0.25
     ) -> Path:
         """
@@ -166,7 +168,7 @@ class CDS:
 
         request = {
             "product_type": "reanalysis",
-            "variable": ["2m_temperature"],
+            "variable": [variable],
             "year": [f"{y:04d}" for y in years],
             "month": months,
             "day": days,
@@ -182,7 +184,7 @@ class CDS:
         self.client.retrieve("reanalysis-era5-single-levels", request, str(out_nc))
         return out_nc
 
-    def _open_and_concat(self, nc_files: list[Path]) -> xr.Dataset:
+    def _open_and_concat_for_var(self, nc_files: list[Path], expected_var: str) -> xr.Dataset:
         """
         Open multiple NetCDF files and concatenate along the time dimension.
         Args:
@@ -204,9 +206,16 @@ class CDS:
             engine="netcdf4",
         )
 
-        # Standardize variable name (ERA5 uses 't2m')
-        if "t2m" not in ds.data_vars:
-            raise KeyError(f"Expected variable 't2m' not found. Variables: {list(ds.data_vars)}")
+        if expected_var not in ds.data_vars:
+            raise KeyError(
+                f"Expected variable '{expected_var}' not found. Variables: {list(ds.data_vars)}"
+            )
+
+        return ds
+
+    def _open_and_concat(self, nc_files: list[Path]) -> xr.Dataset:
+        """Backwards-compatible wrapper for temperature retrieval."""
+        ds = self._open_and_concat_for_var(nc_files, "t2m")
 
         return ds
 
@@ -505,3 +514,93 @@ class CDS:
         df_filtered = df_all.loc[mask].reset_index(drop=True)
 
         return df_filtered
+
+    def get_daily_precipitation_series(
+        self,
+        location: Location,
+        start_d: date,
+        end_d: date,
+        half_box_deg: float = 0.25,
+        notify_progress: bool = True,
+    ) -> pd.DataFrame:
+        """
+        Retrieve daily total precipitation (mm) for the given location and date range.
+
+        Args:
+            location (Location): Location object.
+            start_d (date): Start date.
+            end_d (date): End date.
+            half_box_deg (float, optional): Half-size of the grid box in degrees. Defaults to 0.25.
+            notify_progress (bool, optional): Whether to notify progress manager. Defaults to True.
+
+        Returns:
+            pd.DataFrame: DataFrame with columns date, precip_mm, grid_lat, grid_lon, place_name.
+        """
+        if start_d > end_d:
+            return pd.DataFrame(columns=[
+                "date",
+                "precip_mm",
+                "grid_lat",
+                "grid_lon",
+                "place_name",
+            ])
+
+        tz_local = ZoneInfo(location.tz)
+        safe_name = location.name.replace(' ', '_').replace(',', '')
+        month_pairs = list(self._month_range(start_d, end_d))
+        total_months = len(month_pairs)
+        all_dfs = []
+
+        for month_idx, (year, month) in enumerate(month_pairs, 1):
+            if self.progress_manager and notify_progress:
+                self.progress_manager.notify_year_start(location.name, year, month_idx, total_months)
+
+            cache_file = self.cache_dir / f"era5_tp_{safe_name}_{year:04d}_{month:02d}.nc"
+            nc_file = self._cds_retrieve_era5_month(
+                cache_file,
+                year=year,
+                month=month,
+                loc=location,
+                variable="total_precipitation",
+                half_box_deg=half_box_deg,
+            )
+            ds = self._open_and_concat_for_var([nc_file], "tp")
+
+            ds_point = ds.sel(
+                latitude=location.lat,
+                longitude=location.lon,
+                method="nearest",
+            )
+
+            if "valid_time" in ds_point.coords:
+                ds_point = ds_point.rename({"valid_time": "time"})
+
+            da = ds_point["tp"]
+            utc_times = pd.to_datetime(da["time"].values, utc=True)
+            local_dates = utc_times.tz_convert(tz_local).date
+            precip_mm = da.values.astype(np.float64) * 1000.0
+
+            df_month = pd.DataFrame({
+                "date": local_dates,
+                "precip_mm": precip_mm,
+            })
+            df_month = df_month.groupby("date", as_index=False, sort=True)["precip_mm"].sum()
+            df_month["grid_lat"] = float(ds_point["latitude"].values)
+            df_month["grid_lon"] = float(ds_point["longitude"].values)
+            df_month["place_name"] = location.name
+            all_dfs.append(df_month)
+
+            if self.progress_manager and notify_progress:
+                self.progress_manager.notify_year_complete(location.name, year, month_idx, total_months)
+
+        if not all_dfs:
+            return pd.DataFrame(columns=["date", "precip_mm", "grid_lat", "grid_lon", "place_name"])
+
+        df_all = pd.concat(all_dfs, ignore_index=True)
+        df_all["date"] = pd.to_datetime(df_all["date"]).dt.date
+        mask = (df_all["date"] >= start_d) & (df_all["date"] <= end_d)
+        df_filtered = df_all.loc[mask].copy()
+        if not df_filtered.empty:
+            df_filtered["date"] = df_filtered["date"].astype(str)
+            df_filtered["precip_mm"] = df_filtered["precip_mm"].round(3)
+        return df_filtered.reset_index(drop=True)
