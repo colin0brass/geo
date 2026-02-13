@@ -3,13 +3,14 @@ import pytest
 import pandas as pd
 import matplotlib
 matplotlib.use('Agg')  # Use non-interactive backend for tests
-from plot import Visualizer
+from plot import Visualizer  # noqa: E402
 
 
 def test_temp_c_to_f():
     assert Visualizer.temp_c_to_f(0) == 32.0
     assert Visualizer.temp_c_to_f(100) == 212.0
     assert Visualizer.temp_c_to_f(-40) == -40.0
+
 
 def test_add_data_fields():
     df = pd.DataFrame({'date': ['2025-01-01', '2025-01-02'], 'temp_C': [10, 12]})
@@ -19,6 +20,7 @@ def test_add_data_fields():
     assert 'angle' in df2.columns
     assert df2['day_of_year'].iloc[0] == 1
     assert df2['angle'].iloc[0] == 0.0
+
 
 def test_add_data_fields_missing_columns():
     df = pd.DataFrame({'date': ['2025-01-01', '2025-01-02'], 'temp_C': [10, 12]})
@@ -32,14 +34,17 @@ def test_add_data_fields_missing_columns():
     assert (vis2.df['day_of_year'] == [1, 2]).all()
     assert (vis2.df['angle'] == [0.0, 0.1]).all()
 
+
 def test_add_data_fields_empty_df():
     with pytest.raises(ValueError):
         Visualizer(pd.DataFrame())
+
 
 def test_add_data_fields_invalid_date():
     df = pd.DataFrame({'date': ['not-a-date'], 'temp_C': [10]})
     with pytest.raises(Exception):
         Visualizer(df)
+
 
 def test_visualizer_init_and_error():
     df = pd.DataFrame({'date': ['2025-01-01'], 'temp_C': [10]})
@@ -50,9 +55,11 @@ def test_visualizer_init_and_error():
     with pytest.raises(ValueError):
         Visualizer(pd.DataFrame())
 
+
 def test_visualizer_temp_c_to_f_edge_cases():
     assert Visualizer.temp_c_to_f(37.5) == 99.5
     assert Visualizer.temp_c_to_f(-273.15) == pytest.approx(-459.67, abs=0.01)
+
 
 def test_plot_polar_subplots_single_place(tmp_path):
     """Test plot_polar_subplots with a single place (1x1 grid)."""

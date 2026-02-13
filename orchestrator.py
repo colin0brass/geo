@@ -104,17 +104,37 @@ def create_batch_subplot(
     # Generate title and filename using configuration
     if num_batches > 1:
         logger.info(f"Generating batch {batch_idx + 1}/{num_batches}: {len(batch_places)} locations")
-        title = get_plot_text(plot_text_config, 'subplot_title_with_batch',
-                             start_year=start_year, end_year=end_year,
-                             batch=batch_idx + 1, total_batches=num_batches)
-        filename = get_plot_text(plot_text_config, 'subplot_filename_with_batch',
-                                list_name=filename_prefix, start_year=start_year, end_year=end_year,
-                                batch=batch_idx + 1, total_batches=num_batches)
+        title = get_plot_text(
+            plot_text_config,
+            'subplot_title_with_batch',
+            start_year=start_year,
+            end_year=end_year,
+            batch=batch_idx + 1,
+            total_batches=num_batches,
+        )
+        filename = get_plot_text(
+            plot_text_config,
+            'subplot_filename_with_batch',
+            list_name=filename_prefix,
+            start_year=start_year,
+            end_year=end_year,
+            batch=batch_idx + 1,
+            total_batches=num_batches,
+        )
     else:
-        title = get_plot_text(plot_text_config, 'subplot_title',
-                             start_year=start_year, end_year=end_year)
-        filename = get_plot_text(plot_text_config, 'subplot_filename',
-                                list_name=filename_prefix, start_year=start_year, end_year=end_year)
+        title = get_plot_text(
+            plot_text_config,
+            'subplot_title',
+            start_year=start_year,
+            end_year=end_year,
+        )
+        filename = get_plot_text(
+            plot_text_config,
+            'subplot_filename',
+            list_name=filename_prefix,
+            start_year=start_year,
+            end_year=end_year,
+        )
     
     plot_file = out_dir / filename
     credit = get_plot_text(plot_text_config, 'credit')
@@ -264,10 +284,20 @@ def create_individual_plot(
     out_dir.mkdir(parents=True, exist_ok=True)
     
     # Generate title and filename using configuration
-    title = get_plot_text(plot_text_config, 'single_plot_title',
-                         location=loc.name, start_year=start_year, end_year=end_year)
-    filename = get_plot_text(plot_text_config, 'single_plot_filename',
-                            location=loc.name, start_year=start_year, end_year=end_year)
+    title = get_plot_text(
+        plot_text_config,
+        'single_plot_title',
+        location=loc.name,
+        start_year=start_year,
+        end_year=end_year,
+    )
+    filename = get_plot_text(
+        plot_text_config,
+        'single_plot_filename',
+        location=loc.name,
+        start_year=start_year,
+        end_year=end_year,
+    )
     credit = get_plot_text(plot_text_config, 'single_plot_credit')
     data_source = get_plot_text(plot_text_config, 'data_source')
     

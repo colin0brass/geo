@@ -306,7 +306,7 @@ class Visualizer:
             self.layout = layout if layout else self.layout
             settings = self.all_settings[self.layout]
         except Exception as e:
-            raise(f"Error loading settings layout {layout}: {e}")
+            raise RuntimeError(f"Error loading settings layout {layout}: {e}") from e
         
         mgr = SettingsManager(settings, num_rows=1)
         
@@ -332,9 +332,15 @@ class Visualizer:
         temp_label_vspace = mgr.get('figure.temp_label_vspace')
         temp_label_fontsize = mgr.get('figure.temp_label_fontsize')
         temp_label_colour = mgr.get('figure.temp_label_colour')
-        fig.text(bbox.x0 + bbox.width/2, bbox.y0 - temp_label_vspace, temp_range_text,
-            ha='center', va='top', fontsize=temp_label_fontsize,
-            color=temp_label_colour)
+        fig.text(
+            bbox.x0 + bbox.width / 2,
+            bbox.y0 - temp_label_vspace,
+            temp_range_text,
+            ha='center',
+            va='top',
+            fontsize=temp_label_fontsize,
+            color=temp_label_colour,
+        )
         
         # Add dual colorbars further from the polar plot
         self.add_dual_colourbars(fig)
@@ -400,9 +406,15 @@ class Visualizer:
 
         # Place the text just below the subplot using scaled vspace
         bbox = ax.get_position()
-        fig.text(bbox.x0 + bbox.width/2, bbox.y0 - temp_label_vspace, temp_range_text,
-            ha='center', va='top', fontsize=temp_label_fontsize,
-            color=temp_label_colour)
+        fig.text(
+            bbox.x0 + bbox.width / 2,
+            bbox.y0 - temp_label_vspace,
+            temp_range_text,
+            ha='center',
+            va='top',
+            fontsize=temp_label_fontsize,
+            color=temp_label_colour,
+        )
         if cbar:
             self.add_dual_colourbars(fig)
 
@@ -436,7 +448,7 @@ class Visualizer:
             self.layout = layout if layout else self.layout
             settings = self.all_settings[self.layout]
         except Exception as e:
-            raise(f"Error loading settings layout {layout}: {e}")
+            raise RuntimeError(f"Error loading settings layout {layout}: {e}") from e
 
         place_list = self.df[subplot_field].unique()
         num_plots = len(place_list)

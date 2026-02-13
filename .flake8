@@ -1,6 +1,6 @@
 [flake8]
 max-line-length = 180
-extend-ignore = E128,E203,E275,E302,E402,W293,W503,F401
+extend-ignore = E203,W293,W503,F401
 exclude = .venv,__pycache__,htmlcov,era5_cache,data_cache,output
 per-file-ignores =
 	__init__.py:F401
