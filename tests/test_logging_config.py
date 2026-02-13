@@ -18,13 +18,13 @@ places:
 """
     config_file = tmp_path / "config.yaml"
     config_file.write_text(config_content)
-    
+
     # Clear any existing handlers
     logger = logging.getLogger("geo")
     logger.handlers.clear()
-    
+
     result = setup_logging(config_file)
-    
+
     assert result is not None
     assert result.name == "geo"
     assert result.level == logging.DEBUG
@@ -43,12 +43,12 @@ places:
 """
     config_file = tmp_path / "config.yaml"
     config_file.write_text(config_content)
-    
+
     logger = logging.getLogger("geo")
     logger.handlers.clear()
-    
+
     result = setup_logging(config_file)
-    
+
     # Check that console handler has INFO level (filter out FileHandler which is also StreamHandler subclass)
     console_handler = [h for h in result.handlers if isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler)][0]
     assert console_handler.level == logging.INFO
@@ -63,12 +63,12 @@ places:
 """
     config_file = tmp_path / "config.yaml"
     config_file.write_text(config_content)
-    
+
     logger = logging.getLogger("geo")
     logger.handlers.clear()
-    
+
     result = setup_logging(config_file)
-    
+
     # Should use defaults
     assert result is not None
     assert len(result.handlers) == 2
@@ -86,21 +86,21 @@ places:
 """
     config_file = tmp_path / "config.yaml"
     config_file.write_text(config_content)
-    
+
     # Change to tmp directory for log file creation
     import os
     old_cwd = os.getcwd()
     os.chdir(tmp_path)
-    
+
     try:
         logger = logging.getLogger("geo")
         logger.handlers.clear()
-        
+
         setup_logging(config_file)
-        
+
         # Log something
         logger.info("Test message")
-        
+
         # Check that log file exists
         log_file = tmp_path / "test_output.log"
         assert log_file.exists()
@@ -120,16 +120,16 @@ places:
 """
     config_file = tmp_path / "config.yaml"
     config_file.write_text(config_content)
-    
+
     logger = logging.getLogger("geo")
     logger.handlers.clear()
-    
+
     setup_logging(config_file)
     handler_count_1 = len(logger.handlers)
-    
+
     setup_logging(config_file)
     handler_count_2 = len(logger.handlers)
-    
+
     assert handler_count_1 == handler_count_2
 
 
@@ -145,12 +145,12 @@ places:
 """
     config_file = tmp_path / "config.yaml"
     config_file.write_text(config_content)
-    
+
     logger = logging.getLogger("geo")
     logger.handlers.clear()
-    
+
     result = setup_logging(config_file)
-    
+
     # Find file handler
     file_handler = [h for h in result.handlers if isinstance(h, logging.FileHandler)][0]
     assert file_handler.level == logging.DEBUG
@@ -169,12 +169,12 @@ places:
 """
         config_file = tmp_path / "config.yaml"
         config_file.write_text(config_content)
-        
+
         logger = logging.getLogger("geo")
         logger.handlers.clear()
-        
+
         result = setup_logging(config_file)
-        
+
         console_handler = [h for h in result.handlers if isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler)][0]
         expected_level = getattr(logging, level)
         assert console_handler.level == expected_level
@@ -185,7 +185,7 @@ def test_get_logger():
     logger = get_logger()
     assert logger is not None
     assert logger.name == "geo"
-    
+
     custom_logger = get_logger("custom")
     assert custom_logger.name == "custom"
 
@@ -202,17 +202,17 @@ places:
 """
     config_file = tmp_path / "config.yaml"
     config_file.write_text(config_content)
-    
+
     logger = logging.getLogger("geo")
     logger.handlers.clear()
-    
+
     result = setup_logging(config_file)
-    
+
     # File handler should have detailed format
     file_handler = [h for h in result.handlers if isinstance(h, logging.FileHandler)][0]
     assert file_handler.formatter is not None
     assert "asctime" in file_handler.formatter._fmt or "levelname" in file_handler.formatter._fmt
-    
+
     # Console handler should have simple format
     console_handler = [h for h in result.handlers if isinstance(h, logging.StreamHandler)][0]
     assert console_handler.formatter is not None
@@ -221,9 +221,9 @@ places:
 def test_setup_logging_missing_file(tmp_path):
     """Test setup_logging with missing config file."""
     missing_file = tmp_path / "nonexistent.yaml"
-    
+
     logger = logging.getLogger("geo")
     logger.handlers.clear()
-    
+
     with pytest.raises(FileNotFoundError):
         setup_logging(missing_file)

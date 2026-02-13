@@ -68,7 +68,7 @@ def _suggest_values(value: str, options: list[str], max_suggestions: int = 5) ->
 def parse_args() -> argparse.Namespace:
     """
     Parse command-line arguments for geo.
-    
+
     Returns:
         argparse.Namespace: Parsed command-line arguments.
     """
@@ -85,9 +85,9 @@ Examples:
         """,
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    
+
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
-    
+
     # Location selection (mutually exclusive)
     location_group = parser.add_argument_group("location selection (choose one)")
     location_exclusive = location_group.add_mutually_exclusive_group()
@@ -111,13 +111,13 @@ Examples:
         action="store_true",
         help="Retrieve data for all configured locations"
     )
-    
+
     # Custom location coordinates
     coord_group = parser.add_argument_group("custom location (use with --place)")
     coord_group.add_argument("--lat", type=float, help="Latitude of custom location")
     coord_group.add_argument("--lon", type=float, help="Longitude of custom location")
     coord_group.add_argument("--tz", type=str, help="Timezone (optional, auto-detected from coordinates if omitted)")
-    
+
     # Information
     info_group = parser.add_argument_group("information")
     info_group.add_argument(
@@ -136,7 +136,7 @@ Examples:
         metavar="NAME",
         help="Add a new place to config (looks up coordinates online). Usage: --add-place 'Seattle, WA'"
     )
-    
+
     # Time period
     time_group = parser.add_argument_group("time period")
     current_year = datetime.now().year
@@ -146,7 +146,7 @@ Examples:
         default=str(current_year - 1),
         help=f"Year or year range (e.g., 2025 or 2020-2025). Default: {current_year - 1}"
     )
-    
+
     # Output options
     output_group = parser.add_argument_group("output options")
     output_group.add_argument(
@@ -185,7 +185,7 @@ Examples:
         default=DEFAULT_MEASURE,
         help="Data measure to use: 'noon_temperature' (implemented) or 'daily_precipitation' (planned)"
     )
-    
+
     # Display options
     display_group = parser.add_argument_group("display options")
     display_group.add_argument(
@@ -206,7 +206,7 @@ Examples:
         default=None,
         help="Colour mapping mode: 'temperature' (default) or 'year' for trend-over-time colouring"
     )
-    
+
     # Advanced options
     advanced_group = parser.add_argument_group("advanced options")
     advanced_group.add_argument(
@@ -224,20 +224,20 @@ Examples:
         action="store_true",
         help="Enable verbose console output (DEBUG level, log file always at DEBUG)"
     )
-    
+
     return parser.parse_args()
 
 
 def parse_years(years_str: str) -> tuple[int, int]:
     """
     Parse year string into start and end years.
-    
+
     Args:
         years_str: Year string in format "YYYY" or "YYYY-YYYY".
-        
+
     Returns:
         tuple[int, int]: (start_year, end_year)
-        
+
     Raises:
         CLIError: If the year format is invalid.
     """
@@ -276,16 +276,16 @@ def parse_years(years_str: str) -> tuple[int, int]:
 def get_place_list(args: argparse.Namespace, places: dict[str, Location], default_place: str, place_lists: dict[str, list[str]]) -> tuple[list[Location], str | None]:
     """
     Determine the list of places to process based on command-line arguments.
-    
+
     Args:
         args: Parsed command-line arguments.
         places: Dictionary mapping place names to Location objects.
         default_place: Name of the default place to use when no arguments provided.
         place_lists: Dictionary of predefined place lists.
-        
+
     Returns:
         tuple: (List of Location objects to process, list name or None for single places)
-        
+
     Raises:
         CLIError: If invalid place or place list is specified.
     """
@@ -296,7 +296,7 @@ def get_place_list(args: argparse.Namespace, places: dict[str, Location], defaul
     # --list all acts as an alias for --all
     if args.place_list == "all":
         return list(places.values()), "all"
-    
+
     # --place-list uses a named list
     if args.place_list:
         if args.place_list not in place_lists:
@@ -311,7 +311,7 @@ def get_place_list(args: argparse.Namespace, places: dict[str, Location], defaul
             )
         place_names = place_lists[args.place_list]
         return [places[name] for name in place_names if name in places], args.place_list
-    
+
     # --place uses a specific place
     if args.place:
         if args.place in places:
@@ -334,7 +334,7 @@ def get_place_list(args: argparse.Namespace, places: dict[str, Location], defaul
             return [Location(name=args.place, lat=args.lat, lon=args.lon, tz=args.tz)], None
         else:
             return [Location(name=args.place, lat=args.lat, lon=args.lon)], None
-    
+
     # No arguments: use default place
     if default_place in places:
         return [places[default_place]], None
@@ -348,25 +348,25 @@ def get_place_list(args: argparse.Namespace, places: dict[str, Location], defaul
 def parse_grid(grid_str: str | None) -> tuple[int, int] | None:
     """
     Parse grid dimension string into (rows, cols).
-    
+
     Args:
         grid_str: Grid string in format "COLSxROWS" (e.g., "4x3" = 4 columns, 3 rows) or None.
-        
+
     Returns:
         tuple[int, int] | None: (rows, cols) or None if grid_str is None.
-        
+
     Raises:
         CLIError: If the grid format is invalid.
     """
     if grid_str is None:
         return None
-        
+
     if 'x' not in grid_str.lower():
         raise CLIError(
             f"Invalid grid format '{grid_str}'.",
             "Use COLSxROWS (e.g., --grid 4x3 for 4 columns by 3 rows)."
         )
-        
+
     try:
         parts = grid_str.lower().split('x')
         if len(parts) != 2:
@@ -386,10 +386,10 @@ def parse_grid(grid_str: str | None) -> tuple[int, int] | None:
 def load_grid_settings(config_file: Path) -> tuple[int, int]:
     """
     Load grid maximum dimensions from config YAML file.
-    
+
     Args:
         config_file: Path to config YAML file.
-        
+
     Returns:
         tuple[int, int]: (max_rows, max_cols) from config, or defaults (4, 6).
     """
@@ -522,18 +522,18 @@ def validate_measure_support(measure: str) -> None:
 def calculate_grid_layout(num_places: int, max_rows: int = 4, max_cols: int = 6) -> tuple[int, int]:
     """
     Calculate optimal grid layout (rows, columns) for subplot arrangement.
-    
+
     Prioritizes balanced aspect ratio while limiting maximum grid size for readability.
     If places exceed max capacity, they should be batched into multiple images.
-    
+
     Args:
         num_places: Number of subplots to arrange.
         max_rows: Maximum number of rows allowed (default 4).
         max_cols: Maximum number of columns allowed (default 6).
-        
+
     Returns:
         tuple[int, int]: (num_rows, num_cols) for the grid layout.
-        
+
     Examples:
         >>> calculate_grid_layout(1, 4, 6)  # 1×1
         (1, 1)
@@ -550,43 +550,43 @@ def calculate_grid_layout(num_places: int, max_rows: int = 4, max_cols: int = 6)
     """
     if num_places == 0:
         return (1, 1)
-    
+
     # Cap at maximum grid size
     max_grid_size = max_rows * max_cols
     places_to_fit = min(num_places, max_grid_size)
-    
+
     # For small numbers, use simple logic
     if places_to_fit <= 2:
         return (1, places_to_fit)
     if places_to_fit <= 4:
         return (2, 2)
-    
+
     # For larger numbers, find best balanced layout within constraints
     # Start with square-ish layout
     num_cols = min(max_cols, math.ceil(math.sqrt(places_to_fit)))
     num_rows = math.ceil(places_to_fit / num_cols)
-    
+
     # Cap rows at maximum
     if num_rows > max_rows:
         num_rows = max_rows
         num_cols = min(max_cols, math.ceil(places_to_fit / num_rows))
-    
+
     # Optimize: try to reduce empty spaces while maintaining good aspect ratio
     # Check if we can reduce columns and still fit everything
     for cols in range(num_cols, 0, -1):
         rows = math.ceil(places_to_fit / cols)
-        
+
         # Skip if exceeds row limit
         if rows > max_rows:
             continue
-            
+
         empty_spaces = (rows * cols) - places_to_fit
-        
+
         # Accept layout if it doesn't waste too many spaces
         # and maintains reasonable aspect ratio (rows ≤ cols + 1)
         if empty_spaces <= cols and rows <= cols + 1:
             return (rows, cols)
-    
+
     return (num_rows, num_cols)
 
 
@@ -595,23 +595,23 @@ def list_places_and_exit() -> None:
     Print all available places and place lists, then exit.
     """
     places, default_place, place_lists = load_places()
-    
+
     print("\n=== Available Places ===")
     print(f"Default place: {default_place}\n")
     print(f"Total places: {len(places)}\n")
-    
+
     # Sort places alphabetically for display
     for place_name in sorted(places.keys()):
         loc = places[place_name]
         print(f"  • {place_name:30s}  ({loc.lat:7.4f}, {loc.lon:8.4f})  {loc.tz}")
-    
+
     if place_lists:
         print("\n=== Place Lists ===")
         for list_name, places_in_list in sorted(place_lists.items()):
             print(f"\n  {list_name}:")
             for place in places_in_list:
                 print(f"    - {place}")
-    
+
     print()
     exit(0)
 
@@ -619,29 +619,29 @@ def list_places_and_exit() -> None:
 def list_years_and_exit(data_cache_dir: Path = Path("data_cache")) -> None:
     """
     Print all places with their cached years from the data cache directory, then exit.
-    
+
     Args:
         data_cache_dir: Directory containing cached YAML data files.
     """
     from data import cache_yaml_path_for_place, get_cached_years
-    
+
     def condense_year_ranges(years: list[int]) -> str:
         """
         Condense contiguous year ranges into readable format.
-        
+
         Args:
             years: Sorted list of years.
-            
+
         Returns:
             String representation with ranges (e.g., "1990-2000, 2005, 2010-2015").
         """
         if not years:
             return ""
-        
+
         ranges = []
         start = years[0]
         end = years[0]
-        
+
         for i in range(1, len(years)):
             if years[i] == end + 1:
                 # Contiguous year
@@ -654,31 +654,31 @@ def list_years_and_exit(data_cache_dir: Path = Path("data_cache")) -> None:
                     ranges.append(f"{start}-{end}")
                 start = years[i]
                 end = years[i]
-        
+
         # Add the last range
         if start == end:
             ranges.append(str(start))
         else:
             ranges.append(f"{start}-{end}")
-        
+
         return ", ".join(ranges)
-    
+
     places, default_place, place_lists = load_places()
-    
+
     print("\n=== Cached Years by Place ===")
     print(f"Data cache directory: {data_cache_dir}\n")
-    
+
     # Track statistics
     places_with_cache = 0
     places_without_cache = 0
-    
+
     # Sort places alphabetically for display
     for place_name in sorted(places.keys()):
         yaml_file = cache_yaml_path_for_place(data_cache_dir, place_name)
-        
+
         # Check for cached years
         cached_years = get_cached_years(yaml_file)
-        
+
         if cached_years:
             places_with_cache += 1
             year_list = sorted(cached_years)
@@ -687,12 +687,12 @@ def list_years_and_exit(data_cache_dir: Path = Path("data_cache")) -> None:
         else:
             places_without_cache += 1
             print(f"  • {place_name:30s}  (no cached data)")
-    
+
     # Print summary
     print(f"\n{'='*60}")
     print(f"Total places: {len(places)}")
     print(f"Places with cached data: {places_with_cache}")
     print(f"Places without cached data: {places_without_cache}")
     print(f"{'='*60}\n")
-    
+
     exit(0)

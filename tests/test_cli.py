@@ -224,7 +224,7 @@ def test_get_place_list_default():
     }
     default_place = 'Austin, TX'
     place_lists = {}
-    
+
     # Mock args with no place selection
     class Args:
         all = False
@@ -233,7 +233,7 @@ def test_get_place_list_default():
         lat = None
         lon = None
         tz = None
-    
+
     result, list_name = get_place_list(Args(), places, default_place, place_lists)
     assert len(result) == 1
     assert result[0].name == 'Austin, TX'
@@ -247,7 +247,7 @@ def test_get_place_list_all():
     }
     default_place = 'Austin, TX'
     place_lists = {}
-    
+
     class Args:
         all = True
         place_list = None
@@ -255,7 +255,7 @@ def test_get_place_list_all():
         lat = None
         lon = None
         tz = None
-    
+
     result, list_name = get_place_list(Args(), places, default_place, place_lists)
     assert len(result) == 2
     assert set(p.name for p in result) == {'Austin, TX', 'Cambridge, MA'}
@@ -294,7 +294,7 @@ def test_get_place_list_place_list():
     place_lists = {
         'preferred': ['Austin, TX', 'Bangalore']
     }
-    
+
     class Args:
         all = False
         place_list = 'preferred'
@@ -302,7 +302,7 @@ def test_get_place_list_place_list():
         lat = None
         lon = None
         tz = None
-    
+
     result, list_name = get_place_list(Args(), places, default_place, place_lists)
     assert len(result) == 2
     assert set(p.name for p in result) == {'Austin, TX', 'Bangalore'}
@@ -316,7 +316,7 @@ def test_get_place_list_single_place():
     }
     default_place = 'Austin, TX'
     place_lists = {}
-    
+
     class Args:
         all = False
         place_list = None
@@ -324,7 +324,7 @@ def test_get_place_list_single_place():
         lat = None
         lon = None
         tz = None
-    
+
     result, list_name = get_place_list(Args(), places, default_place, place_lists)
     assert len(result) == 1
     assert result[0].name == 'Cambridge, MA'
@@ -335,7 +335,7 @@ def test_get_place_list_custom_location():
     places = {}
     default_place = 'Austin, TX'
     place_lists = {}
-    
+
     class Args:
         all = False
         place_list = None
@@ -343,7 +343,7 @@ def test_get_place_list_custom_location():
         lat = 40.0
         lon = -73.0
         tz = 'America/New_York'
-    
+
     result, list_name = get_place_list(Args(), places, default_place, place_lists)
     assert len(result) == 1
     assert result[0].name == 'Custom City'
@@ -357,7 +357,7 @@ def test_get_place_list_invalid_place_list():
     places = {'Austin, TX': Location(name='Austin, TX', lat=30.27, lon=-97.74, tz='America/Chicago')}
     default_place = 'Austin, TX'
     place_lists = {'preferred': ['Austin, TX']}
-    
+
     class Args:
         all = False
         place_list = 'nonexistent'
@@ -365,7 +365,7 @@ def test_get_place_list_invalid_place_list():
         lat = None
         lon = None
         tz = None
-    
+
     with pytest.raises(CLIError) as exc_info:
         get_place_list(Args(), places, default_place, place_lists)
     assert "Unknown place list" in str(exc_info.value)
@@ -375,7 +375,7 @@ def test_get_place_list_invalid_place_no_coords():
     places = {'Austin, TX': Location(name='Austin, TX', lat=30.27, lon=-97.74, tz='America/Chicago')}
     default_place = 'Austin, TX'
     place_lists = {}
-    
+
     class Args:
         all = False
         place_list = None
@@ -383,7 +383,7 @@ def test_get_place_list_invalid_place_no_coords():
         lat = None
         lon = None
         tz = None
-    
+
     with pytest.raises(CLIError) as exc_info:
         get_place_list(Args(), places, default_place, place_lists)
     assert "Unknown place" in str(exc_info.value)
@@ -582,7 +582,7 @@ def test_load_grid_settings_valid(tmp_path):
     """Test loading grid settings from valid YAML file."""
     config_file = tmp_path / "config.yaml"
     config_file.write_text("grid:\n  max_auto_rows: 5\n  max_auto_cols: 8\n")
-    
+
     max_rows, max_cols = load_grid_settings(config_file)
     assert max_rows == 5
     assert max_cols == 8
@@ -592,7 +592,7 @@ def test_load_grid_settings_defaults(tmp_path):
     """Test that defaults are returned when grid section is missing."""
     config_file = tmp_path / "config.yaml"
     config_file.write_text("other_section:\n  key: value\n")
-    
+
     max_rows, max_cols = load_grid_settings(config_file)
     assert max_rows == 4
     assert max_cols == 6
@@ -602,7 +602,7 @@ def test_load_grid_settings_partial(tmp_path):
     """Test partial grid settings with only one value specified."""
     config_file = tmp_path / "config.yaml"
     config_file.write_text("grid:\n  max_auto_rows: 3\n")
-    
+
     max_rows, max_cols = load_grid_settings(config_file)
     assert max_rows == 3
     assert max_cols == 6  # default
@@ -611,7 +611,7 @@ def test_load_grid_settings_partial(tmp_path):
 def test_load_grid_settings_missing_file(tmp_path):
     """Test that defaults are returned when config file doesn't exist."""
     config_file = tmp_path / "nonexistent.yaml"
-    
+
     max_rows, max_cols = load_grid_settings(config_file)
     assert max_rows == 4
     assert max_cols == 6

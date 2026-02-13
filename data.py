@@ -430,10 +430,10 @@ def _load_cache_data_v2(yaml_file: Path, auto_migrate: bool = True) -> dict:
 def get_cached_years(yaml_file: Path) -> set[int]:
     """
     Get the set of years available in a YAML cache file.
-    
+
     Args:
         yaml_file: Path to the YAML cache file.
-        
+
     Returns:
         Set of years (as integers) available in the file.
     """
@@ -460,36 +460,36 @@ def retrieve_and_concat_data(
 ) -> pd.DataFrame:
     """
     Retrieve temperature data for all places and concatenate into a single DataFrame.
-    
+
     Args:
         place_list: List of Location objects to retrieve data for.
         start_year: Start year for data retrieval.
         end_year: End year for data retrieval.
         cache_dir: Directory for caching NetCDF files.
         data_cache_dir: Directory for caching YAML data files.
-        
+
     Returns:
         pd.DataFrame: Concatenated DataFrame with temperature data for all places.
     """
     df_overall = pd.DataFrame()
     progress_mgr = get_progress_manager()
     requested_years = set(range(start_year, end_year + 1))
-    
+
     # First pass: determine which places need CDS retrieval
     places_needing_cds = []
     for loc in place_list:
         yaml_file = cache_yaml_path_for_place(data_cache_dir, loc.name)
-        
+
         # Check which years are already cached
         cached_years = set()
         if yaml_file.exists():
             cached_years = get_cached_years(yaml_file)
-        
+
         # Determine if this place needs any CDS fetches
         missing_years = sorted(requested_years - cached_years)
         if missing_years:
             places_needing_cds.append(loc.name)
-    
+
     # Print summary of CDS retrieval needs
     if places_needing_cds:
         print(f"\n{'='*60}")
@@ -502,60 +502,60 @@ def retrieve_and_concat_data(
         print(f"\n{'='*60}")
         print("All data already cached - no CDS retrieval needed")
         print(f"{'='*60}\n")
-    
+
     # Second pass: process each location
     cds_place_num = 0  # Track place number for CDS retrieval
     total_cds_places = len(places_needing_cds)
-    
+
     for loc in place_list:
         yaml_file = cache_yaml_path_for_place(data_cache_dir, loc.name)
-        
+
         # Check which years are already cached
         cached_years = set()
         if yaml_file.exists():
             cached_years = get_cached_years(yaml_file)
-        
+
         # Determine which years need to be fetched
         missing_years = sorted(requested_years - cached_years)
-        
+
         # Load cached data for this location
         if cached_years:
             logger.info(f"Loading {loc.name} from cache (years: {min(cached_years)}-{max(cached_years)})")
             df_cached = read_data_file(yaml_file, start_year, end_year)
             df_overall = pd.concat([df_overall, df_cached], ignore_index=True)
-        
+
         # Fetch missing years
         if missing_years:
             cds_place_num += 1
             logger.info(f"Fetching {loc.name} from CDS for {len(missing_years)} year(s): {missing_years}")
-            
+
             # Notify progress manager of location start with total years to fetch
             progress_mgr.notify_location_start(loc.name, cds_place_num, total_cds_places, len(missing_years))
-            
+
             cds = CDS(cache_dir=cache_dir, progress_manager=progress_mgr)
-            
+
             for year_idx, year in enumerate(missing_years, 1):
                 start_d = date(year, 1, 1)
                 end_d = date(year, 12, 31)
-                
+
                 # Notify year start with accurate position
                 progress_mgr.notify_year_start(loc.name, year, year_idx, len(missing_years))
-                
+
                 logger.info(f"  Retrieving {year} for {loc.name}...")
                 df_year = cds.get_noon_series(loc, start_d, end_d, notify_progress=False)
-                
+
                 # Append to cache file (merges with existing data)
                 save_data_file(df_year, yaml_file, loc, append=True)
-                
+
                 # Add to overall dataframe
                 df_overall = pd.concat([df_overall, df_year], ignore_index=True)
-                
+
                 # Notify year complete
                 progress_mgr.notify_year_complete(loc.name, year, year_idx, len(missing_years))
-            
+
             # Notify location complete to move to next line
             progress_mgr.notify_location_complete(loc.name)
-    
+
     df_overall['date'] = pd.to_datetime(df_overall['date'])
     return df_overall
 
@@ -563,7 +563,7 @@ def retrieve_and_concat_data(
 def read_data_file(in_file: Path, start_year: int | None = None, end_year: int | None = None) -> pd.DataFrame:
     """
     Read a YAML data file into a pandas DataFrame.
-    
+
     Args:
         in_file: Path to the YAML data file.
         start_year: Optional start year to filter data.
@@ -575,18 +575,18 @@ def read_data_file(in_file: Path, start_year: int | None = None, end_year: int |
 
     place_info = data['place']
     temps = data[DATA_KEY][NOON_TEMP_VAR]
-    
+
     # Reconstruct DataFrame from hierarchical structure
     rows = []
     for year_str, months in temps.items():
         year = int(year_str)
-        
+
         # Filter by year range if specified
         if start_year is not None and year < start_year:
             continue
         if end_year is not None and year > end_year:
             continue
-        
+
         for month_str, days in months.items():
             month = int(month_str)
             for day_str, temp_c in days.items():
@@ -600,7 +600,7 @@ def read_data_file(in_file: Path, start_year: int | None = None, end_year: int |
                     'grid_lat': place_info['grid_lat'],
                     'grid_lon': place_info['grid_lon']
                 })
-    
+
     df = pd.DataFrame(rows)
     df['date'] = pd.to_datetime(df['date'])
     return df
@@ -609,7 +609,7 @@ def read_data_file(in_file: Path, start_year: int | None = None, end_year: int |
 def save_data_file(df: pd.DataFrame, out_file: Path, location: Location, append: bool = False) -> None:
     """
     Save a DataFrame to a YAML file with hierarchical structure.
-    
+
     Args:
         df: DataFrame to save (must have 'date', 'temp_C', 'grid_lat', 'grid_lon' columns).
         out_file: Output file path (.yaml extension).
@@ -617,11 +617,11 @@ def save_data_file(df: pd.DataFrame, out_file: Path, location: Location, append:
         append: If True, merge with existing file; if False, overwrite.
     """
     out_file.parent.mkdir(parents=True, exist_ok=True)
-    
+
     # Extract unique grid coordinates (should be same for all rows)
     grid_lat = float(df['grid_lat'].iloc[0])
     grid_lon = float(df['grid_lon'].iloc[0])
-    
+
     # Build hierarchical structure for new data: year -> month -> day -> temp_C
     new_temps_by_year = {}
     for _, row in df.iterrows():
@@ -630,13 +630,13 @@ def save_data_file(df: pd.DataFrame, out_file: Path, location: Location, append:
         month = date_obj.month
         day = date_obj.day
         temp_c = round(float(row['temp_C']), 2)
-        
+
         if year not in new_temps_by_year:
             new_temps_by_year[year] = {}
         if month not in new_temps_by_year[year]:
             new_temps_by_year[year][month] = {}
         new_temps_by_year[year][month][day] = temp_c
-    
+
     # If appending, merge with existing data
     if append and out_file.exists():
         try:
@@ -644,7 +644,7 @@ def save_data_file(df: pd.DataFrame, out_file: Path, location: Location, append:
 
             # Merge temperature data (new data overwrites existing for same dates)
             normalized_existing = _normalize_temp_map(existing_data[DATA_KEY][NOON_TEMP_VAR])
-            
+
             # Merge with new data
             for year, months in new_temps_by_year.items():
                 if year not in normalized_existing:
@@ -654,7 +654,7 @@ def save_data_file(df: pd.DataFrame, out_file: Path, location: Location, append:
                         normalized_existing[year][month] = {}
                     for day, temp in days.items():
                         normalized_existing[year][month][day] = temp
-            
+
             # Use merged data
             temps_by_year = normalized_existing
         except Exception as e:
@@ -662,7 +662,7 @@ def save_data_file(df: pd.DataFrame, out_file: Path, location: Location, append:
             temps_by_year = new_temps_by_year
     else:
         temps_by_year = new_temps_by_year
-    
+
     # Create YAML structure
     yaml_data = {
         'schema_version': SCHEMA_VERSION,
@@ -680,5 +680,5 @@ def save_data_file(df: pd.DataFrame, out_file: Path, location: Location, append:
         }
     }
     _write_cache_yaml_v2(yaml_data, out_file)
-    
+
     logger.info(f"Saved data to {out_file}")

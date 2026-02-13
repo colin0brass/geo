@@ -20,19 +20,19 @@ def test_calculate_grid_dimensions_no_custom_grid(tmp_path):
     # Create config file with grid config
     config_file = tmp_path / "config.yaml"
     config_file.write_text("grid:\n  max_auto_rows: 4\n  max_auto_cols: 6\n")
-    
+
     # Single place: grid 1x1, max capacity 24 (4x6)
     rows, cols, max_capacity = calculate_grid_dimensions(1, None, config_file)
     assert rows == 1 and cols == 1 and max_capacity == 24
-    
+
     # 4 places: grid 2x2, max capacity 24
     rows, cols, max_capacity = calculate_grid_dimensions(4, None, config_file)
     assert rows == 2 and cols == 2 and max_capacity == 24
-    
+
     # 6 places: grid 2x3, max capacity 24
     rows, cols, max_capacity = calculate_grid_dimensions(6, None, config_file)
     assert rows == 2 and cols == 3 and max_capacity == 24
-    
+
     # 10 places: grid 3x4, max capacity 24 (with 4x6 max)
     rows, cols, max_capacity = calculate_grid_dimensions(10, None, config_file)
     assert rows == 3 and cols == 4 and max_capacity == 24
@@ -43,11 +43,11 @@ def test_calculate_grid_dimensions_with_custom_grid(tmp_path):
     # Create dummy config file (not used when grid is specified)
     config_file = tmp_path / "config.yaml"
     config_file.write_text("grid:\n  max_auto_rows: 4\n  max_auto_cols: 6\n")
-    
+
     # Custom 3x4 grid
     rows, cols, total = calculate_grid_dimensions(8, (3, 4), config_file)
     assert rows == 3 and cols == 4 and total == 12
-    
+
     # Custom 2x5 grid
     rows, cols, total = calculate_grid_dimensions(7, (2, 5), config_file)
     assert rows == 2 and cols == 5 and total == 10
@@ -58,7 +58,7 @@ def test_calculate_grid_dimensions_zero_places(tmp_path):
     # Create config file
     config_file = tmp_path / "config.yaml"
     config_file.write_text("grid:\n  max_auto_rows: 4\n  max_auto_cols: 6\n")
-    
+
     # With 0 places, grid is 1x1 but max capacity is still 24 (4x6)
     rows, cols, max_capacity = calculate_grid_dimensions(0, None, config_file)
     assert rows == 1 and cols == 1 and max_capacity == 24
@@ -75,10 +75,10 @@ def test_create_batch_subplot_single_batch(mock_visualizer_class, tmp_path):
     loc1 = Location(name="City A", lat=40.0, lon=-73.0, tz="America/New_York")
     loc2 = Location(name="City B", lat=51.5, lon=-0.1, tz="Europe/London")
     batch_places = [loc1, loc2]
-    
+
     mock_vis_instance = MagicMock()
     mock_visualizer_class.return_value = mock_vis_instance
-    
+
     # Execute
     result = create_batch_subplot(
         df_batch=df_batch,
@@ -97,7 +97,7 @@ def test_create_batch_subplot_single_batch(mock_visualizer_class, tmp_path):
         colour_mode='year',
         colormap_name='plasma'
     )
-    
+
     # Verify
     assert "Overall_noon_temperatures_2024_2024.png" in result
     mock_visualizer_class.assert_called_once()
@@ -115,10 +115,10 @@ def test_create_batch_subplot_multiple_batches(mock_visualizer_class, tmp_path):
     """Test creating a batch subplot when there are multiple batches."""
     df_batch = pd.DataFrame({'place_name': ['City A'], 'temp_C': [10.0]})
     loc = Location(name="City A", lat=40.0, lon=-73.0, tz="America/New_York")
-    
+
     mock_vis_instance = MagicMock()
     mock_visualizer_class.return_value = mock_vis_instance
-    
+
     result = create_batch_subplot(
         df_batch=df_batch,
         batch_places=[loc],
@@ -134,7 +134,7 @@ def test_create_batch_subplot_multiple_batches(mock_visualizer_class, tmp_path):
         t_min_c=5.0,
         t_max_c=20.0
     )
-    
+
     # Should include batch suffix
     assert "_part2of3.png" in result
     call_kwargs = mock_vis_instance.plot_polar_subplots.call_args[1]
@@ -150,10 +150,10 @@ def test_create_individual_plot(mock_visualizer_class, tmp_path):
         'date': ['2024-01-01']
     })
     loc = Location(name="Austin, TX", lat=30.27, lon=-97.74, tz="America/Chicago")
-    
+
     mock_vis_instance = MagicMock()
     mock_visualizer_class.return_value = mock_vis_instance
-    
+
     result = create_individual_plot(
         loc=loc,
         df=df,
@@ -167,14 +167,14 @@ def test_create_individual_plot(mock_visualizer_class, tmp_path):
         colour_mode='year',
         colormap_name='plasma'
     )
-    
+
     # Verify filename format (spaces and commas removed)
     assert "Austin_TX_noon_temperatures_2024_2024.png" in result
     mock_visualizer_class.assert_called_once()
     assert mock_visualizer_class.call_args[1]['colour_mode'] == 'year'
     assert mock_visualizer_class.call_args[1]['colormap_name'] == 'plasma'
     mock_vis_instance.plot_polar.assert_called_once()
-    
+
     call_kwargs = mock_vis_instance.plot_polar.call_args[1]
     assert "Austin, TX" in call_kwargs['title']
     assert call_kwargs['layout'] == 'polar_single'
@@ -187,18 +187,18 @@ def test_create_main_plots_single_batch(mock_grid_layout, mock_create_batch, tmp
     """Test creating main plots with a single batch."""
     mock_grid_layout.return_value = (2, 2)
     mock_create_batch.return_value = str(tmp_path / "plot.png")
-    
+
     df = pd.DataFrame({
         'place_name': ['City A', 'City B'],
         'temp_C': [10.0, 15.0]
     })
     loc1 = Location(name="City A", lat=40.0, lon=-73.0, tz="America/New_York")
     loc2 = Location(name="City B", lat=51.5, lon=-0.1, tz="Europe/London")
-    
+
     # Create dummy config file
     config_file = tmp_path / "config.yaml"
     config_file.write_text("grid:\n  max_auto_rows: 4\n  max_auto_cols: 6\n")
-    
+
     result = create_main_plots(
         df_overall=df,
         place_list=[loc1, loc2],
@@ -211,7 +211,7 @@ def test_create_main_plots_single_batch(mock_grid_layout, mock_create_batch, tmp
         t_max_c=20.0,
         grid=None
     )
-    
+
     assert len(result) == 1
     mock_create_batch.assert_called_once()
 
@@ -223,7 +223,7 @@ def test_create_main_plots_multiple_batches(mock_create_batch, tmp_path):
         str(tmp_path / "plot1.png"),
         str(tmp_path / "plot2.png")
     ]
-    
+
     df = pd.DataFrame({
         'place_name': ['A', 'B', 'C', 'D', 'E'],
         'temp_C': [10.0, 12.0, 14.0, 16.0, 18.0]
@@ -235,11 +235,11 @@ def test_create_main_plots_multiple_batches(mock_create_batch, tmp_path):
         Location(name="D", lat=43.0, lon=-76.0, tz="America/New_York"),
         Location(name="E", lat=44.0, lon=-77.0, tz="America/New_York"),
     ]
-    
+
     # Create dummy config file
     config_file = tmp_path / "config.yaml"
     config_file.write_text("grid:\n  max_auto_rows: 4\n  max_auto_cols: 6\n")
-    
+
     # Fixed grid 2x2 = 4 places per batch, so 5 places needs 2 batches
     result = create_main_plots(
         df_overall=df,
@@ -253,7 +253,7 @@ def test_create_main_plots_multiple_batches(mock_create_batch, tmp_path):
         t_max_c=18.0,
         grid=(2, 2)
     )
-    
+
     assert len(result) == 2
     assert mock_create_batch.call_count == 2
 
@@ -265,17 +265,17 @@ def test_plot_all_no_show(mock_create_main, mock_create_individual, mock_visuali
     """Test plot_all without showing plots."""
     mock_create_main.return_value = [str(tmp_path / "main.png")]
     mock_create_individual.return_value = str(tmp_path / "individual.png")
-    
+
     df = pd.DataFrame({
         'place_name': ['City A'],
         'temp_C': [10.0]
     })
     loc = Location(name="City A", lat=40.0, lon=-73.0, tz="America/New_York")
-    
+
     # Create dummy config file
     config_file = tmp_path / "config.yaml"
     config_file.write_text("grid:\n  max_auto_rows: 4\n  max_auto_cols: 6\n")
-    
+
     plot_all(
         df_overall=df,
         place_list=[loc],
@@ -288,7 +288,7 @@ def test_plot_all_no_show(mock_create_main, mock_create_individual, mock_visuali
         show_individual=False,
         grid=None
     )
-    
+
     # Single place: should create individual plot only, not combined
     mock_create_main.assert_not_called()
     mock_create_individual.assert_called_once()
@@ -303,20 +303,20 @@ def test_plot_all_show_main(mock_create_main, mock_create_individual, mock_visua
     """Test plot_all with showing main plot."""
     main_plot = str(tmp_path / "main.png")
     individual_plot = str(tmp_path / "individual.png")
-    
+
     mock_create_main.return_value = [main_plot]
     mock_create_individual.return_value = individual_plot
-    
+
     df = pd.DataFrame({
         'place_name': ['City A'],
         'temp_C': [10.0]
     })
     loc = Location(name="City A", lat=40.0, lon=-73.0, tz="America/New_York")
-    
+
     # Create dummy config file
     config_file = tmp_path / "config.yaml"
     config_file.write_text("grid:\n  max_auto_rows: 4\n  max_auto_cols: 6\n")
-    
+
     plot_all(
         df_overall=df,
         place_list=[loc],
@@ -329,7 +329,7 @@ def test_plot_all_show_main(mock_create_main, mock_create_individual, mock_visua
         show_individual=False,
         grid=None
     )
-    
+
     # Single place: should create and show individual plot only
     mock_visualizer_class.show_saved_plots.assert_called_once_with([individual_plot])
 
@@ -341,20 +341,20 @@ def test_plot_all_show_all(mock_create_main, mock_create_individual, mock_visual
     """Test plot_all with showing all plots."""
     main_plot = str(tmp_path / "main.png")
     individual_plot = str(tmp_path / "individual.png")
-    
+
     mock_create_main.return_value = [main_plot]
     mock_create_individual.return_value = individual_plot
-    
+
     df = pd.DataFrame({
         'place_name': ['City A'],
         'temp_C': [10.0]
     })
     loc = Location(name="City A", lat=40.0, lon=-73.0, tz="America/New_York")
-    
+
     # Create dummy config file
     config_file = tmp_path / "config.yaml"
     config_file.write_text("grid:\n  max_auto_rows: 4\n  max_auto_cols: 6\n")
-    
+
     plot_all(
         df_overall=df,
         place_list=[loc],
@@ -367,7 +367,7 @@ def test_plot_all_show_all(mock_create_main, mock_create_individual, mock_visual
         show_individual=True,
         grid=None
     )
-    
+
     # Single place: should create and show individual plot only (combined would be redundant)
     mock_visualizer_class.show_saved_plots.assert_called_once_with([individual_plot])
 
@@ -382,18 +382,18 @@ def test_plot_all_multiple_locations(mock_create_main, mock_create_individual, m
         str(tmp_path / "city1.png"),
         str(tmp_path / "city2.png")
     ]
-    
+
     df = pd.DataFrame({
         'place_name': ['City A', 'City B'],
         'temp_C': [10.0, 15.0]
     })
     loc1 = Location(name="City A", lat=40.0, lon=-73.0, tz="America/New_York")
     loc2 = Location(name="City B", lat=51.5, lon=-0.1, tz="Europe/London")
-    
+
     # Create dummy config file
     config_file = tmp_path / "config.yaml"
     config_file.write_text("grid:\n  max_auto_rows: 4\n  max_auto_cols: 6\n")
-    
+
     plot_all(
         df_overall=df,
         place_list=[loc1, loc2],
@@ -408,7 +408,7 @@ def test_plot_all_multiple_locations(mock_create_main, mock_create_individual, m
         colour_mode='year',
         colormap_name='plasma'
     )
-    
+
     # Multiple places: should create combined plot only, no individual plots
     mock_create_main.assert_called_once()
     assert mock_create_main.call_args[1]['colour_mode'] == 'year'

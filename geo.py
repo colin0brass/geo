@@ -19,7 +19,7 @@ from progress import get_progress_manager, ConsoleProgressHandler
 def main() -> int:
     """
     Main entry point for geo.
-    
+
     Parses command-line arguments, loads places configuration, retrieves temperature data,
     and generates visualizations according to the specified options.
     """
@@ -28,15 +28,15 @@ def main() -> int:
     except CLIError as e:
         print(f"ERROR: {e}", file=sys.stderr)
         return 2
-    
+
     # Initialize logging
     setup_logging()
     logger = get_logger("geo")  # Use explicit name, not __name__
-    
+
     # Register progress handler for console output
     progress_manager = get_progress_manager()
     progress_manager.register_handler(ConsoleProgressHandler())
-    
+
     # Handle verbose/quiet flags for console output
     geo_logger = logging.getLogger("geo")
     if args.verbose:
@@ -57,15 +57,15 @@ def main() -> int:
                 current_level = handler.level
                 if current_level > logging.INFO:
                     handler.setLevel(logging.INFO)
-    
+
     # Handle --list-years flag (exits after listing)
     if args.list_years:
         list_years_and_exit(args.data_cache_dir)
-    
+
     # Handle --list-places flag (exits after listing)
     if args.list_places:
         list_places_and_exit()
-    
+
     # Handle --add-place flag (exits after adding)
     if args.add_place:
         add_place_to_config(args.add_place)
@@ -82,7 +82,7 @@ def main() -> int:
     except CLIError as e:
         logger.error(str(e))
         return 2
-    
+
     # Dry-run mode: show what would be done without executing
     if args.dry_run:
         logger.info("DRY RUN MODE - No data will be downloaded or plots created")
@@ -97,7 +97,7 @@ def main() -> int:
         logger.info(f"Data cache directory: {args.data_cache_dir}")
         logger.info(f"Show plots: {args.show}")
         return 0
-    
+
     df_overall = retrieve_and_concat_data(place_list, start_year, end_year, args.cache_dir, args.data_cache_dir)
     plot_all(
         df_overall,

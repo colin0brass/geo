@@ -528,6 +528,22 @@ python -m flake8 .
 
 Lint settings are defined in `.flake8`.
 
+### Local shell tip
+
+If `flake8 .` fails in your shell but `python -m flake8 .` passes, your shell is likely not using the project virtual environment.
+
+```bash
+# Option 1: activate venv for the session
+source .venv/bin/activate
+flake8 .
+
+# Option 2: always use module form (recommended)
+python -m flake8 .
+
+# Optional alias in your shell profile
+alias flake8='python -m flake8'
+```
+
 ### CI Commands
 
 Use these commands in CI pipelines:

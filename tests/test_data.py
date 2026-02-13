@@ -31,7 +31,7 @@ def test_read_and_save_data_file(tmp_path):
     })
     out_file = tmp_path / "test.yaml"
     save_data_file(df, out_file, loc)
-    
+
     # Verify file was created
     assert out_file.exists()
 
@@ -42,7 +42,7 @@ def test_read_and_save_data_file(tmp_path):
     assert 'variables' in raw
     assert DATA_KEY in raw
     assert NOON_TEMP_VAR in raw[DATA_KEY]
-    
+
     # Read it back
     df2 = read_data_file(out_file)
     assert not df2.empty
@@ -61,7 +61,7 @@ def test_save_data_file_creates_directory(tmp_path):
         'grid_lon': [-73.0],
     })
     nested_path = tmp_path / "nested" / "dir" / "test.yaml"
-    
+
     save_data_file(df, nested_path, loc)
     assert nested_path.exists()
     assert nested_path.parent.is_dir()
@@ -85,7 +85,7 @@ def test_read_data_file_date_parsing(tmp_path):
     })
     out_file = tmp_path / "dates.yaml"
     save_data_file(df, out_file, loc)
-    
+
     df2 = read_data_file(out_file)
     assert pd.api.types.is_datetime64_any_dtype(df2['date'])
     assert df2['date'].iloc[0].year == 2025
@@ -96,7 +96,7 @@ def test_read_data_file_date_parsing(tmp_path):
 def test_retrieve_and_concat_data_single_location(tmp_path, monkeypatch):
     """Test retrieving data for a single location."""
     loc = Location(name="Test City", lat=40.0, lon=-73.0, tz="America/New_York")
-    
+
     # Mock CDS to avoid actual API calls
     mock_cds = MagicMock()
     mock_df = pd.DataFrame({
@@ -107,14 +107,14 @@ def test_retrieve_and_concat_data_single_location(tmp_path, monkeypatch):
         'grid_lon': [-73.0],
     })
     mock_cds.get_noon_series.return_value = mock_df
-    
+
     def mock_cds_init(cache_dir, progress_manager=None):
         return mock_cds
-    
+
     monkeypatch.setattr('data.CDS', mock_cds_init)
-    
+
     result = retrieve_and_concat_data([loc], 2024, 2024, tmp_path, tmp_path)
-    
+
     assert not result.empty
     assert 'Test City' in result['place_name'].values
     mock_cds.get_noon_series.assert_called_once()
@@ -124,9 +124,9 @@ def test_retrieve_and_concat_data_multiple_locations(tmp_path, monkeypatch):
     """Test retrieving and concatenating data for multiple locations."""
     loc1 = Location(name="City A", lat=40.0, lon=-73.0, tz="America/New_York")
     loc2 = Location(name="City B", lat=51.5, lon=-0.1, tz="Europe/London")
-    
+
     mock_cds = MagicMock()
-    
+
     def mock_get_noon_series(loc, start_d, end_d, notify_progress=True):
         return pd.DataFrame({
             'date': ['2024-01-01'],
@@ -135,16 +135,16 @@ def test_retrieve_and_concat_data_multiple_locations(tmp_path, monkeypatch):
             'grid_lat': [loc.lat],
             'grid_lon': [loc.lon],
         })
-    
+
     mock_cds.get_noon_series.side_effect = mock_get_noon_series
-    
+
     def mock_cds_init(cache_dir, progress_manager=None):
         return mock_cds
-    
+
     monkeypatch.setattr('data.CDS', mock_cds_init)
-    
+
     result = retrieve_and_concat_data([loc1, loc2], 2024, 2024, tmp_path, tmp_path)
-    
+
     assert not result.empty
     assert len(result) == 2
     assert 'City A' in result['place_name'].values
@@ -155,7 +155,7 @@ def test_retrieve_and_concat_data_multiple_locations(tmp_path, monkeypatch):
 def test_retrieve_and_concat_data_caches_to_yaml(tmp_path, monkeypatch):
     """Test that data is saved to YAML cache file."""
     loc = Location(name="Test", lat=40.0, lon=-73.0, tz="America/New_York")
-    
+
     mock_cds = MagicMock()
     mock_df = pd.DataFrame({
         'date': ['2024-01-01'],
@@ -166,12 +166,12 @@ def test_retrieve_and_concat_data_caches_to_yaml(tmp_path, monkeypatch):
         'grid_lon': [-73.0],
     })
     mock_cds.get_noon_series.return_value = mock_df
-    
+
     monkeypatch.setattr('data.CDS', lambda cache_dir, progress_manager=None: mock_cds)
-    
+
     data_cache_dir = tmp_path / "data_cache"
     retrieve_and_concat_data([loc], 2024, 2024, tmp_path, data_cache_dir)
-    
+
     # Check that YAML file was created in data_cache_dir
     yaml_files = list(data_cache_dir.glob("*.yaml"))
     assert len(yaml_files) > 0
@@ -189,7 +189,7 @@ def test_get_cached_years_with_valid_file(tmp_path):
     })
     yaml_file = tmp_path / "test.yaml"
     save_data_file(df, yaml_file, loc)
-    
+
     cached_years = get_cached_years(yaml_file)
     assert cached_years == {2024, 2025}
 
@@ -206,7 +206,7 @@ def test_get_cached_years_with_corrupted_yaml(tmp_path):
     yaml_file = tmp_path / "corrupted.yaml"
     with open(yaml_file, 'w') as f:
         f.write("this is not valid: yaml: syntax: [[[")
-    
+
     cached_years = get_cached_years(yaml_file)
     assert cached_years == set()
 
@@ -216,7 +216,7 @@ def test_get_cached_years_with_missing_temperatures_key(tmp_path):
     yaml_file = tmp_path / "no_temps.yaml"
     with open(yaml_file, 'w') as f:
         yaml.dump({'place': {'name': 'Test'}}, f)
-    
+
     cached_years = get_cached_years(yaml_file)
     assert cached_years == set()
 
@@ -224,7 +224,7 @@ def test_get_cached_years_with_missing_temperatures_key(tmp_path):
 def test_save_data_file_append_mode(tmp_path):
     """Test appending data to existing YAML file."""
     loc = Location(name="Test", lat=40.0, lon=-73.0, tz="America/New_York")
-    
+
     # Save initial data for 2024
     df_2024 = pd.DataFrame({
         'date': ['2024-01-01', '2024-01-02'],
@@ -234,7 +234,7 @@ def test_save_data_file_append_mode(tmp_path):
     })
     yaml_file = tmp_path / "test.yaml"
     save_data_file(df_2024, yaml_file, loc, append=False)
-    
+
     # Append 2025 data
     df_2025 = pd.DataFrame({
         'date': ['2025-01-01', '2025-01-02'],
@@ -243,11 +243,11 @@ def test_save_data_file_append_mode(tmp_path):
         'grid_lon': [-73.0, -73.0],
     })
     save_data_file(df_2025, yaml_file, loc, append=True)
-    
+
     # Verify both years are present
     cached_years = get_cached_years(yaml_file)
     assert cached_years == {2024, 2025}
-    
+
     # Read back and verify all data
     df_result = read_data_file(yaml_file)
     assert len(df_result) == 4
@@ -258,12 +258,12 @@ def test_save_data_file_append_mode(tmp_path):
 def test_save_data_file_append_with_corrupted_file(tmp_path):
     """Test that append mode handles corrupted existing file by overwriting."""
     loc = Location(name="Test", lat=40.0, lon=-73.0, tz="America/New_York")
-    
+
     # Create corrupted YAML file
     yaml_file = tmp_path / "corrupted.yaml"
     with open(yaml_file, 'w') as f:
         f.write("invalid: yaml: [[[")
-    
+
     # Append should detect corruption and overwrite
     df = pd.DataFrame({
         'date': ['2025-01-01'],
@@ -272,7 +272,7 @@ def test_save_data_file_append_with_corrupted_file(tmp_path):
         'grid_lon': [-73.0],
     })
     save_data_file(df, yaml_file, loc, append=True)
-    
+
     # Verify file is now valid
     df_result = read_data_file(yaml_file)
     assert len(df_result) == 1
@@ -282,7 +282,7 @@ def test_save_data_file_append_with_corrupted_file(tmp_path):
 def test_save_data_file_merge_overwrites_existing_dates(tmp_path):
     """Test that merging overwrites data for existing dates."""
     loc = Location(name="Test", lat=40.0, lon=-73.0, tz="America/New_York")
-    
+
     # Save initial data
     df_initial = pd.DataFrame({
         'date': ['2024-01-01'],
@@ -292,7 +292,7 @@ def test_save_data_file_merge_overwrites_existing_dates(tmp_path):
     })
     yaml_file = tmp_path / "test.yaml"
     save_data_file(df_initial, yaml_file, loc)
-    
+
     # Append with same date but different temperature
     df_update = pd.DataFrame({
         'date': ['2024-01-01'],
@@ -301,7 +301,7 @@ def test_save_data_file_merge_overwrites_existing_dates(tmp_path):
         'grid_lon': [-73.0],
     })
     save_data_file(df_update, yaml_file, loc, append=True)
-    
+
     # Verify temperature was updated
     df_result = read_data_file(yaml_file)
     assert len(df_result) == 1
@@ -311,7 +311,7 @@ def test_save_data_file_merge_overwrites_existing_dates(tmp_path):
 def test_read_data_file_with_year_filtering(tmp_path):
     """Test reading data with year range filtering."""
     loc = Location(name="Test", lat=40.0, lon=-73.0, tz="America/New_York")
-    
+
     # Create data spanning multiple years
     df = pd.DataFrame({
         'date': ['2023-01-01', '2024-01-01', '2025-01-01', '2026-01-01'],
@@ -321,17 +321,17 @@ def test_read_data_file_with_year_filtering(tmp_path):
     })
     yaml_file = tmp_path / "test.yaml"
     save_data_file(df, yaml_file, loc)
-    
+
     # Test start_year filter
     df_filtered = read_data_file(yaml_file, start_year=2024)
     assert len(df_filtered) == 3
     assert df_filtered['date'].dt.year.min() == 2024
-    
+
     # Test end_year filter
     df_filtered = read_data_file(yaml_file, end_year=2025)
     assert len(df_filtered) == 3
     assert df_filtered['date'].dt.year.max() == 2025
-    
+
     # Test both filters
     df_filtered = read_data_file(yaml_file, start_year=2024, end_year=2025)
     assert len(df_filtered) == 2
@@ -341,7 +341,7 @@ def test_read_data_file_with_year_filtering(tmp_path):
 def test_retrieve_and_concat_data_uses_cached_years(tmp_path, monkeypatch):
     """Test that retrieve_and_concat_data uses cached data when available."""
     loc = Location(name="Test", lat=40.0, lon=-73.0, tz="America/New_York")
-    
+
     # Pre-populate cache with 2024 data
     df_2024 = pd.DataFrame({
         'date': ['2024-01-01'],
@@ -353,7 +353,7 @@ def test_retrieve_and_concat_data_uses_cached_years(tmp_path, monkeypatch):
     data_cache_dir.mkdir()
     yaml_file = data_cache_dir / "Test.yaml"
     save_data_file(df_2024, yaml_file, loc)
-    
+
     # Mock CDS for 2025
     mock_cds = MagicMock()
     df_2025 = pd.DataFrame({
@@ -365,14 +365,14 @@ def test_retrieve_and_concat_data_uses_cached_years(tmp_path, monkeypatch):
     })
     mock_cds.get_noon_series.return_value = df_2025
     monkeypatch.setattr('data.CDS', lambda cache_dir, progress_manager=None: mock_cds)
-    
+
     # Request 2024-2025, should only fetch 2025
     result = retrieve_and_concat_data([loc], 2024, 2025, tmp_path, data_cache_dir)
-    
+
     # Should have both years
     assert len(result) == 2
     assert set(result['date'].dt.year.values) == {2024, 2025}
-    
+
     # CDS should only be called once for 2025
     mock_cds.get_noon_series.assert_called_once()
 
@@ -380,7 +380,7 @@ def test_retrieve_and_concat_data_uses_cached_years(tmp_path, monkeypatch):
 def test_retrieve_and_concat_data_all_cached(tmp_path, monkeypatch):
     """Test that no CDS calls are made when all data is cached."""
     loc = Location(name="Test", lat=40.0, lon=-73.0, tz="America/New_York")
-    
+
     # Pre-populate cache with all requested years
     df = pd.DataFrame({
         'date': ['2024-01-01', '2025-01-01'],
@@ -392,17 +392,17 @@ def test_retrieve_and_concat_data_all_cached(tmp_path, monkeypatch):
     data_cache_dir.mkdir()
     yaml_file = data_cache_dir / "Test.yaml"
     save_data_file(df, yaml_file, loc)
-    
+
     # Mock CDS to detect if it's called
     mock_cds = MagicMock()
     monkeypatch.setattr('data.CDS', lambda cache_dir, progress_manager=None: mock_cds)
-    
+
     # Request cached years only
     result = retrieve_and_concat_data([loc], 2024, 2025, tmp_path, data_cache_dir)
-    
+
     # Should have data
     assert len(result) == 2
-    
+
     # CDS should NOT be called at all
     mock_cds.get_noon_series.assert_not_called()
 
@@ -411,7 +411,7 @@ def test_save_data_file_key_normalization(tmp_path):
     """Test that YAML keys are normalized to integers during merge."""
     loc = Location(name="Test", lat=40.0, lon=-73.0, tz="America/New_York")
     yaml_file = tmp_path / "test.yaml"
-    
+
     # Create initial file with integer keys
     df_2024 = pd.DataFrame({
         'date': ['2024-01-01'],
@@ -420,7 +420,7 @@ def test_save_data_file_key_normalization(tmp_path):
         'grid_lon': [-73.0],
     })
     save_data_file(df_2024, yaml_file, loc)
-    
+
     # Manually inject string keys (simulating old bug)
     with open(yaml_file, 'r') as f:
         data = yaml.safe_load(f)
@@ -428,7 +428,7 @@ def test_save_data_file_key_normalization(tmp_path):
     data[DATA_KEY][NOON_TEMP_VAR]['2023'] = {1: {1: 5.0}}
     with open(yaml_file, 'w') as f:
         yaml.dump(data, f)
-    
+
     # Append new data (should normalize all keys)
     df_2025 = pd.DataFrame({
         'date': ['2025-01-01'],
@@ -437,7 +437,7 @@ def test_save_data_file_key_normalization(tmp_path):
         'grid_lon': [-73.0],
     })
     save_data_file(df_2025, yaml_file, loc, append=True)
-    
+
     # Verify all years are detected (including the string key)
     cached_years = get_cached_years(yaml_file)
     assert cached_years == {2023, 2024, 2025}
@@ -610,7 +610,7 @@ def test_retrieve_and_concat_data_prints_cds_summary(tmp_path, monkeypatch, caps
     """Test that retrieve_and_concat_data prints CDS retrieval summary."""
     loc1 = Location(name="City A", lat=40.0, lon=-73.0, tz="America/New_York")
     loc2 = Location(name="City B", lat=51.5, lon=-0.1, tz="Europe/London")
-    
+
     mock_cds = MagicMock()
     mock_df = pd.DataFrame({
         'date': ['2024-01-01'],
@@ -620,17 +620,17 @@ def test_retrieve_and_concat_data_prints_cds_summary(tmp_path, monkeypatch, caps
         'grid_lon': [-73.0],
     })
     mock_cds.get_noon_series.return_value = mock_df
-    
+
     def mock_cds_init(cache_dir, progress_manager=None):
         return mock_cds
-    
+
     monkeypatch.setattr('data.CDS', mock_cds_init)
-    
+
     # Call with fresh locations (no cache)
     retrieve_and_concat_data([loc1, loc2], 2024, 2024, tmp_path, tmp_path)
-    
+
     captured = capsys.readouterr()
-    
+
     # Check for summary message
     assert "CDS Retrieval Required: 2 place(s)" in captured.out
     assert "City A" in captured.out
@@ -641,7 +641,7 @@ def test_retrieve_and_concat_data_prints_cds_summary(tmp_path, monkeypatch, caps
 def test_retrieve_and_concat_data_prints_all_cached_message(tmp_path, monkeypatch, capsys):
     """Test that retrieve_and_concat_data prints message when all data is cached."""
     loc = Location(name="Test", lat=40.0, lon=-73.0, tz="America/New_York")
-    
+
     # Pre-populate cache
     df = pd.DataFrame({
         'date': ['2024-01-01'],
@@ -653,18 +653,18 @@ def test_retrieve_and_concat_data_prints_all_cached_message(tmp_path, monkeypatc
     data_cache_dir.mkdir()
     yaml_file = data_cache_dir / "Test.yaml"
     save_data_file(df, yaml_file, loc)
-    
+
     mock_cds = MagicMock()
     monkeypatch.setattr('data.CDS', lambda cache_dir, progress_manager=None: mock_cds)
-    
+
     # Call with cached data
     retrieve_and_concat_data([loc], 2024, 2024, tmp_path, data_cache_dir)
-    
+
     captured = capsys.readouterr()
-    
+
     # Check for "all cached" message
     assert "All data already cached - no CDS retrieval needed" in captured.out
     assert "=" in captured.out  # Separator lines
-    
+
     # Verify CDS was not called
     mock_cds.get_noon_series.assert_not_called()

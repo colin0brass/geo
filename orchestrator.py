@@ -23,7 +23,7 @@ logger = logging.getLogger("geo")
 def calculate_grid_dimensions(num_places: int, grid: tuple[int, int] | None, config: Path) -> tuple[int, int, int]:
     """
     Calculate grid layout and maximum places per image.
-    
+
     Args:
         num_places: Total number of places to plot.
         grid: Optional fixed grid dimensions (rows, cols).
@@ -39,15 +39,15 @@ def calculate_grid_dimensions(num_places: int, grid: tuple[int, int] | None, con
         # Load grid settings from config YAML
         max_rows, max_cols = load_grid_settings(config)
         max_places_per_image = max_rows * max_cols
-        
+
         # Calculate grid, capping at maximum size
         num_rows, num_cols = calculate_grid_layout(num_places, max_rows, max_cols)
-        
+
         if num_places > max_places_per_image:
             logger.info(f"Auto-calculated grid: {num_rows}×{num_cols} (max {max_places_per_image} places per image, will batch {num_places} locations)")
         else:
             logger.info(f"Auto-calculated grid: {num_rows}×{num_cols} for {num_places} location(s)")
-    
+
     return num_rows, num_cols, max_places_per_image
 
 
@@ -71,7 +71,7 @@ def create_batch_subplot(
 ) -> str:
     """
     Create a single batch subplot and save to file.
-    
+
     Args:
         df_batch: DataFrame for this batch.
         batch_places: List of Location objects in this batch.
@@ -94,13 +94,13 @@ def create_batch_subplot(
     """
     # Load plot text configuration
     plot_text_config = load_plot_text_config(config)
-    
+
     # Use list name in filename if provided, otherwise use "Overall"
     filename_prefix = list_name if list_name else "Overall"
-    
+
     # Ensure output directory exists
     out_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Generate title and filename using configuration
     if num_batches > 1:
         logger.info(f"Generating batch {batch_idx + 1}/{num_batches}: {len(batch_places)} locations")
@@ -135,11 +135,11 @@ def create_batch_subplot(
             start_year=start_year,
             end_year=end_year,
         )
-    
+
     plot_file = out_dir / filename
     credit = get_plot_text(plot_text_config, 'credit')
     data_source = get_plot_text(plot_text_config, 'data_source')
-    
+
     vis = Visualizer(
         df_batch,
         out_dir=out_dir,
@@ -149,7 +149,7 @@ def create_batch_subplot(
         colour_mode=colour_mode,
         colormap_name=colormap_name
     )
-    
+
     vis.plot_polar_subplots(
         title=title,
         subplot_field="place_name",
@@ -161,7 +161,7 @@ def create_batch_subplot(
         layout="polar_subplot",
         show_plot=False
     )
-    
+
     logger.info(f"Saved overall plot to {plot_file}")
     return str(plot_file)
 
@@ -183,7 +183,7 @@ def create_main_plots(
 ) -> list[str]:
     """
     Create all main subplot plots, potentially split into batches.
-    
+
     Args:
         df_overall: DataFrame containing temperature data for all places.
         place_list: List of Location objects that were processed.
@@ -204,25 +204,25 @@ def create_main_plots(
     num_places = len(place_list)
     num_rows, num_cols, max_places_per_image = calculate_grid_dimensions(num_places, grid, config)
     num_batches = (num_places + max_places_per_image - 1) // max_places_per_image
-    
+
     batch_plot_files = []
     for batch_idx in range(num_batches):
         start_idx = batch_idx * max_places_per_image
         end_idx = min(start_idx + max_places_per_image, num_places)
         batch_places = place_list[start_idx:end_idx]
         batch_size = len(batch_places)
-        
+
         # Filter dataframe for this batch
         batch_place_names = [p.name for p in batch_places]
         df_batch = df_overall[df_overall['place_name'].isin(batch_place_names)]
-        
+
         # Recalculate grid for this batch if not using fixed grid
         if grid:
             batch_rows, batch_cols = num_rows, num_cols
         else:
             max_rows, max_cols = load_grid_settings(config)
             batch_rows, batch_cols = calculate_grid_layout(batch_size, max_rows, max_cols)
-        
+
         plot_file = create_batch_subplot(
             df_batch=df_batch,
             batch_places=batch_places,
@@ -242,7 +242,7 @@ def create_main_plots(
             colormap_name=colormap_name
         )
         batch_plot_files.append(plot_file)
-    
+
     return batch_plot_files
 
 
@@ -261,7 +261,7 @@ def create_individual_plot(
 ) -> str:
     """
     Create a single individual location plot and save to file.
-    
+
     Args:
         loc: Location object.
         df: DataFrame for this location.
@@ -279,10 +279,10 @@ def create_individual_plot(
     """
     # Load plot text configuration
     plot_text_config = load_plot_text_config(config)
-    
+
     # Ensure output directory exists
     out_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Generate title and filename using configuration
     title = get_plot_text(
         plot_text_config,
@@ -300,7 +300,7 @@ def create_individual_plot(
     )
     credit = get_plot_text(plot_text_config, 'single_plot_credit')
     data_source = get_plot_text(plot_text_config, 'data_source')
-    
+
     plot_file = out_dir / filename
     vis = Visualizer(
         df,
@@ -311,7 +311,7 @@ def create_individual_plot(
         colour_mode=colour_mode,
         colormap_name=colormap_name
     )
-    
+
     vis.plot_polar(
         title=title,
         credit=credit,
@@ -341,7 +341,7 @@ def plot_all(
 ) -> None:
     """
     Generate all plots (overall subplot and individual plots) for the temperature data.
-    
+
     Args:
         df_overall: DataFrame containing temperature data for all places.
         place_list: List of Location objects that were processed.
@@ -360,9 +360,9 @@ def plot_all(
     t_min_c = df_overall["temp_C"].min()
     t_max_c = df_overall["temp_C"].max()
     logger.info(f"Overall temperature range across all locations: {t_min_c:.2f} °C to {t_max_c:.2f} °C")
-    
+
     num_places = len(place_list)
-    
+
     # For single place: create individual plot only (combined would be redundant)
     # For multiple places: create combined plot only (too many individual files)
     if num_places == 1:
@@ -382,7 +382,7 @@ def plot_all(
             colour_mode=colour_mode,
             colormap_name=colormap_name
         )
-        
+
         # Show plot if requested
         if show_main or show_individual:
             Visualizer.show_saved_plots([plot_file])
@@ -404,7 +404,7 @@ def plot_all(
             colour_mode=colour_mode,
             colormap_name=colormap_name
         )
-        
+
         # Show plots if requested
         if show_main or show_individual:
             Visualizer.show_saved_plots(batch_plot_files)

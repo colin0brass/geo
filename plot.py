@@ -21,7 +21,7 @@ class Visualizer:
     CM_PER_INCH = 2.54
     MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    
+
     def __init__(
         self,
         df: pd.DataFrame,
@@ -34,7 +34,7 @@ class Visualizer:
     ) -> None:
         """
         Initialize the Visualizer with data and plotting settings.
-        
+
         Args:
             df: DataFrame containing temperature and date columns (must include 'date' and 'temp_C').
             t_min_c: Minimum temperature for color normalization (optional).
@@ -49,7 +49,7 @@ class Visualizer:
 
         if df is None or df.empty:
             raise ValueError("DataFrame is empty or None.")
-        
+
         self.df = df
         self.out_dir = out_dir
 
@@ -90,7 +90,7 @@ class Visualizer:
     def load_settings_from_yaml(cls, yaml_path: str) -> dict:
         """
         Load settings from a YAML file and return as a dictionary.
-        
+
         Args:
             yaml_path: Path to the YAML settings file.
         Returns:
@@ -104,7 +104,7 @@ class Visualizer:
         """
         Prepare the DataFrame by ensuring required columns are present.
         Adds 'day_of_year' and 'angle' columns if missing.
-        
+
         Args:
             df: Input DataFrame.
         Returns:
@@ -114,38 +114,38 @@ class Visualizer:
             df['day_of_year'] = pd.to_datetime(df['date']).dt.dayofyear
             df['angle'] = 2 * np.pi * (df['day_of_year'] - 1) / 365.0
         return df
-        
+
     @staticmethod
     def temp_c_to_f(temp_c: float) -> float:
         """
         Convert Celsius to Fahrenheit.
-        
+
         Args:
             temp_c: Temperature in Celsius.
         Returns:
             Temperature in Fahrenheit.
         """
         return temp_c * 9.0 / 5.0 + 32.0
-    
+
     @staticmethod
     def show_saved_plots(plot_files: list[str]) -> None:
         """
         Open saved plot images with the system's default image viewer.
-        
+
         Args:
             plot_files: List of file paths to saved plot images.
         """
         import subprocess
         import sys
-        
+
         if not plot_files:
             return
-        
+
         if len(plot_files) > 1:
             logger.info(f"Opening {len(plot_files)} plots...")
         else:
             logger.info("Opening plot...")
-        
+
         for plot_file in plot_files:
             try:
                 if sys.platform == 'darwin':  # macOS
@@ -158,16 +158,16 @@ class Visualizer:
                 logger.warning(f"Failed to open {plot_file}: {e}")
             except FileNotFoundError:
                 logger.warning(f"Could not find system image viewer for {plot_file}")
-    
+
     def add_dual_colourbars(self, fig: plt.Figure) -> None:
         """
         Add Celsius and Fahrenheit colorbars to a figure with improved sizing and font.
-        
+
         Args:
             fig: Matplotlib Figure object to which colorbars are added.
         """
         mgr = SettingsManager(self.all_settings[self.layout], num_rows=1)
-        
+
         left_c = mgr.get('colourbar.left_c')
         left_f = mgr.get('colourbar.left_f')
         bottom = mgr.get('colourbar.bottom')
@@ -232,17 +232,17 @@ class Visualizer:
     def draw_temp_circles(self, ax: plt.Axes, num_rows: int = 1) -> None:
         """
         Draw circles and temperature labels at every 10°C boundary on the polar plot.
-        
+
         Args:
             ax: Polar axes to draw on.
             num_rows: Number of rows in subplot grid (for font scaling).
         """
         settings = SettingsManager(self.all_settings[self.layout], num_rows)
-        
+
         temp_step = settings.get('figure.temp_step')
         ytick_fontsize = settings.get('figure.ytick_fontsize')
         ytick_colour = settings.get('figure.ytick_colour')
-            
+
         for t in np.arange(np.ceil(self.tmin_c/temp_step)*temp_step, self.tmax_c+1, temp_step):
             ax.plot(np.linspace(0, 2*np.pi, 361), np.full(361, t), '--', color='gray', lw=0.7, alpha=0.7)
             # °C label above X-axis
@@ -253,7 +253,7 @@ class Visualizer:
     def create_polar_plot(self, ax: plt.Axes, df: pd.DataFrame, num_rows: int = 1) -> None:
         """
         Create a polar scatter plot for the given DataFrame and axes.
-        
+
         Args:
             ax: Polar axes to plot on.
             df: DataFrame with temperature and angle columns.
@@ -261,10 +261,10 @@ class Visualizer:
         """
         settings = SettingsManager(self.all_settings[self.layout], num_rows)
         point_colours = self.get_point_colours(df)
-        
+
         marker_size = settings.get('figure.marker_size')
         xtick_fontsize = settings.get('figure.xtick_fontsize')
-        
+
         ax.scatter(df['angle'], df["temp_C"], c=point_colours, s=marker_size)
         self.draw_temp_circles(ax, num_rows)
         ax.set_theta_offset(np.pi/2)
@@ -272,7 +272,7 @@ class Visualizer:
         ax.set_xticks(np.arange(0, 2 * np.pi, np.pi / 6))
         ax.set_xticklabels(self.MONTH_LABELS, fontsize=xtick_fontsize)
         ax.set_yticks([])
-        
+
         # Set y-axis limits, handling case where min == max
         if self.tmin_c < self.tmax_c:
             ax.set_ylim(self.tmin_c, self.tmax_c)
@@ -292,7 +292,7 @@ class Visualizer:
     ) -> None:
         """
         Plot a single polar temperature plot and save to file.
-        
+
         Args:
             title: Plot title.
             credit: Credit text.
@@ -306,13 +306,13 @@ class Visualizer:
             settings = self.all_settings[self.layout]
         except Exception as e:
             raise RuntimeError(f"Error loading settings layout {layout}: {e}") from e
-        
+
         mgr = SettingsManager(settings, num_rows=1)
-        
+
         fig_width = mgr.get('figure.fig_width_in')
         fig_height = mgr.get('figure.fig_height_in')
         fig = plt.figure(figsize=(fig_width, fig_height))
-        
+
         # Make left and right margins symmetrical (match colorbar width)
         cbar_width = mgr.get('colourbar.width')
         cbar_bottom = mgr.get('colourbar.bottom')
@@ -340,7 +340,7 @@ class Visualizer:
             fontsize=temp_label_fontsize,
             color=temp_label_colour,
         )
-        
+
         # Add dual colorbars further from the polar plot
         self.add_dual_colourbars(fig)
 
@@ -352,7 +352,7 @@ class Visualizer:
         label_right = mgr.get('page.label_right')
         label_bottom = mgr.get('page.label_bottom')
         dpi = mgr.get('page.dpi')
-        
+
         ax.set_title(title, fontsize=title_fontsize, pad=12, color=title_colour)
         plt.figtext(label_left, label_bottom, credit, verticalalignment='center', horizontalalignment='left', fontsize=label_fontsize)
         plt.figtext(label_right, label_bottom, data_source, verticalalignment='center', horizontalalignment='right', fontsize=label_fontsize)
@@ -371,7 +371,7 @@ class Visualizer:
     ) -> None:
         """
         Plot a polar subplot for a given DataFrame and axes.
-        
+
         Args:
             ax: Polar axes to plot on.
             df: DataFrame with temperature and angle columns.
@@ -388,14 +388,14 @@ class Visualizer:
         # Move month xticklabels closer to the polar plot
         xtick_pad = mgr.get('figure.xtick_pad')
         ax.tick_params(axis='x', pad=xtick_pad)
-        
+
         # Get row-based scaled settings
         title_fontsize = mgr.get('page.title_fontsize')
         title_colour = mgr.get('page.title_colour')
         temp_label_fontsize = mgr.get('figure.temp_label_fontsize')
         temp_label_vspace = mgr.get('figure.temp_label_vspace')
         temp_label_colour = mgr.get('figure.temp_label_colour')
-            
+
         ax.set_title(title if title else '', fontsize=title_fontsize, pad=0, color=title_colour)
 
         # Show temp range under the subplot using the parent figure
@@ -431,7 +431,7 @@ class Visualizer:
     ) -> None:
         """
         Plot multiple polar subplots for each unique value in a DataFrame field.
-        
+
         Args:
             subplot_field: DataFrame column to split subplots by.
             num_rows: Number of subplot rows (default 2).
@@ -453,17 +453,17 @@ class Visualizer:
         num_plots = len(place_list)
         if num_cols is None:
             num_cols = int(np.ceil(num_plots / num_rows))
-            
+
         # Use SettingsManager for row-based settings
         mgr = SettingsManager(settings, num_rows)
-        
+
         # Always use A3 landscape size (13.34" × 7.5")
         base_width = mgr.get('figure.fig_width_in')
         base_height = mgr.get('figure.fig_height_in')
         logger.debug(f"Using A3 landscape size: {base_width:.2f}\" × {base_height:.2f}\"")
-            
+
         fig, axs = plt.subplots(num_rows, num_cols, figsize=(base_width, base_height), subplot_kw={'polar': True})
-    
+
         # Get spacing settings (already row-scaled via SettingsManager)
         adjusted_hspace = mgr.get('subplot.hspace')
         adjusted_top = mgr.get('subplot.top')
@@ -471,7 +471,7 @@ class Visualizer:
         subplot_left = mgr.get('subplot.left')
         subplot_right = mgr.get('subplot.right')
         wspace = mgr.get('subplot.wspace')
-        
+
         logger.debug(f"Grid {num_rows}x{num_cols} spacing: hspace={adjusted_hspace}, top={adjusted_top}, bottom={adjusted_bottom}")
         plt.subplots_adjust(left=subplot_left, right=subplot_right, hspace=adjusted_hspace, wspace=wspace, top=adjusted_top, bottom=adjusted_bottom)
 
@@ -494,23 +494,23 @@ class Visualizer:
                     pos = ax.get_position()
                     height_scale = mgr.get('subplot.height_scale')
                     width_scale = mgr.get('subplot.width_scale')
-                    
+
                     if num_rows > 2:
                         # For 3+ rows: calculate size based on allocated space
                         available_height = adjusted_top - adjusted_bottom
                         height_per_row = available_height / num_rows
                         target_height = height_per_row * height_scale
-                        
+
                         available_width = subplot_right - subplot_left
                         width_per_col = available_width / num_cols
                         target_width = width_per_col * width_scale
-                        
+
                         # Center the subplot in its allocated space
                         center_x = subplot_left + (col + 0.5) * width_per_col
                         center_y = adjusted_bottom + (num_rows - row - 0.5) * height_per_row
                         new_x = center_x - target_width / 2
                         new_y = center_y - target_height / 2
-                        
+
                         logger.debug(f"Row {row}, Col {col} - Sizing: {target_width:.3f}x{target_height:.3f} at ({new_x:.3f}, {new_y:.3f})")
                         ax.set_position([new_x, new_y, target_width, target_height])
                     else:
@@ -519,7 +519,7 @@ class Visualizer:
                         new_height = pos.height * height_scale
                         logger.debug(f"Row {row}, Col {col} - Expanding: {new_width:.3f}x{new_height:.3f}")
                         ax.set_position([pos.x0, pos.y0, new_width, new_height])
-                        
+
                     if self.first_year != self.last_year:
                         title = f"{place} ({self.first_year}-{self.last_year})"
                     else:

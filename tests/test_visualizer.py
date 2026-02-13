@@ -69,10 +69,10 @@ def test_plot_polar_subplots_single_place(tmp_path):
         'temp_C': [20 + 5 * (i % 30) / 30 for i in range(365)],
         'place_name': ['Test Place'] * 365
     })
-    
+
     vis = Visualizer(df)
     output_file = tmp_path / "single_place.png"
-    
+
     # Should not raise error for 1x1 grid
     vis.plot_polar_subplots(
         title="Single Place Test",
@@ -81,7 +81,7 @@ def test_plot_polar_subplots_single_place(tmp_path):
         num_cols=1,
         show_plot=False
     )
-    
+
     assert output_file.exists()
 
 
@@ -91,12 +91,12 @@ def test_plot_polar_basic(tmp_path):
         'date': pd.date_range('2025-01-01', periods=100),
         'temp_C': [20] * 100
     })
-    
+
     vis = Visualizer(df)
     output_file = tmp_path / "basic_polar.png"
-    
+
     vis.plot_polar(title="Basic Test", save_file=str(output_file), show_plot=False)
-    
+
     assert output_file.exists()
 
 
@@ -106,12 +106,12 @@ def test_plot_polar_with_range(tmp_path):
         'date': pd.date_range('2025-01-01', periods=365),
         'temp_C': [10 + 20 * (i / 365) for i in range(365)]
     })
-    
+
     vis = Visualizer(df)
     output_file = tmp_path / "range_polar.png"
-    
+
     vis.plot_polar(title="Range Test", save_file=str(output_file), show_plot=False)
-    
+
     assert output_file.exists()
     # Check temp range was calculated
     assert vis.tmin_c < vis.tmax_c

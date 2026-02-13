@@ -32,9 +32,9 @@ except ImportError:
 class Location:
     """
     Represents a geographic location with a name, latitude, longitude, and timezone.
-    
+
     Timezone is automatically determined from coordinates if not provided.
-    
+
     Attributes:
         name: Name of the location.
         lat: Latitude.
@@ -45,7 +45,7 @@ class Location:
     lat: float
     lon: float
     tz: str | None = None
-    
+
     def __post_init__(self):
         """Automatically detect timezone from coordinates if not provided."""
         if self.tz is None:
@@ -70,7 +70,7 @@ class CDS:
     def __init__(self, cache_dir: Path = Path("era5_cache"), progress_manager=None) -> None:
         """
         Initialize the CDS client and set the cache directory.
-        
+
         Args:
             cache_dir: Directory to cache downloaded NetCDF files.
             progress_manager: Optional ProgressManager for progress reporting.
@@ -78,7 +78,7 @@ class CDS:
         self.client = cdsapi.Client(quiet=True, debug=False)
         self.cache_dir = cache_dir
         self.progress_manager = progress_manager
-        
+
         # Suppress verbose cdsapi logging after client initialization
         cdsapi_logger = logging.getLogger('cdsapi')
         cdsapi_logger.handlers.clear()
@@ -182,7 +182,7 @@ class CDS:
         logger.info(f"Downloading ERA5 date series to {out_nc} ...")
         self.client.retrieve("reanalysis-era5-single-levels", request, str(out_nc))
         return out_nc
-    
+
     def _open_and_concat(self, nc_files: list[Path]) -> xr.Dataset:
         """
         Open multiple NetCDF files and concatenate along the time dimension.
@@ -241,7 +241,7 @@ class CDS:
         ds = self._open_and_concat([nc_file])
 
         return ds
-    
+
     def get_year_daily_noon_data(
         self,
         location: Location,
@@ -251,7 +251,7 @@ class CDS:
         """
         Retrieve and return a DataFrame of daily local noon temperatures for an entire year.
         This is much more efficient than calling get_month_daily_noon_data 12 times.
-        
+
         Args:
             location (Location): Location object.
             year (int): Year.
@@ -425,9 +425,9 @@ class CDS:
     ) -> pd.DataFrame:
         """
         Retrieve and return a DataFrame of daily local noon temperatures for the given location and date range.
-        
+
         Optimized to download entire years at once rather than month-by-month, reducing API calls by 12x.
-        
+
         Args:
             location (Location): Location object.
             start_d (date): Start date.
