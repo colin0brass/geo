@@ -8,14 +8,50 @@ import yaml
 from geo_data.data import (
     DATA_KEY,
     NOON_TEMP_VAR,
+    RetrievalCoordinator,
     SCHEMA_VERSION,
-    _load_cache_schema_registry,
-    get_cached_years,
-    read_data_file,
-    retrieve_and_concat_data,
-    save_data_file,
 )
 from geo_data.cds_base import Location
+from geo_data.data_schema import CacheSchemaRegistry, _load_cache_schema_registry
+from geo_data.data_store import CacheStore
+
+
+def _cache_store() -> CacheStore:
+    return CacheStore()
+
+
+def cache_store_read_data_file(*args, **kwargs):
+    return _cache_store().read_data_file(*args, **kwargs)
+
+
+def cache_store_save_data_file(*args, **kwargs):
+    return _cache_store().save_data_file(*args, **kwargs)
+
+
+def cache_store_get_cached_years(*args, **kwargs):
+    return _cache_store().get_cached_years(*args, **kwargs)
+
+
+def coordinator_retrieve_data(
+    place_list,
+    start_year,
+    end_year,
+    cache_dir,
+    data_cache_dir,
+    measure='noon_temperature',
+    config_path='config.yaml',
+):
+    coordinator = RetrievalCoordinator(
+        cache_dir=cache_dir,
+        data_cache_dir=data_cache_dir,
+        config_path=config_path,
+    )
+    return coordinator.retrieve(
+        place_list,
+        start_year,
+        end_year,
+        measure=measure,
+    )
 
 
 def test_read_and_save_data_file(tmp_path):
@@ -30,7 +66,7 @@ def test_read_and_save_data_file(tmp_path):
         'place_name': ['Test', 'Test'],
     })
     out_file = tmp_path / "test.yaml"
-    save_data_file(df, out_file, loc)
+    cache_store_save_data_file(df, out_file, loc)
 
     # Verify file was created
     assert out_file.exists()
@@ -44,11 +80,69 @@ def test_read_and_save_data_file(tmp_path):
     assert NOON_TEMP_VAR in raw[DATA_KEY]
 
     # Read it back
-    df2 = read_data_file(out_file)
+    df2 = cache_store_read_data_file(out_file)
     assert not df2.empty
     assert len(df2) == 2
     assert df2['date'].iloc[0] == pd.Timestamp('2025-01-01')
     assert df2['temp_C'].iloc[0] == 10.0
+
+
+def test_cache_schema_registry_class_properties(tmp_path):
+    """Class-based schema registry exposes expected metadata and loader."""
+    registry = CacheSchemaRegistry()
+    assert registry.schema_version == SCHEMA_VERSION
+    assert registry.data_key == DATA_KEY
+    assert registry.primary_variable == NOON_TEMP_VAR
+
+    loaded = registry.load_registry()
+    assert isinstance(loaded, dict)
+    assert loaded['current_version'] == SCHEMA_VERSION
+
+
+def test_cache_store_class_roundtrip(tmp_path):
+    """CacheStore class mirrors function-based cache read/write behavior."""
+    cache_store = CacheStore()
+    loc = Location(name="Store Test", lat=40.0, lon=-73.0, tz="America/New_York")
+    df = pd.DataFrame({
+        'date': ['2025-01-01'],
+        'temp_C': [10.0],
+        'grid_lat': [40.0],
+        'grid_lon': [-73.0],
+    })
+    out_file = tmp_path / "store_test.yaml"
+    cache_store.save_data_file(df, out_file, loc)
+    loaded = cache_store.read_data_file(out_file)
+    assert len(loaded) == 1
+    assert loaded['temp_C'].iloc[0] == 10.0
+
+
+def test_retrieval_coordinator_single_location(tmp_path, monkeypatch):
+    """RetrievalCoordinator class retrieves data via measure-specific client."""
+    loc = Location(name="Coord City", lat=40.0, lon=-73.0, tz="America/New_York")
+
+    mock_cds = MagicMock()
+    mock_df = pd.DataFrame({
+        'date': ['2024-01-01'],
+        'temp_C': [10.0],
+        'place_name': ['Coord City'],
+        'grid_lat': [40.0],
+        'grid_lon': [-73.0],
+    })
+    mock_cds.get_noon_series.return_value = mock_df
+
+    def mock_cds_init(cache_dir, progress_manager=None, config_path=None):
+        return mock_cds
+
+    monkeypatch.setattr('geo_data.data.TemperatureCDS', mock_cds_init)
+
+    coordinator = RetrievalCoordinator(
+        cache_dir=tmp_path,
+        data_cache_dir=tmp_path,
+    )
+    result = coordinator.retrieve([loc], 2024, 2024)
+    assert not result.empty
+    assert 'Coord City' in result['place_name'].values
+    mock_cds.get_noon_series.assert_called_once()
 
 
 def test_save_data_file_creates_directory(tmp_path):
@@ -62,7 +156,7 @@ def test_save_data_file_creates_directory(tmp_path):
     })
     nested_path = tmp_path / "nested" / "dir" / "test.yaml"
 
-    save_data_file(df, nested_path, loc)
+    cache_store_save_data_file(df, nested_path, loc)
     assert nested_path.exists()
     assert nested_path.parent.is_dir()
 
@@ -71,7 +165,7 @@ def test_read_data_file_missing_file(tmp_path):
     """Test reading a non-existent file raises appropriate error."""
     missing_file = tmp_path / "missing.yaml"
     with pytest.raises(FileNotFoundError):
-        read_data_file(missing_file)
+        cache_store_read_data_file(missing_file)
 
 
 def test_read_data_file_date_parsing(tmp_path):
@@ -84,9 +178,9 @@ def test_read_data_file_date_parsing(tmp_path):
         'grid_lon': [-73.0, -73.0],
     })
     out_file = tmp_path / "dates.yaml"
-    save_data_file(df, out_file, loc)
+    cache_store_save_data_file(df, out_file, loc)
 
-    df2 = read_data_file(out_file)
+    df2 = cache_store_read_data_file(out_file)
     assert pd.api.types.is_datetime64_any_dtype(df2['date'])
     assert df2['date'].iloc[0].year == 2025
     assert df2['date'].iloc[0].month == 1
@@ -113,7 +207,7 @@ def test_retrieve_and_concat_data_single_location(tmp_path, monkeypatch):
 
     monkeypatch.setattr('geo_data.data.TemperatureCDS', mock_cds_init)
 
-    result = retrieve_and_concat_data([loc], 2024, 2024, tmp_path, tmp_path)
+    result = coordinator_retrieve_data([loc], 2024, 2024, tmp_path, tmp_path)
 
     assert not result.empty
     assert 'Test City' in result['place_name'].values
@@ -139,7 +233,7 @@ def test_retrieve_and_concat_data_precipitation_measure(tmp_path, monkeypatch):
 
     monkeypatch.setattr('geo_data.data.PrecipitationCDS', mock_cds_init)
 
-    result = retrieve_and_concat_data(
+    result = coordinator_retrieve_data(
         [loc],
         2024,
         2024,
@@ -166,8 +260,8 @@ def test_read_and_save_data_file_precipitation_measure(tmp_path):
     })
     out_file = tmp_path / "rain.yaml"
 
-    save_data_file(df, out_file, loc, measure='daily_precipitation')
-    df2 = read_data_file(out_file, measure='daily_precipitation')
+    cache_store_save_data_file(df, out_file, loc, measure='daily_precipitation')
+    df2 = cache_store_read_data_file(out_file, measure='daily_precipitation')
 
     assert not df2.empty
     assert 'precip_mm' in df2.columns
@@ -198,7 +292,7 @@ def test_retrieve_and_concat_data_multiple_locations(tmp_path, monkeypatch):
 
     monkeypatch.setattr('geo_data.data.TemperatureCDS', mock_cds_init)
 
-    result = retrieve_and_concat_data([loc1, loc2], 2024, 2024, tmp_path, tmp_path)
+    result = coordinator_retrieve_data([loc1, loc2], 2024, 2024, tmp_path, tmp_path)
 
     assert not result.empty
     assert len(result) == 2
@@ -225,7 +319,7 @@ def test_retrieve_and_concat_data_caches_to_yaml(tmp_path, monkeypatch):
     monkeypatch.setattr('geo_data.data.TemperatureCDS', lambda cache_dir, progress_manager=None, config_path=None: mock_cds)
 
     data_cache_dir = tmp_path / "data_cache"
-    retrieve_and_concat_data([loc], 2024, 2024, tmp_path, data_cache_dir)
+    coordinator_retrieve_data([loc], 2024, 2024, tmp_path, data_cache_dir)
 
     # Check that YAML file was created in data_cache_dir
     yaml_files = list(data_cache_dir.glob("*.yaml"))
@@ -243,16 +337,16 @@ def test_get_cached_years_with_valid_file(tmp_path):
         'grid_lon': [-73.0, -73.0, -73.0],
     })
     yaml_file = tmp_path / "test.yaml"
-    save_data_file(df, yaml_file, loc)
+    cache_store_save_data_file(df, yaml_file, loc)
 
-    cached_years = get_cached_years(yaml_file)
+    cached_years = cache_store_get_cached_years(yaml_file)
     assert cached_years == {2024, 2025}
 
 
 def test_get_cached_years_with_nonexistent_file(tmp_path):
     """Test get_cached_years with non-existent file returns empty set."""
     yaml_file = tmp_path / "nonexistent.yaml"
-    cached_years = get_cached_years(yaml_file)
+    cached_years = cache_store_get_cached_years(yaml_file)
     assert cached_years == set()
 
 
@@ -262,7 +356,7 @@ def test_get_cached_years_with_corrupted_yaml(tmp_path):
     with open(yaml_file, 'w') as f:
         f.write("this is not valid: yaml: syntax: [[[")
 
-    cached_years = get_cached_years(yaml_file)
+    cached_years = cache_store_get_cached_years(yaml_file)
     assert cached_years == set()
 
 
@@ -272,7 +366,7 @@ def test_get_cached_years_with_missing_temperatures_key(tmp_path):
     with open(yaml_file, 'w') as f:
         yaml.dump({'place': {'name': 'Test'}}, f)
 
-    cached_years = get_cached_years(yaml_file)
+    cached_years = cache_store_get_cached_years(yaml_file)
     assert cached_years == set()
 
 
@@ -288,7 +382,7 @@ def test_save_data_file_append_mode(tmp_path):
         'grid_lon': [-73.0, -73.0],
     })
     yaml_file = tmp_path / "test.yaml"
-    save_data_file(df_2024, yaml_file, loc, append=False)
+    cache_store_save_data_file(df_2024, yaml_file, loc, append=False)
 
     # Append 2025 data
     df_2025 = pd.DataFrame({
@@ -297,14 +391,14 @@ def test_save_data_file_append_mode(tmp_path):
         'grid_lat': [40.0, 40.0],
         'grid_lon': [-73.0, -73.0],
     })
-    save_data_file(df_2025, yaml_file, loc, append=True)
+    cache_store_save_data_file(df_2025, yaml_file, loc, append=True)
 
     # Verify both years are present
-    cached_years = get_cached_years(yaml_file)
+    cached_years = cache_store_get_cached_years(yaml_file)
     assert cached_years == {2024, 2025}
 
     # Read back and verify all data
-    df_result = read_data_file(yaml_file)
+    df_result = cache_store_read_data_file(yaml_file)
     assert len(df_result) == 4
     assert 2024 in df_result['date'].dt.year.values
     assert 2025 in df_result['date'].dt.year.values
@@ -326,10 +420,10 @@ def test_save_data_file_append_with_corrupted_file(tmp_path):
         'grid_lat': [40.0],
         'grid_lon': [-73.0],
     })
-    save_data_file(df, yaml_file, loc, append=True)
+    cache_store_save_data_file(df, yaml_file, loc, append=True)
 
     # Verify file is now valid
-    df_result = read_data_file(yaml_file)
+    df_result = cache_store_read_data_file(yaml_file)
     assert len(df_result) == 1
     assert df_result['temp_C'].iloc[0] == 15.0
 
@@ -346,7 +440,7 @@ def test_save_data_file_merge_overwrites_existing_dates(tmp_path):
         'grid_lon': [-73.0],
     })
     yaml_file = tmp_path / "test.yaml"
-    save_data_file(df_initial, yaml_file, loc)
+    cache_store_save_data_file(df_initial, yaml_file, loc)
 
     # Append with same date but different temperature
     df_update = pd.DataFrame({
@@ -355,10 +449,10 @@ def test_save_data_file_merge_overwrites_existing_dates(tmp_path):
         'grid_lat': [40.0],
         'grid_lon': [-73.0],
     })
-    save_data_file(df_update, yaml_file, loc, append=True)
+    cache_store_save_data_file(df_update, yaml_file, loc, append=True)
 
     # Verify temperature was updated
-    df_result = read_data_file(yaml_file)
+    df_result = cache_store_read_data_file(yaml_file)
     assert len(df_result) == 1
     assert df_result['temp_C'].iloc[0] == 20.0
 
@@ -375,20 +469,20 @@ def test_read_data_file_with_year_filtering(tmp_path):
         'grid_lon': [-73.0, -73.0, -73.0, -73.0],
     })
     yaml_file = tmp_path / "test.yaml"
-    save_data_file(df, yaml_file, loc)
+    cache_store_save_data_file(df, yaml_file, loc)
 
     # Test start_year filter
-    df_filtered = read_data_file(yaml_file, start_year=2024)
+    df_filtered = cache_store_read_data_file(yaml_file, start_year=2024)
     assert len(df_filtered) == 3
     assert df_filtered['date'].dt.year.min() == 2024
 
     # Test end_year filter
-    df_filtered = read_data_file(yaml_file, end_year=2025)
+    df_filtered = cache_store_read_data_file(yaml_file, end_year=2025)
     assert len(df_filtered) == 3
     assert df_filtered['date'].dt.year.max() == 2025
 
     # Test both filters
-    df_filtered = read_data_file(yaml_file, start_year=2024, end_year=2025)
+    df_filtered = cache_store_read_data_file(yaml_file, start_year=2024, end_year=2025)
     assert len(df_filtered) == 2
     assert set(df_filtered['date'].dt.year.values) == {2024, 2025}
 
@@ -407,7 +501,7 @@ def test_retrieve_and_concat_data_uses_cached_years(tmp_path, monkeypatch):
     data_cache_dir = tmp_path / "data_cache"
     data_cache_dir.mkdir()
     yaml_file = data_cache_dir / "Test.yaml"
-    save_data_file(df_2024, yaml_file, loc)
+    cache_store_save_data_file(df_2024, yaml_file, loc)
 
     # Mock CDS for 2025
     mock_cds = MagicMock()
@@ -422,7 +516,7 @@ def test_retrieve_and_concat_data_uses_cached_years(tmp_path, monkeypatch):
     monkeypatch.setattr('geo_data.data.TemperatureCDS', lambda cache_dir, progress_manager=None, config_path=None: mock_cds)
 
     # Request 2024-2025, should only fetch 2025
-    result = retrieve_and_concat_data([loc], 2024, 2025, tmp_path, data_cache_dir)
+    result = coordinator_retrieve_data([loc], 2024, 2025, tmp_path, data_cache_dir)
 
     # Should have both years
     assert len(result) == 2
@@ -446,14 +540,14 @@ def test_retrieve_and_concat_data_all_cached(tmp_path, monkeypatch):
     data_cache_dir = tmp_path / "data_cache"
     data_cache_dir.mkdir()
     yaml_file = data_cache_dir / "Test.yaml"
-    save_data_file(df, yaml_file, loc)
+    cache_store_save_data_file(df, yaml_file, loc)
 
     # Mock CDS to detect if it's called
     mock_cds = MagicMock()
     monkeypatch.setattr('geo_data.data.TemperatureCDS', lambda cache_dir, progress_manager=None, config_path=None: mock_cds)
 
     # Request cached years only
-    result = retrieve_and_concat_data([loc], 2024, 2025, tmp_path, data_cache_dir)
+    result = coordinator_retrieve_data([loc], 2024, 2025, tmp_path, data_cache_dir)
 
     # Should have data
     assert len(result) == 2
@@ -474,7 +568,7 @@ def test_save_data_file_key_normalization(tmp_path):
         'grid_lat': [40.0],
         'grid_lon': [-73.0],
     })
-    save_data_file(df_2024, yaml_file, loc)
+    cache_store_save_data_file(df_2024, yaml_file, loc)
 
     # Manually inject string keys (simulating old bug)
     with open(yaml_file, 'r') as f:
@@ -491,10 +585,10 @@ def test_save_data_file_key_normalization(tmp_path):
         'grid_lat': [40.0],
         'grid_lon': [-73.0],
     })
-    save_data_file(df_2025, yaml_file, loc, append=True)
+    cache_store_save_data_file(df_2025, yaml_file, loc, append=True)
 
     # Verify all years are detected (including the string key)
-    cached_years = get_cached_years(yaml_file)
+    cached_years = cache_store_get_cached_years(yaml_file)
     assert cached_years == {2023, 2024, 2025}
 
 
@@ -520,7 +614,7 @@ def test_read_data_file_legacy_temperatures_key(tmp_path):
         yaml.safe_dump(legacy, f)
 
     with pytest.raises(ValueError, match='unversioned cache documents are no longer supported'):
-        read_data_file(yaml_file)
+        cache_store_read_data_file(yaml_file)
 
 
 def test_read_data_file_schema_v1_auto_migrates(tmp_path):
@@ -545,7 +639,7 @@ def test_read_data_file_schema_v1_auto_migrates(tmp_path):
     with open(yaml_file, 'w') as f:
         yaml.safe_dump(v1_doc, f)
 
-    df = read_data_file(yaml_file)
+    df = cache_store_read_data_file(yaml_file)
     assert len(df) == 1
     assert df['temp_C'].iloc[0] == 14.25
 
@@ -577,7 +671,7 @@ def test_read_data_file_schema_v1_uses_field_mapping_candidates(tmp_path):
     with open(yaml_file, 'w') as f:
         yaml.safe_dump(v1_doc, f)
 
-    df = read_data_file(yaml_file)
+    df = cache_store_read_data_file(yaml_file)
     assert len(df) == 1
     assert df['temp_C'].iloc[0] == 9.5
 
@@ -606,7 +700,7 @@ def test_read_data_file_rejects_newer_schema_version(tmp_path):
         yaml.safe_dump(future_doc, f)
 
     with pytest.raises(ValueError, match='newer schema_version'):
-        read_data_file(yaml_file)
+        cache_store_read_data_file(yaml_file)
 
 
 def test_read_data_file_rejects_unsupported_older_schema_version(tmp_path):
@@ -628,7 +722,7 @@ def test_read_data_file_rejects_unsupported_older_schema_version(tmp_path):
         yaml.safe_dump(v0_doc, f)
 
     with pytest.raises(ValueError, match='unsupported schema_version'):
-        read_data_file(yaml_file)
+        cache_store_read_data_file(yaml_file)
 
 
 def test_schema_registry_rejects_invalid_required_list_type(tmp_path):
@@ -673,7 +767,7 @@ def test_read_data_file_schema_v1_missing_required_place_field_fails(tmp_path):
         yaml.safe_dump(v1_doc, f)
 
     with pytest.raises(ValueError, match='missing required path'):
-        read_data_file(yaml_file)
+        cache_store_read_data_file(yaml_file)
 
 
 def test_retrieve_and_concat_data_prints_cds_summary(tmp_path, monkeypatch, capsys):
@@ -697,7 +791,7 @@ def test_retrieve_and_concat_data_prints_cds_summary(tmp_path, monkeypatch, caps
     monkeypatch.setattr('geo_data.data.TemperatureCDS', mock_cds_init)
 
     # Call with fresh locations (no cache)
-    retrieve_and_concat_data([loc1, loc2], 2024, 2024, tmp_path, tmp_path)
+    coordinator_retrieve_data([loc1, loc2], 2024, 2024, tmp_path, tmp_path)
 
     captured = capsys.readouterr()
 
@@ -722,13 +816,13 @@ def test_retrieve_and_concat_data_prints_all_cached_message(tmp_path, monkeypatc
     data_cache_dir = tmp_path / "data_cache"
     data_cache_dir.mkdir()
     yaml_file = data_cache_dir / "Test.yaml"
-    save_data_file(df, yaml_file, loc)
+    cache_store_save_data_file(df, yaml_file, loc)
 
     mock_cds = MagicMock()
     monkeypatch.setattr('geo_data.data.TemperatureCDS', lambda cache_dir, progress_manager=None, config_path=None: mock_cds)
 
     # Call with cached data
-    retrieve_and_concat_data([loc], 2024, 2024, tmp_path, data_cache_dir)
+    coordinator_retrieve_data([loc], 2024, 2024, tmp_path, data_cache_dir)
 
     captured = capsys.readouterr()
 

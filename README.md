@@ -121,9 +121,9 @@ python geo.py -a -y 2024 -q
 
 ```python
 from datetime import date
-from geo import read_data_file, save_data_file
 from geo_data.cds_base import Location
 from geo_data.cds_temperature import TemperatureCDS
+from geo_data.data import RetrievalCoordinator
 from geo_plot.plot import Visualizer
 
 # Timezone is auto-detected from coordinates
@@ -133,6 +133,10 @@ cds = TemperatureCDS()
 df = cds.get_noon_series(loc, start_d=date(2020,1,1), end_d=date(2020,12,31))
 vis = Visualizer(df)
 vis.plot_polar(title="Austin 2020 Noon Temps", save_file="output/austin_2020.png")
+
+# Or use class-based orchestration for retrieval + cache merge
+coordinator = RetrievalCoordinator()
+df_all = coordinator.retrieve([loc], 2020, 2020, measure="noon_temperature")
 ```
 
 ---
@@ -149,8 +153,12 @@ vis.plot_polar(title="Austin 2020 Noon Temps", save_file="output/austin_2020.png
   - `geo_core/progress.py`: Shared progress protocol and manager
   - `geo_core/tests/`: Core-layer tests
 - `geo_data/`: Data-layer package (CDS client, cache pipeline, schema, and data tests)
-  - `geo_data/cds.py`: ERA5 retrieval and location handling
-  - `geo_data/data.py`: Measure-aware data retrieval and cache I/O
+  - `geo_data/cds_base.py`: Shared ERA5 retrieval primitives + `Location`
+  - `geo_data/cds_temperature.py`: Temperature retrieval client (`TemperatureCDS`)
+  - `geo_data/cds_precipitation.py`: Precipitation retrieval client (`PrecipitationCDS`)
+  - `geo_data/data.py`: Retrieval orchestration façade (`RetrievalCoordinator`)
+  - `geo_data/data_store.py`: Cache path/read/write helpers (`CacheStore`)
+  - `geo_data/data_schema.py`: Schema/migration helpers (`CacheSchemaRegistry`)
   - `geo_data/schema.yaml`: Cache schema registry and migration metadata
   - `geo_data/tests/`: Data-layer tests
 - `geo_plot/`: Plot-layer package (visualization, orchestration, and plot tests)

@@ -15,7 +15,8 @@ from .cli import (
     parse_years,
 )
 from .geo_data.cds_base import CDS, Location
-from .geo_data.data import read_data_file, retrieve_and_concat_data, save_data_file
+from .geo_data.data import RetrievalCoordinator
+from .geo_data.data_store import CacheStore
 from .geo_plot.orchestrator import plot_all
 from .geo_plot.plot import Visualizer
 
@@ -31,7 +32,6 @@ __all__ = [
     "parse_grid",
     "parse_years",
     "plot_all",
-    "read_data_file",
-    "retrieve_and_concat_data",
-    "save_data_file",
+    "RetrievalCoordinator",
+    "CacheStore",
 ]

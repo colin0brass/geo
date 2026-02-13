@@ -10,7 +10,7 @@ import sys
 
 from cli import parse_args, parse_grid, parse_years, get_place_list, list_places_and_exit, list_years_and_exit, load_colour_mode, load_colormap, validate_measure_support, CLIError
 from config_manager import load_places, add_place_to_config
-from geo_data.data import retrieve_and_concat_data
+from geo_data.data import RetrievalCoordinator
 from geo_core.progress import get_progress_manager
 from geo_plot.orchestrator import plot_all
 from logging_config import setup_logging, get_logger
@@ -99,13 +99,15 @@ def main() -> int:
         logger.info(f"Show plots: {args.show}")
         return 0
 
-    df_overall = retrieve_and_concat_data(
+    retrieval = RetrievalCoordinator(
+        cache_dir=args.cache_dir,
+        data_cache_dir=args.data_cache_dir,
+        config_path=args.config,
+    )
+    df_overall = retrieval.retrieve(
         place_list,
         start_year,
         end_year,
-        args.cache_dir,
-        args.data_cache_dir,
-        config_path=args.config,
         measure=args.measure,
     )
     plot_all(

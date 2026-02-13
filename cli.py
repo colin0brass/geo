@@ -552,9 +552,10 @@ def list_places_and_exit() -> None:
 
 def build_cached_years_report(data_cache_dir: Path = Path("data_cache")) -> str:
     """Build a formatted report of cached years by place."""
-    from geo_data.data import cache_yaml_path_for_place, get_cached_years
+    from geo_data.data_store import CacheStore
 
     places, _default_place, _place_lists = load_places()
+    cache_store = CacheStore()
     lines: list[str] = []
 
     lines.append("\n=== Cached Years by Place ===")
@@ -564,8 +565,8 @@ def build_cached_years_report(data_cache_dir: Path = Path("data_cache")) -> str:
     places_without_cache = 0
 
     for place_name in sorted(places.keys()):
-        yaml_file = cache_yaml_path_for_place(data_cache_dir, place_name)
-        cached_years = get_cached_years(yaml_file)
+        yaml_file = cache_store.cache_yaml_path_for_place(data_cache_dir, place_name)
+        cached_years = cache_store.get_cached_years(yaml_file)
 
         if cached_years:
             places_with_cache += 1

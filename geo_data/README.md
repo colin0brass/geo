@@ -4,8 +4,10 @@
 
 ## Responsibilities
 
-- CDS/ERA5 retrieval client (`cds.py`)
-- Measure-aware data retrieval and cache orchestration (`data.py`)
+- CDS/ERA5 retrieval clients (`cds_base.py`, `cds_temperature.py`, `cds_precipitation.py`)
+- Measure-aware data retrieval orchestration (`data.py` / `RetrievalCoordinator`)
+- Cache path/read/write helpers (`data_store.py` / `CacheStore`)
+- Schema/migration helpers (`data_schema.py` / `CacheSchemaRegistry`)
 - Cache schema registry (`schema.yaml`)
 - Data-layer tests (`tests/`)
 
@@ -16,14 +18,20 @@ Plot rendering and plot orchestration live in `geo_plot` (`geo_plot/plot.py`, `g
 
 ## Key modules
 
-- `cds.py`
+- `cds_base.py`
   - `Location` dataclass and timezone handling
   - ERA5 request building/retrieval helpers
-  - measure retrieval methods (e.g. noon temperature, daily precipitation)
+  - shared helpers used by measure clients
+- `cds_temperature.py`
+  - `TemperatureCDS` (daily local-noon temperature)
+- `cds_precipitation.py`
+  - `PrecipitationCDS` (daily precipitation)
 - `data.py`
-  - cache read/write/merge utilities
-  - schema migration + validation
-  - measure routing (`retrieve_and_concat_data`)
+  - retrieval orchestration class (`RetrievalCoordinator`)
+- `data_store.py`
+  - cache path/read/write class (`CacheStore`)
+- `data_schema.py`
+  - schema/migration class (`CacheSchemaRegistry`)
 - `schema.yaml`
   - schema registry and migration metadata for cached YAML files
 
