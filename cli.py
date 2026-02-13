@@ -183,7 +183,7 @@ Examples:
         "--measure",
         choices=VALID_MEASURES,
         default=DEFAULT_MEASURE,
-        help="Data measure to use: 'noon_temperature' (implemented) or 'daily_precipitation' (planned)"
+        help="Data measure to use: 'noon_temperature' or 'daily_precipitation'"
     )
 
     # Display options
@@ -508,14 +508,8 @@ def load_colormap(config_file: Path) -> str:
 
 def validate_measure_support(measure: str) -> None:
     """Validate that the selected measure is currently implemented."""
-    if measure == "noon_temperature":
+    if measure in VALID_MEASURES:
         return
-
-    if measure == "daily_precipitation":
-        raise CLIError(
-            "Measure 'daily_precipitation' is not implemented yet.",
-            "Use --measure noon_temperature for now. Precipitation support will be added next."
-        )
 
     raise CLIError(
         f"Unknown measure '{measure}'.",

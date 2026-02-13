@@ -127,10 +127,8 @@ def test_validate_measure_support_default_ok():
     validate_measure_support('noon_temperature')
 
 
-def test_validate_measure_support_precipitation_not_implemented():
-    with pytest.raises(CLIError) as exc_info:
-        validate_measure_support('daily_precipitation')
-    assert 'not implemented yet' in str(exc_info.value)
+def test_validate_measure_support_precipitation_ok():
+    validate_measure_support('daily_precipitation')
 
 
 def test_parse_args_with_colour_mode():
