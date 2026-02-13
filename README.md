@@ -143,7 +143,7 @@ vis.plot_polar(title="Austin 2020 Noon Temps", save_file="output/austin_2020.png
 - `progress.py`: Progress reporting system with callback handlers
 - `logging_config.py`: Centralized logging configuration
 - `geo_core/`: Shared core helpers (config/grid/progress utilities and core tests)
-  - `geo_core/config.py`: Shared config/text/colormap helpers
+  - `geo_core/config.py`: Shared config/text/colormap/place-config helpers
   - `geo_core/grid.py`: Shared grid layout logic
   - `geo_core/progress.py`: Shared progress protocol and manager
   - `geo_core/tests/`: Core-layer tests
@@ -599,7 +599,10 @@ Core-layer test modules are under `geo_core/tests/`:
 | Module | Focus |
 |--------|-------|
 | test_config.py | Shared config parsing/resolution helpers |
+| test_formatting.py | Shared formatting helpers and year-range condensation |
 | test_grid.py | Shared grid layout algorithm |
+| test_grid_layout.py | Grid shape/capacity expectations |
+| test_progress.py | Core progress manager/protocol behavior |
 
 Plot-layer test modules are under `geo_plot/tests/`:
 
@@ -638,8 +641,6 @@ When places exceed grid capacity, multiple images are automatically generated:
 ```bash
 python geo.py -a -y 2024 --grid 4x4
 # Outputs:
-#   all_noon_temperature_2024_2024_part1of2.png (16 places)
-#   all_noon_temperature_2024_2024_part2of2.png (remaining places)
 #   all_noon_temperature_2024_2024_part1of2.png (16 places)
 #   all_noon_temperature_2024_2024_part2of2.png (remaining places)
 ```

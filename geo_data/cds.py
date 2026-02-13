@@ -198,7 +198,7 @@ class CDS:
         if not nc_files:
             raise ValueError("No NetCDF files to open.")
 
-        # Use open_mfdataset for efficiency; fallback to concat if needed
+        # Use open_mfdataset for efficient multi-file coordinate alignment.
         ds = xr.open_mfdataset(
             [str(p) for p in nc_files],
             combine="by_coords",
@@ -210,12 +210,6 @@ class CDS:
             raise KeyError(
                 f"Expected variable '{expected_var}' not found. Variables: {list(ds.data_vars)}"
             )
-
-        return ds
-
-    def _open_and_concat(self, nc_files: list[Path]) -> xr.Dataset:
-        """Backwards-compatible wrapper for temperature retrieval."""
-        ds = self._open_and_concat_for_var(nc_files, "t2m")
 
         return ds
 
@@ -240,13 +234,10 @@ class CDS:
         Returns:
             xr.Dataset: ERA5 data for the specified month and location.
         """
-        """
-        Retrieve and return a DataFrame of daily local noon temperatures for a given month and location.
-        """
         cache_file = self.cache_dir / f"era5_t2m_{location.name.replace(' ', '_').replace(',', '')}_{year:04d}_{month:02d}.nc"
         nc_file = self._cds_retrieve_era5_month(
             cache_file, year=year, month=month, loc=location, day=day, hour=hour, half_box_deg=half_box_deg)
-        ds = self._open_and_concat([nc_file])
+        ds = self._open_and_concat_for_var([nc_file], "t2m")
 
         return ds
 
@@ -285,7 +276,7 @@ class CDS:
         # Cache entire year in one file
         cache_file = self.cache_dir / f"era5_t2m_{location.name.replace(' ', '_').replace(',', '')}_{year:04d}_noons.nc"
         nc_file = self._cds_retrieve_era5_date_series(cache_file, location, noon_utc, half_box_deg=half_box_deg)
-        ds = self._open_and_concat([nc_file])
+        ds = self._open_and_concat_for_var([nc_file], "t2m")
 
         # Find nearest grid point to location
         ds_point = ds.sel(
@@ -343,9 +334,6 @@ class CDS:
         Raises:
             RuntimeError: If selected times are too far from requested local noon.
         """
-        """
-        Retrieve and return a DataFrame of daily local noon temperatures for a given month and location.
-        """
         # ds = self.get_month_data(
         #     location, year, month, half_box_deg=half_box_deg)
 
@@ -367,7 +355,7 @@ class CDS:
 
         cache_file = self.cache_dir / f"era5_t2m_{location.name.replace(' ', '_').replace(',', '')}_{year:04d}_{month:02d}_noons.nc"
         nc_file = self._cds_retrieve_era5_date_series(cache_file, location, noon_utc, half_box_deg=half_box_deg)
-        ds = self._open_and_concat([nc_file])
+        ds = self._open_and_concat_for_var([nc_file], "t2m")
 
         # Find nearest grid point to location
         ds_point = ds.sel(

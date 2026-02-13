@@ -18,7 +18,7 @@ It should not depend on app entrypoints, plotting internals, or CDS retrieval in
 Current upstream users include:
 - `cli.py` (CLI-facing wrappers)
 - `geo_plot/orchestrator.py` (grid and text/config helpers)
-- `config_manager.py` (compatibility wrappers for plot text helpers)
+- `config_manager.py` (place config extraction and canonical YAML rendering helpers)
 
 ## Key modules
 
@@ -26,6 +26,8 @@ Current upstream users include:
   - colour mode/colormap resolution
   - grid settings loading
   - plot text and measure label metadata helpers
+  - place-config extraction and lookup helpers
+  - canonical config YAML rendering helper
 - `formatting.py`
   - shared value/text formatting helpers
   - year-range condensation (`condense_year_ranges`)
