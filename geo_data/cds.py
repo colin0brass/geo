@@ -101,6 +101,100 @@ class CDS:
         """Resolve retrieval box size from explicit arg or configured default."""
         return self.default_half_box_deg if half_box_deg is None else float(half_box_deg)
 
+    @staticmethod
+    def _safe_location_name(location: Location) -> str:
+        """Create a filesystem-safe location name for cache files."""
+        return location.name.replace(' ', '_').replace(',', '')
+
+    @staticmethod
+    def _build_local_noon_timestamps(
+        start_d: date,
+        end_d: date,
+        tz_local: ZoneInfo,
+    ) -> tuple[list[datetime], pd.DatetimeIndex]:
+        """Build local-noon timestamps and their UTC equivalents for an inclusive date range."""
+        days = pd.date_range(start=start_d, end=end_d, freq="D")
+        local_noons = [
+            datetime(day.year, day.month, day.day, 12, 0, 0, tzinfo=tz_local)
+            for day in days.to_pydatetime()
+        ]
+        noon_utc = pd.DatetimeIndex([dt.astimezone(timezone.utc) for dt in local_noons])
+        return local_noons, noon_utc
+
+    @staticmethod
+    def _select_location_point(ds: xr.Dataset, location: Location) -> xr.Dataset:
+        """Select the nearest grid point for a location and normalize time coordinate naming."""
+        ds_point = ds.sel(
+            latitude=location.lat,
+            longitude=location.lon,
+            method="nearest",
+        )
+
+        if "valid_time" in ds_point.coords:
+            ds_point = ds_point.rename({"valid_time": "time"})
+
+        return ds_point
+
+    @staticmethod
+    def _build_noon_temperature_dataframe(
+        da: xr.DataArray,
+        noon_utc: pd.DatetimeIndex,
+        local_noons: list[datetime],
+        max_nearest_time_delta: pd.Timedelta,
+        grid_lat: float,
+        grid_lon: float,
+        place_name: str,
+    ) -> pd.DataFrame:
+        """Build daily local-noon temperature output dataframe from an ERA5 data array."""
+        selected = da.sel(time=noon_utc.tz_convert(None), method="nearest")
+        selected_times = pd.to_datetime(selected["time"].values).tz_localize("UTC")
+        delta = np.abs(selected_times - noon_utc)
+        if (delta > max_nearest_time_delta).any():
+            bad = delta[delta > max_nearest_time_delta]
+            raise RuntimeError(
+                f"Some noon selections were more than {max_nearest_time_delta} away from requested local noon UTC.\n"
+                f"Examples:\n{bad[:5]}"
+            )
+
+        temp_k = selected.values.astype(np.float64)
+        temp_c = temp_k - 273.15
+        temp_f = temp_c * 9.0 / 5.0 + 32.0
+        return pd.DataFrame(
+            {
+                "date": [dt.date().isoformat() for dt in local_noons],
+                "local_noon": [dt.isoformat() for dt in local_noons],
+                "utc_time_used": [dt.isoformat() for dt in noon_utc],
+                "temp_C": np.round(temp_c, 3),
+                "temp_F": np.round(temp_f, 3),
+                "grid_lat": grid_lat,
+                "grid_lon": grid_lon,
+                "place_name": place_name,
+            }
+        )
+
+    @staticmethod
+    def _build_daily_precipitation_dataframe(
+        da: xr.DataArray,
+        tz_local: ZoneInfo,
+        grid_lat: float,
+        grid_lon: float,
+        place_name: str,
+    ) -> pd.DataFrame:
+        """Build daily local-date precipitation totals in millimeters from an ERA5 data array."""
+        utc_times = pd.to_datetime(da["time"].values, utc=True)
+        local_dates = utc_times.tz_convert(tz_local).date
+        precip_mm = da.values.astype(np.float64) * 1000.0
+
+        df_daily = pd.DataFrame({
+            "date": local_dates,
+            "precip_mm": precip_mm,
+        })
+        df_daily = df_daily.groupby("date", as_index=False, sort=True)["precip_mm"].sum()
+        df_daily["grid_lat"] = grid_lat
+        df_daily["grid_lon"] = grid_lon
+        df_daily["place_name"] = place_name
+        return df_daily
+
     def _cds_retrieve_era5_month(
         self,
         out_nc: Path,
@@ -285,54 +379,24 @@ class CDS:
         start_d = date(year, 1, 1)
         end_d = date(year, 12, 31)
 
-        # Build daily local-noon timestamps, convert to UTC
-        days = pd.date_range(start=start_d, end=end_d, freq="D")
-        local_noons = [
-            datetime(d.year, d.month, d.day, 12, 0, 0, tzinfo=tz_local) for d in days.to_pydatetime()
-        ]
-        noon_utc = pd.DatetimeIndex([dt.astimezone(timezone.utc) for dt in local_noons])
+        local_noons, noon_utc = self._build_local_noon_timestamps(start_d, end_d, tz_local)
 
         # Cache entire year in one file
-        cache_file = self.cache_dir / f"era5_t2m_{location.name.replace(' ', '_').replace(',', '')}_{year:04d}_noons.nc"
+        safe_name = self._safe_location_name(location)
+        cache_file = self.cache_dir / f"era5_t2m_{safe_name}_{year:04d}_noons.nc"
         nc_file = self._cds_retrieve_era5_date_series(cache_file, location, noon_utc, half_box_deg=half_box_deg)
         ds = self._open_and_concat_for_var([nc_file], "t2m")
 
-        # Find nearest grid point to location
-        ds_point = ds.sel(
-            latitude=location.lat,
-            longitude=location.lon,
-            method="nearest",
+        ds_point = self._select_location_point(ds, location)
+        return self._build_noon_temperature_dataframe(
+            ds_point["t2m"],
+            noon_utc,
+            local_noons,
+            self.max_nearest_time_delta,
+            float(ds_point["latitude"].values),
+            float(ds_point["longitude"].values),
+            location.name,
         )
-
-        if "valid_time" in ds_point.coords:
-            ds_point = ds_point.rename({"valid_time": "time"})
-        da = ds_point["t2m"]
-
-        selected = da.sel(time=noon_utc.tz_convert(None), method="nearest")
-        selected_times = pd.to_datetime(selected["time"].values).tz_localize("UTC")
-        delta = np.abs(selected_times - noon_utc)
-        if (delta > self.max_nearest_time_delta).any():
-            bad = delta[delta > self.max_nearest_time_delta]
-            raise RuntimeError(
-                f"Some noon selections were more than {self.max_nearest_time_delta} away from requested local noon UTC.\n"
-                f"Examples:\n{bad[:5]}"
-            )
-        temp_k = selected.values.astype(np.float64)
-        temp_c = temp_k - 273.15
-        temp_f = temp_c * 9.0 / 5.0 + 32.0
-        df = pd.DataFrame(
-            {
-                "date": [dt.date().isoformat() for dt in local_noons],
-                "local_noon": [dt.isoformat() for dt in local_noons],
-                "utc_time_used": [dt.isoformat() for dt in noon_utc],
-                "temp_C": np.round(temp_c, 3),
-                "temp_F": np.round(temp_f, 3),
-                "grid_lat": float(ds_point["latitude"].values),
-                "grid_lon": float(ds_point["longitude"].values),
-                "place_name": location.name,
-            }
-        )
-        return df
 
     def get_month_daily_noon_data(
         self,
@@ -365,53 +429,23 @@ class CDS:
         else:
             end_d = date(year, month + 1, 1) - timedelta(days=1)
 
-        # Build daily local-noon timestamps, convert to UTC
-        days = pd.date_range(start=start_d, end=end_d, freq="D")
-        local_noons = [
-            datetime(d.year, d.month, d.day, 12, 0, 0, tzinfo=tz_local) for d in days.to_pydatetime()
-        ]
-        noon_utc = pd.DatetimeIndex([dt.astimezone(timezone.utc) for dt in local_noons])
+        local_noons, noon_utc = self._build_local_noon_timestamps(start_d, end_d, tz_local)
 
-        cache_file = self.cache_dir / f"era5_t2m_{location.name.replace(' ', '_').replace(',', '')}_{year:04d}_{month:02d}_noons.nc"
+        safe_name = self._safe_location_name(location)
+        cache_file = self.cache_dir / f"era5_t2m_{safe_name}_{year:04d}_{month:02d}_noons.nc"
         nc_file = self._cds_retrieve_era5_date_series(cache_file, location, noon_utc, half_box_deg=half_box_deg)
         ds = self._open_and_concat_for_var([nc_file], "t2m")
 
-        # Find nearest grid point to location
-        ds_point = ds.sel(
-            latitude=location.lat,
-            longitude=location.lon,
-            method="nearest",
+        ds_point = self._select_location_point(ds, location)
+        return self._build_noon_temperature_dataframe(
+            ds_point["t2m"],
+            noon_utc,
+            local_noons,
+            self.max_nearest_time_delta,
+            float(ds_point["latitude"].values),
+            float(ds_point["longitude"].values),
+            location.name,
         )
-
-        if "valid_time" in ds_point.coords:
-            ds_point = ds_point.rename({"valid_time": "time"})
-        da = ds_point["t2m"]
-
-        selected = da.sel(time=noon_utc.tz_convert(None), method="nearest")  # xarray expects naive UTC-like
-        selected_times = pd.to_datetime(selected["time"].values).tz_localize("UTC")
-        delta = np.abs(selected_times - noon_utc)
-        if (delta > self.max_nearest_time_delta).any():
-            bad = delta[delta > self.max_nearest_time_delta]
-            raise RuntimeError(
-                f"Some noon selections were more than {self.max_nearest_time_delta} away from requested local noon UTC.\n"
-                f"Examples:\n{bad[:5]}"
-            )
-        temp_k = selected.values.astype(np.float64)
-        temp_c = temp_k - 273.15
-        temp_f = temp_c * 9.0 / 5.0 + 32.0
-        df = pd.DataFrame(
-            {
-                "date": [dt.date().isoformat() for dt in local_noons],
-                "local_noon": [dt.isoformat() for dt in local_noons],
-                "utc_time_used": [dt.isoformat() for dt in noon_utc],
-                "temp_C": np.round(temp_c, 3),
-                "temp_F": np.round(temp_f, 3),
-                "grid_lat": float(ds_point["latitude"].values),
-                "grid_lon": float(ds_point["longitude"].values),
-                "place_name": location.name,
-            }
-        )
-        return df
 
     def _month_range(self, start_d: date, end_d: date):
         """
@@ -429,6 +463,64 @@ class CDS:
                 y, m = y + 1, 1
             else:
                 m += 1
+
+    @staticmethod
+    def _empty_series_frame(columns: list[str]) -> pd.DataFrame:
+        """Create an empty DataFrame with the provided column order."""
+        return pd.DataFrame(columns=columns)
+
+    def _collect_period_frames(
+        self,
+        location: Location,
+        periods: list[tuple[int, int | None]],
+        fetch_period_df,
+        notify_progress: bool,
+    ) -> list[pd.DataFrame]:
+        """Collect per-period DataFrames with shared progress notifications."""
+        all_dfs: list[pd.DataFrame] = []
+        total_periods = len(periods)
+
+        for period_idx, period in enumerate(periods, 1):
+            period_year = period[0]
+            if self.progress_manager and notify_progress:
+                self.progress_manager.notify_year_start(location.name, period_year, period_idx, total_periods)
+
+            all_dfs.append(fetch_period_df(period))
+
+            if self.progress_manager and notify_progress:
+                self.progress_manager.notify_year_complete(location.name, period_year, period_idx, total_periods)
+
+        return all_dfs
+
+    def _finalize_series_dataframe(
+        self,
+        all_dfs: list[pd.DataFrame],
+        start_d: date,
+        end_d: date,
+        empty_columns: list[str],
+        *,
+        date_as_string: bool = False,
+        round_column: str | None = None,
+        round_decimals: int = 3,
+    ) -> pd.DataFrame:
+        """Concatenate period frames, filter to date range, and normalize output shape."""
+        if not all_dfs:
+            return self._empty_series_frame(empty_columns)
+
+        df_all = pd.concat(all_dfs, ignore_index=True)
+        df_all["date"] = pd.to_datetime(df_all["date"]).dt.date
+        mask = (df_all["date"] >= start_d) & (df_all["date"] <= end_d)
+        df_filtered = df_all.loc[mask].copy()
+
+        if df_filtered.empty:
+            return self._empty_series_frame(empty_columns)
+
+        if date_as_string:
+            df_filtered["date"] = df_filtered["date"].astype(str)
+        if round_column is not None:
+            df_filtered[round_column] = df_filtered[round_column].round(round_decimals)
+
+        return df_filtered.reset_index(drop=True)
 
     def get_noon_series(
         self,
@@ -452,75 +544,50 @@ class CDS:
         Returns:
             pd.DataFrame: DataFrame with daily local noon temperatures for the date range.
         """
+        empty_columns = [
+            "date",
+            "local_noon",
+            "utc_time_used",
+            "temp_C",
+            "temp_F",
+            "grid_lat",
+            "grid_lon",
+            "place_name",
+        ]
+
         if start_d > end_d:
-            return pd.DataFrame(columns=[
-                "date",
-                "local_noon",
-                "utc_time_used",
-                "temp_C",
-                "temp_F",
-                "grid_lat",
-                "grid_lon",
-                "place_name",
-            ])
+            return self._empty_series_frame(empty_columns)
 
         day_span = (end_d - start_d).days + 1
 
         if day_span <= self.month_fetch_day_span_threshold:
-            all_dfs = []
             month_pairs = list(self._month_range(start_d, end_d))
-            total_months = len(month_pairs)
+            all_dfs = self._collect_period_frames(
+                location,
+                [(year, month) for year, month in month_pairs],
+                lambda period: self.get_month_daily_noon_data(location, period[0], period[1], half_box_deg),
+                notify_progress,
+            )
+            return self._finalize_series_dataframe(
+                all_dfs,
+                start_d,
+                end_d,
+                empty_columns,
+            )
 
-            for month_idx, (year, month) in enumerate(month_pairs, 1):
-                if self.progress_manager and notify_progress:
-                    self.progress_manager.notify_year_start(
-                        location.name,
-                        year,
-                        month_idx,
-                        total_months,
-                    )
-
-                df_month = self.get_month_daily_noon_data(location, year, month, half_box_deg)
-                all_dfs.append(df_month)
-
-                if self.progress_manager and notify_progress:
-                    self.progress_manager.notify_year_complete(
-                        location.name,
-                        year,
-                        month_idx,
-                        total_months,
-                    )
-
-            df_all = pd.concat(all_dfs, ignore_index=True)
-            df_all["date"] = pd.to_datetime(df_all["date"]).dt.date
-            mask = (df_all["date"] >= start_d) & (df_all["date"] <= end_d)
-            return df_all.loc[mask].reset_index(drop=True)
-
-        all_dfs = []
-
-        # Get list of years to process
         years = list(range(start_d.year, end_d.year + 1))
-        total_years = len(years)
-
-        for year_idx, year in enumerate(years, 1):
-            if self.progress_manager and notify_progress:
-                self.progress_manager.notify_year_start(location.name, year, year_idx, total_years)
-
-            # Download entire year at once
-            df_year = self.get_year_daily_noon_data(location, year, half_box_deg)
-            all_dfs.append(df_year)
-
-            if self.progress_manager and notify_progress:
-                self.progress_manager.notify_year_complete(location.name, year, year_idx, total_years)
-
-        df_all = pd.concat(all_dfs, ignore_index=True)
-
-        # Filter to the exact date range requested
-        df_all["date"] = pd.to_datetime(df_all["date"]).dt.date
-        mask = (df_all["date"] >= start_d) & (df_all["date"] <= end_d)
-        df_filtered = df_all.loc[mask].reset_index(drop=True)
-
-        return df_filtered
+        all_dfs = self._collect_period_frames(
+            location,
+            [(year, None) for year in years],
+            lambda period: self.get_year_daily_noon_data(location, period[0], half_box_deg),
+            notify_progress,
+        )
+        return self._finalize_series_dataframe(
+            all_dfs,
+            start_d,
+            end_d,
+            empty_columns,
+        )
 
     def get_daily_precipitation_series(
         self,
@@ -543,71 +610,106 @@ class CDS:
         Returns:
             pd.DataFrame: DataFrame with columns date, precip_mm, grid_lat, grid_lon, place_name.
         """
+        empty_columns = [
+            "date",
+            "precip_mm",
+            "grid_lat",
+            "grid_lon",
+            "place_name",
+        ]
+
         if start_d > end_d:
-            return pd.DataFrame(columns=[
-                "date",
-                "precip_mm",
-                "grid_lat",
-                "grid_lon",
-                "place_name",
-            ])
+            return self._empty_series_frame(empty_columns)
 
+        day_span = (end_d - start_d).days + 1
+
+        if day_span <= self.month_fetch_day_span_threshold:
+            month_pairs = list(self._month_range(start_d, end_d))
+            all_dfs = self._collect_period_frames(
+                location,
+                [(year, month) for year, month in month_pairs],
+                lambda period: self.get_month_daily_precipitation_data(location, period[0], period[1], half_box_deg),
+                notify_progress,
+            )
+        else:
+            years = list(range(start_d.year, end_d.year + 1))
+            all_dfs = self._collect_period_frames(
+                location,
+                [(year, None) for year in years],
+                lambda period: self.get_year_daily_precipitation_data(location, period[0], half_box_deg),
+                notify_progress,
+            )
+
+        return self._finalize_series_dataframe(
+            all_dfs,
+            start_d,
+            end_d,
+            empty_columns,
+            date_as_string=True,
+            round_column="precip_mm",
+            round_decimals=3,
+        )
+
+    def get_month_daily_precipitation_data(
+        self,
+        location: Location,
+        year: int,
+        month: int,
+        half_box_deg: float | None = None,
+    ) -> pd.DataFrame:
+        """Retrieve daily total precipitation (mm) for a single month."""
         tz_local = ZoneInfo(location.tz)
-        safe_name = location.name.replace(' ', '_').replace(',', '')
-        month_pairs = list(self._month_range(start_d, end_d))
-        total_months = len(month_pairs)
-        all_dfs = []
+        safe_name = self._safe_location_name(location)
 
-        for month_idx, (year, month) in enumerate(month_pairs, 1):
-            if self.progress_manager and notify_progress:
-                self.progress_manager.notify_year_start(location.name, year, month_idx, total_months)
+        cache_file = self.cache_dir / f"era5_tp_{safe_name}_{year:04d}_{month:02d}.nc"
+        nc_file = self._cds_retrieve_era5_month(
+            cache_file,
+            year=year,
+            month=month,
+            loc=location,
+            variable="total_precipitation",
+            half_box_deg=half_box_deg,
+        )
+        ds = self._open_and_concat_for_var([nc_file], "tp")
 
-            cache_file = self.cache_dir / f"era5_tp_{safe_name}_{year:04d}_{month:02d}.nc"
-            nc_file = self._cds_retrieve_era5_month(
-                cache_file,
-                year=year,
-                month=month,
-                loc=location,
-                variable="total_precipitation",
-                half_box_deg=half_box_deg,
-            )
-            ds = self._open_and_concat_for_var([nc_file], "tp")
+        ds_point = self._select_location_point(ds, location)
+        return self._build_daily_precipitation_dataframe(
+            ds_point["tp"],
+            tz_local,
+            float(ds_point["latitude"].values),
+            float(ds_point["longitude"].values),
+            location.name,
+        )
 
-            ds_point = ds.sel(
-                latitude=location.lat,
-                longitude=location.lon,
-                method="nearest",
-            )
+    def get_year_daily_precipitation_data(
+        self,
+        location: Location,
+        year: int,
+        half_box_deg: float | None = None,
+    ) -> pd.DataFrame:
+        """Retrieve daily total precipitation (mm) for an entire year in one fetch."""
+        tz_local = ZoneInfo(location.tz)
+        safe_name = self._safe_location_name(location)
 
-            if "valid_time" in ds_point.coords:
-                ds_point = ds_point.rename({"valid_time": "time"})
+        start_dt_utc = datetime(year, 1, 1, 0, 0, tzinfo=timezone.utc)
+        end_dt_utc = datetime(year, 12, 31, 23, 0, tzinfo=timezone.utc)
+        hourly_utc = pd.date_range(start=start_dt_utc, end=end_dt_utc, freq="h")
 
-            da = ds_point["tp"]
-            utc_times = pd.to_datetime(da["time"].values, utc=True)
-            local_dates = utc_times.tz_convert(tz_local).date
-            precip_mm = da.values.astype(np.float64) * 1000.0
+        cache_file = self.cache_dir / f"era5_tp_{safe_name}_{year:04d}_daily.nc"
+        nc_file = self._cds_retrieve_era5_date_series(
+            cache_file,
+            location,
+            hourly_utc,
+            variable="total_precipitation",
+            half_box_deg=half_box_deg,
+        )
+        ds = self._open_and_concat_for_var([nc_file], "tp")
 
-            df_month = pd.DataFrame({
-                "date": local_dates,
-                "precip_mm": precip_mm,
-            })
-            df_month = df_month.groupby("date", as_index=False, sort=True)["precip_mm"].sum()
-            df_month["grid_lat"] = float(ds_point["latitude"].values)
-            df_month["grid_lon"] = float(ds_point["longitude"].values)
-            df_month["place_name"] = location.name
-            all_dfs.append(df_month)
-
-            if self.progress_manager and notify_progress:
-                self.progress_manager.notify_year_complete(location.name, year, month_idx, total_months)
-
-        if not all_dfs:
-            return pd.DataFrame(columns=["date", "precip_mm", "grid_lat", "grid_lon", "place_name"])
-
-        df_all = pd.concat(all_dfs, ignore_index=True)
-        df_all["date"] = pd.to_datetime(df_all["date"]).dt.date
-        mask = (df_all["date"] >= start_d) & (df_all["date"] <= end_d)
-        df_filtered = df_all.loc[mask].copy()
-        if not df_filtered.empty:
-            df_filtered["date"] = df_filtered["date"].astype(str)
-            df_filtered["precip_mm"] = df_filtered["precip_mm"].round(3)
-        return df_filtered.reset_index(drop=True)
+        ds_point = self._select_location_point(ds, location)
+        return self._build_daily_precipitation_dataframe(
+            ds_point["tp"],
+            tz_local,
+            float(ds_point["latitude"].values),
+            float(ds_point["longitude"].values),
+            location.name,
+        )

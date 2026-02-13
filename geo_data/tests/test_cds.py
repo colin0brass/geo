@@ -132,6 +132,46 @@ def test_cds_get_daily_precipitation_series(tmp_path):
     assert df["precip_mm"].iloc[0] == pytest.approx(24.0)
 
 
+def test_cds_get_daily_precipitation_series_long_range_uses_year_fetch(tmp_path):
+    class DummyPrecipCDS(DummyCDS):
+        def __init__(self, cache_dir: Path):
+            super().__init__(cache_dir)
+            self.precip_month_calls = 0
+            self.precip_year_calls = 0
+
+        def get_month_daily_precipitation_data(self, location, year, month, half_box_deg=0.25):
+            self.precip_month_calls += 1
+            return pd.DataFrame({
+                'date': [f'{year}-{month:02d}-01'],
+                'precip_mm': [1.0],
+                'grid_lat': [location.lat],
+                'grid_lon': [location.lon],
+                'place_name': [location.name],
+            })
+
+        def get_year_daily_precipitation_data(self, location, year, half_box_deg=0.25):
+            self.precip_year_calls += 1
+            return pd.DataFrame({
+                'date': [f'{year}-01-01'],
+                'precip_mm': [1.0],
+                'grid_lat': [location.lat],
+                'grid_lon': [location.lon],
+                'place_name': [location.name],
+            })
+
+    cds = DummyPrecipCDS(cache_dir=tmp_path)
+    loc = Location(name="Cambridge, UK", lat=52.21, lon=0.12, tz="UTC")
+
+    _ = cds.get_daily_precipitation_series(
+        loc,
+        pd.Timestamp("2025-01-01").date(),
+        pd.Timestamp("2025-04-15").date(),
+    )
+
+    assert cds.precip_year_calls == 1
+    assert cds.precip_month_calls == 0
+
+
 def test_cds_invalid_location():
     class DummyInvalidCDS(DummyCDS):
         def get_month_daily_noon_data(self, location, year, month, half_box_deg=0.25):
