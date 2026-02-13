@@ -4,7 +4,7 @@
 
 ## Responsibilities
 
-- Polar plot rendering (`plot.py`, `Visualizer`)
+- Polar plot rendering (`visualizer.py`, `Visualizer`)
 - Plot orchestration and batching (`orchestrator.py`)
 - Plot-layer tests (`tests/`)
 
@@ -12,10 +12,11 @@
 
 `geo_plot` is intentionally focused on visualization concerns.
 Data retrieval, caching, and schema migration live in `geo_data`.
+Configuration parsing/validation and shared defaults live in `geo_core`.
 
 ## Key modules
 
-- `plot.py`
+- `visualizer.py`
   - `Visualizer` class for single and multi-subplot polar charts
   - colour modes (`y_value`, `year`) and colormap handling
   - settings-driven rendering via `geo_plot/settings.yaml`
@@ -23,7 +24,7 @@ Data retrieval, caching, and schema migration live in `geo_data`.
   - row-aware settings resolution for plot/layout parameter scaling
 - `orchestrator.py`
   - plot batching and grid coordination
-  - title/filename text templating via config
+  - title/filename text templating via `geo_core.config.CoreConfigService`
   - main vs individual plot flow control
 
 ## Tests

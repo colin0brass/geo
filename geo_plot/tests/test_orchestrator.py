@@ -6,10 +6,8 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 
 from geo_plot.orchestrator import (
-    calculate_grid_dimensions,
-    create_batch_subplot,
-    create_individual_plot,
-    create_main_plots,
+    PlotOrchestrator,
+    PlotRunContext,
     plot_all
 )
 from geo_data.cds_base import Location
@@ -32,20 +30,22 @@ def test_calculate_grid_dimensions_no_custom_grid(tmp_path):
         "      range_text: '{min_temp_c:.1f}°C to {max_temp_c:.1f}°C; ({min_temp_f:.1f}°F to {max_temp_f:.1f}°F)'\n"
     )
 
+    orchestrator = PlotOrchestrator(config=config_file, settings=Path("geo_plot/settings.yaml"))
+
     # Single place: grid 1x1, max capacity 24 (4x6)
-    rows, cols, max_capacity = calculate_grid_dimensions(1, None, config_file)
+    rows, cols, max_capacity = orchestrator.calculate_grid_dimensions(1, None)
     assert rows == 1 and cols == 1 and max_capacity == 24
 
     # 4 places: grid 2x2, max capacity 24
-    rows, cols, max_capacity = calculate_grid_dimensions(4, None, config_file)
+    rows, cols, max_capacity = orchestrator.calculate_grid_dimensions(4, None)
     assert rows == 2 and cols == 2 and max_capacity == 24
 
     # 6 places: grid 2x3, max capacity 24
-    rows, cols, max_capacity = calculate_grid_dimensions(6, None, config_file)
+    rows, cols, max_capacity = orchestrator.calculate_grid_dimensions(6, None)
     assert rows == 2 and cols == 3 and max_capacity == 24
 
     # 10 places: grid 3x4, max capacity 24 (with 4x6 max)
-    rows, cols, max_capacity = calculate_grid_dimensions(10, None, config_file)
+    rows, cols, max_capacity = orchestrator.calculate_grid_dimensions(10, None)
     assert rows == 3 and cols == 4 and max_capacity == 24
 
 
@@ -66,12 +66,14 @@ def test_calculate_grid_dimensions_with_custom_grid(tmp_path):
         "      range_text: '{min_temp_c:.1f}°C to {max_temp_c:.1f}°C; ({min_temp_f:.1f}°F to {max_temp_f:.1f}°F)'\n"
     )
 
+    orchestrator = PlotOrchestrator(config=config_file, settings=Path("geo_plot/settings.yaml"))
+
     # Custom 3x4 grid
-    rows, cols, total = calculate_grid_dimensions(8, (3, 4), config_file)
+    rows, cols, total = orchestrator.calculate_grid_dimensions(8, (3, 4))
     assert rows == 3 and cols == 4 and total == 12
 
     # Custom 2x5 grid
-    rows, cols, total = calculate_grid_dimensions(7, (2, 5), config_file)
+    rows, cols, total = orchestrator.calculate_grid_dimensions(7, (2, 5))
     assert rows == 2 and cols == 5 and total == 10
 
 
@@ -92,8 +94,10 @@ def test_calculate_grid_dimensions_zero_places(tmp_path):
         "      range_text: '{min_temp_c:.1f}°C to {max_temp_c:.1f}°C; ({min_temp_f:.1f}°F to {max_temp_f:.1f}°F)'\n"
     )
 
+    orchestrator = PlotOrchestrator(config=config_file, settings=Path("geo_plot/settings.yaml"))
+
     # With 0 places, grid is 1x1 but max capacity is still 24 (4x6)
-    rows, cols, max_capacity = calculate_grid_dimensions(0, None, config_file)
+    rows, cols, max_capacity = orchestrator.calculate_grid_dimensions(0, None)
     assert rows == 1 and cols == 1 and max_capacity == 24
 
 
@@ -111,24 +115,29 @@ def test_create_batch_subplot_single_batch(mock_visualizer_class, tmp_path):
 
     mock_vis_instance = MagicMock()
     mock_visualizer_class.return_value = mock_vis_instance
+    orchestrator = PlotOrchestrator(
+        config=Path("config.yaml"),
+        settings=Path("geo_plot/settings.yaml"),
+        colour_mode='year',
+        colormap_name='plasma',
+    )
+    run_ctx = PlotRunContext(
+        start_year=2024,
+        end_year=2024,
+        out_dir=tmp_path,
+        t_min_c=5.0,
+        t_max_c=20.0,
+    )
 
     # Execute
-    result = create_batch_subplot(
+    result = orchestrator.create_batch_subplot(
         df_batch=df_batch,
         batch_places=batch_places,
         batch_idx=0,
         num_batches=1,
         batch_rows=1,
         batch_cols=2,
-        start_year=2024,
-        end_year=2024,
-        out_dir=tmp_path,
-        config=Path("config.yaml"),
-        settings=Path("geo_plot/settings.yaml"),
-        t_min_c=5.0,
-        t_max_c=20.0,
-        colour_mode='year',
-        colormap_name='plasma'
+        run_ctx=run_ctx,
     )
 
     # Verify
@@ -154,21 +163,26 @@ def test_create_batch_subplot_multiple_batches(mock_visualizer_class, tmp_path):
 
     mock_vis_instance = MagicMock()
     mock_visualizer_class.return_value = mock_vis_instance
+    orchestrator = PlotOrchestrator(
+        config=Path("config.yaml"),
+        settings=Path("geo_plot/settings.yaml"),
+    )
+    run_ctx = PlotRunContext(
+        start_year=2024,
+        end_year=2024,
+        out_dir=tmp_path,
+        t_min_c=5.0,
+        t_max_c=20.0,
+    )
 
-    result = create_batch_subplot(
+    result = orchestrator.create_batch_subplot(
         df_batch=df_batch,
         batch_places=[loc],
         batch_idx=1,
         num_batches=3,
         batch_rows=2,
         batch_cols=2,
-        start_year=2024,
-        end_year=2024,
-        out_dir=tmp_path,
-        config=Path("config.yaml"),
-        settings=Path("geo_plot/settings.yaml"),
-        t_min_c=5.0,
-        t_max_c=20.0
+        run_ctx=run_ctx,
     )
 
     # Should include batch suffix
@@ -208,22 +222,27 @@ def test_create_batch_subplot_uses_measure_labels_from_config(mock_visualizer_cl
 
     mock_vis_instance = MagicMock()
     mock_visualizer_class.return_value = mock_vis_instance
+    orchestrator = PlotOrchestrator(
+        config=config_file,
+        settings=Path("geo_plot/settings.yaml"),
+        measure='daily_precipitation',
+    )
+    run_ctx = PlotRunContext(
+        start_year=2024,
+        end_year=2024,
+        out_dir=tmp_path,
+        t_min_c=5.0,
+        t_max_c=20.0,
+    )
 
-    create_batch_subplot(
+    orchestrator.create_batch_subplot(
         df_batch=df_batch,
         batch_places=[loc],
         batch_idx=0,
         num_batches=1,
         batch_rows=1,
         batch_cols=1,
-        start_year=2024,
-        end_year=2024,
-        out_dir=tmp_path,
-        config=config_file,
-        settings=Path("geo_plot/settings.yaml"),
-        t_min_c=5.0,
-        t_max_c=20.0,
-        measure='daily_precipitation',
+        run_ctx=run_ctx,
     )
 
     call_kwargs = mock_vis_instance.plot_polar_subplots.call_args[1]
@@ -245,19 +264,24 @@ def test_create_individual_plot(mock_visualizer_class, tmp_path):
 
     mock_vis_instance = MagicMock()
     mock_visualizer_class.return_value = mock_vis_instance
-
-    result = create_individual_plot(
-        loc=loc,
-        df=df,
+    orchestrator = PlotOrchestrator(
+        config=Path("config.yaml"),
+        settings=Path("geo_plot/settings.yaml"),
+        colour_mode='year',
+        colormap_name='plasma',
+    )
+    run_ctx = PlotRunContext(
         start_year=2024,
         end_year=2024,
         out_dir=tmp_path,
-        config=Path("config.yaml"),
-        settings=Path("geo_plot/settings.yaml"),
         t_min_c=5.0,
         t_max_c=35.0,
-        colour_mode='year',
-        colormap_name='plasma'
+    )
+
+    result = orchestrator.create_individual_plot(
+        loc=loc,
+        df=df,
+        run_ctx=run_ctx,
     )
 
     # Verify filename format (spaces and commas removed)
@@ -275,7 +299,7 @@ def test_create_individual_plot(mock_visualizer_class, tmp_path):
     assert call_kwargs['show_plot'] is False
 
 
-@patch('geo_plot.orchestrator.create_batch_subplot')
+@patch.object(PlotOrchestrator, 'create_batch_subplot')
 @patch('geo_plot.orchestrator.calculate_grid_layout')
 def test_create_main_plots_single_batch(mock_grid_layout, mock_create_batch, tmp_path):
     """Test creating main plots with a single batch."""
@@ -304,16 +328,22 @@ def test_create_main_plots_single_batch(mock_grid_layout, mock_create_batch, tmp
         "      range_text: '{min_temp_c:.1f}°C to {max_temp_c:.1f}°C; ({min_temp_f:.1f}°F to {max_temp_f:.1f}°F)'\n"
     )
 
-    result = create_main_plots(
-        df_overall=df,
-        place_list=[loc1, loc2],
+    orchestrator = PlotOrchestrator(
+        config=config_file,
+        settings=Path("geo_plot/settings.yaml"),
+    )
+    run_ctx = PlotRunContext(
         start_year=2024,
         end_year=2024,
         out_dir=tmp_path,
-        config=config_file,
-        settings=Path("geo_plot/settings.yaml"),
         t_min_c=5.0,
         t_max_c=20.0,
+    )
+
+    result = orchestrator.create_main_plots(
+        df_overall=df,
+        place_list=[loc1, loc2],
+        run_ctx=run_ctx,
         grid=None
     )
 
@@ -321,7 +351,7 @@ def test_create_main_plots_single_batch(mock_grid_layout, mock_create_batch, tmp
     mock_create_batch.assert_called_once()
 
 
-@patch('geo_plot.orchestrator.create_batch_subplot')
+@patch.object(PlotOrchestrator, 'create_batch_subplot')
 def test_create_main_plots_multiple_batches(mock_create_batch, tmp_path):
     """Test creating main plots split into multiple batches."""
     mock_create_batch.side_effect = [
@@ -357,16 +387,22 @@ def test_create_main_plots_multiple_batches(mock_create_batch, tmp_path):
     )
 
     # Fixed grid 2x2 = 4 places per batch, so 5 places needs 2 batches
-    result = create_main_plots(
-        df_overall=df,
-        place_list=places,
+    orchestrator = PlotOrchestrator(
+        config=config_file,
+        settings=Path("geo_plot/settings.yaml"),
+    )
+    run_ctx = PlotRunContext(
         start_year=2024,
         end_year=2024,
         out_dir=tmp_path,
-        config=config_file,
-        settings=Path("geo_plot/settings.yaml"),
         t_min_c=10.0,
         t_max_c=18.0,
+    )
+
+    result = orchestrator.create_main_plots(
+        df_overall=df,
+        place_list=places,
+        run_ctx=run_ctx,
         grid=(2, 2)
     )
 
@@ -375,8 +411,8 @@ def test_create_main_plots_multiple_batches(mock_create_batch, tmp_path):
 
 
 @patch('geo_plot.orchestrator.Visualizer')
-@patch('geo_plot.orchestrator.create_individual_plot')
-@patch('geo_plot.orchestrator.create_main_plots')
+@patch.object(PlotOrchestrator, 'create_individual_plot')
+@patch.object(PlotOrchestrator, 'create_main_plots')
 def test_plot_all_no_show(mock_create_main, mock_create_individual, mock_visualizer_class, tmp_path):
     """Test plot_all without showing plots."""
     mock_create_main.return_value = [str(tmp_path / "main.png")]
@@ -424,8 +460,8 @@ def test_plot_all_no_show(mock_create_main, mock_create_individual, mock_visuali
 
 
 @patch('geo_plot.orchestrator.Visualizer')
-@patch('geo_plot.orchestrator.create_individual_plot')
-@patch('geo_plot.orchestrator.create_main_plots')
+@patch.object(PlotOrchestrator, 'create_individual_plot')
+@patch.object(PlotOrchestrator, 'create_main_plots')
 def test_plot_all_show_main(mock_create_main, mock_create_individual, mock_visualizer_class, tmp_path):
     """Test plot_all with showing main plot."""
     main_plot = str(tmp_path / "main.png")
@@ -473,8 +509,8 @@ def test_plot_all_show_main(mock_create_main, mock_create_individual, mock_visua
 
 
 @patch('geo_plot.orchestrator.Visualizer')
-@patch('geo_plot.orchestrator.create_individual_plot')
-@patch('geo_plot.orchestrator.create_main_plots')
+@patch.object(PlotOrchestrator, 'create_individual_plot')
+@patch.object(PlotOrchestrator, 'create_main_plots')
 def test_plot_all_show_all(mock_create_main, mock_create_individual, mock_visualizer_class, tmp_path):
     """Test plot_all with showing all plots."""
     main_plot = str(tmp_path / "main.png")
@@ -522,8 +558,8 @@ def test_plot_all_show_all(mock_create_main, mock_create_individual, mock_visual
 
 
 @patch('geo_plot.orchestrator.Visualizer')
-@patch('geo_plot.orchestrator.create_individual_plot')
-@patch('geo_plot.orchestrator.create_main_plots')
+@patch.object(PlotOrchestrator, 'create_individual_plot')
+@patch.object(PlotOrchestrator, 'create_main_plots')
 def test_plot_all_multiple_locations(mock_create_main, mock_create_individual, mock_visualizer_class, tmp_path):
     """Test plot_all with multiple locations."""
     mock_create_main.return_value = [str(tmp_path / "main.png")]
@@ -571,12 +607,12 @@ def test_plot_all_multiple_locations(mock_create_main, mock_create_individual, m
 
     # Multiple places: should create combined plot only, no individual plots
     mock_create_main.assert_called_once()
-    assert mock_create_main.call_args[1]['colour_mode'] == 'year'
-    assert mock_create_main.call_args[1]['colormap_name'] == 'plasma'
+    assert mock_create_main.call_args[1]['grid'] is None
+    assert 'run_ctx' in mock_create_main.call_args[1]
     mock_create_individual.assert_not_called()
 
 
-@patch('geo_plot.orchestrator.create_individual_plot')
+@patch.object(PlotOrchestrator, 'create_individual_plot')
 def test_plot_all_daily_precipitation_uses_measure_column(mock_create_individual, tmp_path):
     """plot_all should compute ranges from configured y_value_column, not hard-coded temp_C."""
     config_file = tmp_path / "config.yaml"
@@ -627,8 +663,9 @@ def test_plot_all_daily_precipitation_uses_measure_column(mock_create_individual
     )
 
     kwargs = mock_create_individual.call_args[1]
-    assert kwargs['t_min_c'] == 0.0
-    assert kwargs['t_max_c'] == 10.0
+    run_ctx = kwargs['run_ctx']
+    assert run_ctx.t_min_c == 0.0
+    assert run_ctx.t_max_c == 10.0
 # Unit testing these functions would require either:
 # - Significant refactoring to inject dependencies
 # - Complex mock setups that are brittle and hard to maintain

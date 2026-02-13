@@ -1,15 +1,13 @@
 import pytest
 
 from geo_core.config import (
+    CoreConfigService,
     DEFAULT_COLORMAP,
     DEFAULT_RETRIEVAL_SETTINGS,
     DEFAULT_RUNTIME_PATHS,
     extract_places_config,
     find_place_by_name,
     get_plot_text,
-    load_colormap,
-    load_colour_mode,
-    load_grid_settings,
     load_measure_labels_config,
     load_plot_text_config,
     load_retrieval_settings,
@@ -21,26 +19,66 @@ from geo_core.config import (
 def test_load_colour_mode_default(tmp_path):
     config_file = tmp_path / "config.yaml"
     config_file.write_text("grid:\n  max_auto_rows: 4\n")
-    assert load_colour_mode(config_file) == 'y_value'
+    assert CoreConfigService(config_file).load_colour_mode() == 'y_value'
+
+
+def test_core_config_service_delegates_loaders(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "grid:\n"
+        "  max_auto_rows: 3\n"
+        "  max_auto_cols: 5\n"
+        "plotting:\n"
+        "  colour_mode: year\n"
+    )
+
+    service = CoreConfigService(config_file)
+    assert service.load_grid_settings() == (3, 5)
+    assert service.load_colour_mode() == 'year'
+
+
+def test_core_config_service_get_plot_text_uses_bound_config(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "plot_text:\n"
+        "  single_plot_title: '{location} ({start_year}-{end_year})'\n"
+        "  subplot_title: '{measure_label} ({start_year}-{end_year})'\n"
+        "  subplot_title_with_batch: '{measure_label} ({start_year}-{end_year}) - Part {batch}/{total_batches}'\n"
+        "  single_plot_filename: '{location}_{measure_key}_{start_year}_{end_year}.png'\n"
+        "  subplot_filename: '{list_name}_{measure_key}_{start_year}_{end_year}.png'\n"
+        "  subplot_filename_with_batch: '{list_name}_{measure_key}_{start_year}_{end_year}_part{batch}of{total_batches}.png'\n"
+        "  credit: 'credit'\n"
+        "  single_plot_credit: 'single'\n"
+        "  data_source: 'source'\n"
+    )
+
+    service = CoreConfigService(config_file)
+    title = service.get_plot_text(
+        'single_plot_title',
+        location='Austin, TX',
+        start_year=2024,
+        end_year=2024,
+    )
+    assert title == 'Austin, TX (2024-2024)'
 
 
 def test_load_colour_mode_from_config(tmp_path):
     config_file = tmp_path / "config.yaml"
     config_file.write_text("plotting:\n  colour_mode: year\n")
-    assert load_colour_mode(config_file) == 'year'
+    assert CoreConfigService(config_file).load_colour_mode() == 'year'
 
 
 def test_load_colour_mode_cli_override(tmp_path):
     config_file = tmp_path / "config.yaml"
     config_file.write_text("plotting:\n  colour_mode: y_value\n")
-    assert load_colour_mode(config_file, cli_colour_mode='year') == 'year'
+    assert CoreConfigService(config_file).load_colour_mode(cli_colour_mode='year') == 'year'
 
 
 def test_load_colour_mode_invalid_temperature_config_value(tmp_path):
     config_file = tmp_path / "config.yaml"
     config_file.write_text("plotting:\n  colour_mode: temperature\n")
     with pytest.raises(ValueError) as exc_info:
-        load_colour_mode(config_file)
+        CoreConfigService(config_file).load_colour_mode()
     assert "Invalid plotting.colour_mode" in str(exc_info.value)
 
 
@@ -48,14 +86,14 @@ def test_load_colour_mode_invalid_config_value(tmp_path):
     config_file = tmp_path / "config.yaml"
     config_file.write_text("plotting:\n  colour_mode: invalid\n")
     with pytest.raises(ValueError) as exc_info:
-        load_colour_mode(config_file)
+        CoreConfigService(config_file).load_colour_mode()
     assert "Invalid plotting.colour_mode" in str(exc_info.value)
 
 
 def test_load_colormap_default(tmp_path):
     config_file = tmp_path / "config.yaml"
     config_file.write_text("plotting:\n  valid_colormaps: [viridis, plasma]\n")
-    assert load_colormap(config_file) == 'viridis'
+    assert CoreConfigService(config_file).load_colormap() == 'viridis'
 
 
 def test_colormap_default_constant():
@@ -65,42 +103,42 @@ def test_colormap_default_constant():
 def test_load_colormap_from_config(tmp_path):
     config_file = tmp_path / "config.yaml"
     config_file.write_text("plotting:\n  valid_colormaps: [viridis, plasma]\n  colormap: plasma\n")
-    assert load_colormap(config_file) == 'plasma'
+    assert CoreConfigService(config_file).load_colormap() == 'plasma'
 
 
 def test_load_colormap_invalid_value(tmp_path):
     config_file = tmp_path / "config.yaml"
     config_file.write_text("plotting:\n  valid_colormaps: [viridis, plasma]\n  colormap: not_a_cmap\n")
     with pytest.raises(ValueError):
-        load_colormap(config_file)
+        CoreConfigService(config_file).load_colormap()
 
 
 def test_load_colormap_blank_value(tmp_path):
     config_file = tmp_path / "config.yaml"
     config_file.write_text("plotting:\n  valid_colormaps: [viridis, plasma]\n  colormap: \"\"\n")
     with pytest.raises(ValueError):
-        load_colormap(config_file)
+        CoreConfigService(config_file).load_colormap()
 
 
 def test_load_colormap_non_string_value(tmp_path):
     config_file = tmp_path / "config.yaml"
     config_file.write_text("plotting:\n  valid_colormaps: [viridis, plasma]\n  colormap: 123\n")
     with pytest.raises(ValueError):
-        load_colormap(config_file)
+        CoreConfigService(config_file).load_colormap()
 
 
 def test_load_colormap_invalid_valid_colormap_list_raises(tmp_path):
     config_file = tmp_path / "config.yaml"
     config_file.write_text("plotting:\n  valid_colormaps: [not_a_map, also_bad]\n")
     with pytest.raises(ValueError):
-        load_colormap(config_file)
+        CoreConfigService(config_file).load_colormap()
 
 
 def test_load_grid_settings_valid(tmp_path):
     config_file = tmp_path / "config.yaml"
     config_file.write_text("grid:\n  max_auto_rows: 5\n  max_auto_cols: 8\n")
 
-    max_rows, max_cols = load_grid_settings(config_file)
+    max_rows, max_cols = CoreConfigService(config_file).load_grid_settings()
     assert max_rows == 5
     assert max_cols == 8
 
@@ -109,7 +147,7 @@ def test_load_grid_settings_defaults(tmp_path):
     config_file = tmp_path / "config.yaml"
     config_file.write_text("other_section:\n  key: value\n")
 
-    max_rows, max_cols = load_grid_settings(config_file)
+    max_rows, max_cols = CoreConfigService(config_file).load_grid_settings()
     assert max_rows == 4
     assert max_cols == 6
 
@@ -118,7 +156,7 @@ def test_load_grid_settings_partial(tmp_path):
     config_file = tmp_path / "config.yaml"
     config_file.write_text("grid:\n  max_auto_rows: 3\n")
 
-    max_rows, max_cols = load_grid_settings(config_file)
+    max_rows, max_cols = CoreConfigService(config_file).load_grid_settings()
     assert max_rows == 3
     assert max_cols == 6
 
@@ -127,7 +165,7 @@ def test_load_grid_settings_missing_file(tmp_path):
     config_file = tmp_path / "nonexistent.yaml"
 
     with pytest.raises(FileNotFoundError):
-        load_grid_settings(config_file)
+        CoreConfigService(config_file).load_grid_settings()
 
 
 def test_load_grid_settings_invalid_value_raises(tmp_path):
@@ -135,7 +173,7 @@ def test_load_grid_settings_invalid_value_raises(tmp_path):
     config_file.write_text("grid:\n  max_auto_rows: 0\n  max_auto_cols: 6\n")
 
     with pytest.raises(ValueError):
-        load_grid_settings(config_file)
+        CoreConfigService(config_file).load_grid_settings()
 
 
 def test_extract_places_config_basic_payload():

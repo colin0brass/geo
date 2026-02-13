@@ -1,13 +1,13 @@
 
 # geo
 
-**geo** is a Python package for downloading, caching, analyzing, and visualizing ERA5 climate data, with support for daily local noon temperature, daily precipitation, and daily solar radiation energy for specified locations. It supports batch processing, flexible configuration, and publication-quality polar plots.
+**geo** is a Python package for downloading, caching, analyzing, and visualizing ERA5 climate data, with support for daily local-noon temperature, daily precipitation, and daily solar-radiation energy for specified locations. It supports batch processing, flexible configuration, and publication-quality polar plots.
 
 ---
 
 ## Features
 - ✨ Download and cache ERA5 temperature, precipitation, and solar radiation data for any location
-- 📊 Generate publication-quality polar plots of annual temperature cycles
+- 📊 Generate publication-quality polar plots of annual climate cycles
 - 🌍 **55 pre-configured global locations** with 13 thematic place lists
 - 🕐 **Automatic timezone detection** from coordinates (no manual lookup needed)
 - 🎯 Smart grid layout with automatic batching for large datasets
@@ -131,7 +131,7 @@ from datetime import date
 from geo_data.cds_base import Location
 from geo_data.cds_temperature import TemperatureCDS
 from geo_data.data_retrieval import RetrievalCoordinator
-from geo_plot.plot import Visualizer
+from geo_plot.visualizer import Visualizer
 
 # Timezone is auto-detected from coordinates
 loc = Location(name="Austin, TX", lat=30.2672, lon=-97.7431)
@@ -155,7 +155,8 @@ df_all = coordinator.retrieve([loc], 2020, 2020, measure="noon_temperature")
 - `progress.py`: Progress reporting system with callback handlers
 - `logging_config.py`: Centralized logging configuration
 - `geo_core/`: Shared core helpers (config/grid/progress utilities and core tests)
-  - `geo_core/config.py`: Shared config/text/colormap/place-config helpers
+  - `geo_core/config.py`: Shared config service and config/text/place-config helpers
+  - `geo_core/constants.py`: Shared config defaults, required-key sets, and enum constants
   - `geo_core/grid.py`: Shared grid layout logic
   - `geo_core/progress.py`: Shared progress protocol and manager
   - `geo_core/tests/`: Core-layer tests
@@ -173,12 +174,12 @@ df_all = coordinator.retrieve([loc], 2020, 2020, measure="noon_temperature")
   - `geo_data/schema.yaml`: Cache schema registry and migration metadata
   - `geo_data/tests/`: Data-layer tests
 - `geo_plot/`: Plot-layer package (visualization, orchestration, and plot tests)
-  - `geo_plot/plot.py`: Polar plotting (`Visualizer`)
+  - `geo_plot/visualizer.py`: Polar plotting (`Visualizer`)
   - `geo_plot/settings_manager.py`: Plot settings accessor with row-based scaling
   - `geo_plot/settings.yaml`: Plot styling configuration
   - `geo_plot/orchestrator.py`: Plot coordination and batching
   - `geo_plot/tests/`: Plot-layer tests
-- `config.yaml`: Application configuration (places, logging)
+- `config.yaml`: Application configuration (places, logging, grid, runtime paths, retrieval, plotting, and text templates)
 - `era5_cache/`: Cached NetCDF files (auto-created)
 - `data_cache/`: Cached YAML data files (auto-created)
 - `output/`: Generated plots (auto-created)
@@ -420,7 +421,7 @@ plotting:
   colormap: turbo           # must be one of valid_colormaps
 ```
 
-- `y_value`: colours points by plotted y-axis value (current/default behaviour for temperature plots)
+- `y_value`: colours points by plotted y-axis value (current/default behaviour)
 - `year`: colours points by year progression to make long-term trend shifts easier to spot
 - `measure_labels.*.y_min` / `y_max`: optional fixed y-axis bounds per measure (if omitted, bounds are derived from data)
 - `measure_labels.*.y_step`: optional per-measure radial ring interval; if omitted, an internal default is used

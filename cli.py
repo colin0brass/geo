@@ -18,10 +18,8 @@ import yaml
 from geo_data.cds_base import Location
 from config_manager import load_places
 from geo_core.config import (
+    CoreConfigService,
     VALID_COLOUR_MODES,
-    load_colormap as core_load_colormap,
-    load_colour_mode as core_load_colour_mode,
-    load_grid_settings as core_load_grid_settings,
     load_runtime_paths as core_load_runtime_paths,
 )
 from geo_core.formatting import condense_year_ranges
@@ -460,7 +458,7 @@ def load_grid_settings(config_file: Path) -> tuple[int, int]:
         tuple[int, int]: (max_rows, max_cols) from config, or defaults (4, 6).
     """
     try:
-        return core_load_grid_settings(config_file)
+        return CoreConfigService(config_file).load_grid_settings()
     except (ValueError, OSError, yaml.YAMLError) as exc:
         raise CLIError(str(exc)) from exc
 
@@ -485,7 +483,7 @@ def load_colour_mode(config_file: Path, cli_colour_mode: str | None = None) -> s
         CLIError: If plotting.colour_mode is configured with an invalid value.
     """
     try:
-        return core_load_colour_mode(config_file, cli_colour_mode)
+        return CoreConfigService(config_file).load_colour_mode(cli_colour_mode)
     except (ValueError, OSError, yaml.YAMLError) as exc:
         raise CLIError(str(exc)) from exc
 
@@ -501,7 +499,7 @@ def load_colormap(config_file: Path) -> str:
         str: Valid configured colormap name.
     """
     try:
-        return core_load_colormap(config_file)
+        return CoreConfigService(config_file).load_colormap()
     except (ValueError, OSError, yaml.YAMLError) as exc:
         raise CLIError(str(exc)) from exc
 

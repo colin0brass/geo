@@ -15,7 +15,8 @@
 ## Design boundary
 
 `geo_data` is intentionally focused on data and schema concerns.
-Plot rendering and plot orchestration live in `geo_plot` (`geo_plot/plot.py`, `geo_plot/orchestrator.py`).
+Plot rendering and plot orchestration live in `geo_plot` (`geo_plot/visualizer.py`, `geo_plot/orchestrator.py`).
+Configuration parsing/validation and shared defaults live in `geo_core`.
 
 ## Key modules
 
