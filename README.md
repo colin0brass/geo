@@ -16,7 +16,7 @@
 - 💻 User-friendly CLI with short options and argument validation
 - 🐍 Clean Python API for programmatic use
 - 📊 Real-time progress bars with place/year numbering during data downloads
-- ✅ Comprehensive test suite with 134 tests (90% coverage)
+- ✅ Comprehensive automated test suite
 
 ---
 
@@ -64,6 +64,9 @@ python geo_temp.py -L -y 2024 -s
 
 # Use specific list
 python geo_temp.py -L extreme_range -y 2024 -s
+
+# Alias for --all
+python geo_temp.py -L all -y 2024 -s
 ```
 
 **All locations:**
@@ -91,6 +94,9 @@ python geo_temp.py -a -y 2024 --grid 4x4
 ```bash
 # Add a new place to config (looks up coordinates automatically)
 python geo_temp.py --add-place "Seattle, WA"
+
+# Colour points by year to reveal long-term trend shifts
+python geo_temp.py -p "Austin, TX" -y 1990-2025 --colour-mode year
 
 # Dry-run mode (preview without executing)
 python geo_temp.py -a -y 2024 --dry-run
@@ -137,7 +143,7 @@ vis.plot_polar(title="Austin 2020 Noon Temps", save_file="output/austin_2020.png
 - `era5_cache/`: Cached NetCDF files (auto-created)
 - `data_cache/`: Cached YAML data files (auto-created)
 - `output/`: Generated plots (auto-created)
-- `tests/`: Test suite with 134 tests across 8 modules
+- `tests/`: Test suite
 
 ---
 
@@ -185,6 +191,9 @@ python geo_temp.py --add-place "Seattle, WA"
 # List all available places and place lists
 python geo_temp.py -l
 
+# Alias for --all (all configured places)
+python geo_temp.py -L all -y 2024
+
 # List places with their cached years (from data cache)
 python geo_temp.py -ly
 
@@ -200,7 +209,7 @@ python geo_temp.py --help
 | Option | Short | Description |
 |--------|-------|-------------|
 | `--place NAME` | `-p` | Single configured or custom place |
-| `--list [NAME]` | `-L` | Predefined place list. Use `-L` for 'default' list, or `-L NAME` for specific list |
+| `--list [NAME]` | `-L` | Predefined place list. Use `-L` for 'default', `-L NAME` for specific list, or `-L all` as an alias for `--all` |
 | `--all` | `-a` | All configured places |
 
 ### Information Options
@@ -247,14 +256,15 @@ python geo_temp.py -p "MyCity" --lat 40.7 --lon -74.0 -y 2024
 |--------|-------|-------------|---------|
 | `--show` | `-s` | Display plots on screen after generation | off |
 | `--grid COLSxROWS` | `-g` | Manual grid (e.g., 4x3) | auto |
+| `--colour-mode {temperature,year}` / `--color-mode {temperature,year}` | | Point colouring mode (`temperature` or `year`) | from `config.yaml` (`temperature`) |
 
 **Notes:**
 - Individual plots are only created for single places (using `--place`)
 - Place lists (`--all`, `--list`) only create combined subplot images
 - Combined plots use the list name in filenames:
-  - Single place: `Overall_noon_temps_polar_2020_2025.png`
-  - Place list: `default_noon_temps_polar_2020_2025.png`
-  - All places: `all_noon_temps_polar_2020_2025.png`
+  - Single place: `Austin_TX_noon_temperatures_2020_2025.png`
+  - Place list: `default_noon_temperatures_2020_2025.png`
+  - All places: `all_noon_temperatures_2020_2025.png`
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--out-dir DIR` | output | Output directory for plots |
@@ -278,7 +288,7 @@ python geo_temp.py -p "MyCity" --lat 40.7 --lon -74.0 -y 2024
 
 ### config.yaml
 
-Stores application configuration with four main sections:
+Stores application configuration with five main sections:
 
 #### 1. Logging
 ```yaml
@@ -298,7 +308,21 @@ These settings determine the maximum grid size (default 4×6 = 24 places) when t
 
 **Note:** The `--grid` command-line option always overrides these configuration settings.
 
-#### 3. Plot Text (Titles and Filenames)
+#### 3. Plotting
+
+```yaml
+plotting:
+  colour_mode: temperature  # temperature or year
+  colormap: turbo           # any Matplotlib colormap name (e.g., turbo, viridis, plasma)
+```
+
+- `temperature`: colours points by temperature value (current/default behaviour)
+- `year`: colours points by year progression to make long-term trend shifts easier to spot
+- `colormap`: controls the colour palette used by both modes
+
+**Note:** The `--colour-mode` command-line option overrides this setting for a run.
+
+#### 4. Plot Text (Titles and Filenames)
 
 Customize plot titles, filenames, and attribution text using format placeholders:
 
@@ -341,7 +365,7 @@ credit: "Analyse et visualisation par Colin Osborne"
 data_source: "Données de: ERA5 via CDS"
 ```
 
-#### 4. Places
+#### 5. Places
 
 **default_place:** Used when no location is specified
 ```yaml
@@ -421,8 +445,8 @@ See comments in the file for detailed options and row-based configuration patter
 ## Output Files
 
 **Plots** are saved in `output/` directory (configurable with `--out-dir`):
-- Individual plots: `Austin_TX_noon_temps_polar_2020_2025.png`
-- Combined subplot: `Overall_noon_temps_polar_2020_2025.png`
+- Individual plots: `Austin_TX_noon_temperatures_2020_2025.png`
+- Combined subplot: `default_noon_temperatures_2020_2025.png`
 
 **Data cache files (YAML)** are cached in `data_cache/` directory (configurable with `--data-cache-dir`):
 - `Austin_TX_noon_temps.yaml` - Hierarchical format with place metadata and temperatures
@@ -466,18 +490,18 @@ pytest -v                 # Verbose output
 pytest -k "timezone"      # Run tests matching pattern
 ```
 
-**Total: 134 tests** with 90% code coverage across 8 modules:
+Tests are organized across dedicated modules:
 
-| Module | Tests | Coverage |
-|--------|-------|----------|
-| test_cli.py | 52 | Argument parsing, grid layout, validation, year condensing, grid settings |
-| test_orchestrator.py | 12 | Plot coordination, batching, integration |
-| test_config_manager.py | 11 | Config loading, saving, place management |
-| test_visualizer.py | 11 | Polar plots, single/multi-subplot layouts |
-| test_progress.py | 11 | Progress handlers, place/year numbering |
-| test_data.py | 20 | Data I/O, retrieval, YAML caching, CDS summary |
-| test_logging_config.py | 10 | Logging setup and configuration |
-| test_cds.py | 8 | CDS API, Location, timezone auto-detection |
+| Module | Focus |
+|--------|-------|
+| test_cli.py | Argument parsing, grid layout, validation, year condensing, grid settings |
+| test_orchestrator.py | Plot coordination, batching, integration |
+| test_config_manager.py | Config loading, saving, place management |
+| test_visualizer.py | Polar plots, single/multi-subplot layouts |
+| test_progress.py | Progress handlers, place/year numbering |
+| test_data.py | Data I/O, retrieval, YAML caching, CDS summary |
+| test_logging_config.py | Logging setup and configuration |
+| test_cds.py | CDS API, Location, timezone auto-detection |
 
 **Coverage highlights:**
 - ✅ CLI argument parsing and validation (including mutually exclusive groups)
@@ -501,8 +525,8 @@ When places exceed grid capacity, multiple images are automatically generated:
 ```bash
 python geo_temp.py -a -y 2024 --grid 4x4
 # Outputs:
-#   Overall_noon_temps_polar_2024_part1of2.png (16 places)
-#   Overall_noon_temps_polar_2024_part2of2.png (remaining places)
+#   all_noon_temperatures_2024_2024_part1of2.png (16 places)
+#   all_noon_temperatures_2024_2024_part2of2.png (remaining places)
 ```
 
 ### Smart Scaling
@@ -551,7 +575,10 @@ python geo_temp.py -a -y 2024 --dry-run
 **Solution:** Specify timezone explicitly: `--tz "America/New_York"`
 
 **Issue:** Plots show as blank  
-**Solution:** Use `-s` or `-s main` to display on screen, or check `output/` directory for saved files.
+**Solution:** Use `-s`/`--show` to display on screen, or check `output/` directory for saved files.
+
+**Issue:** `Unknown place list 'all'` in older versions  
+**Solution:** Update to latest version where `--list all` works as an alias for `--all`, or use `--all` directly.
 
 **Issue:** Tests failing  
 **Solution:** Ensure Python 3.9+ and all dependencies installed. Run `pytest -v` for details.

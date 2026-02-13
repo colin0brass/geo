@@ -14,6 +14,15 @@ grid:
   max_auto_rows: 4
   max_auto_cols: 6
 
+# Plotting behaviour configuration
+plotting:
+  # Colour mapping mode for plotted points:
+  # - temperature: colour by temperature value
+  # - year: colour by year progression (useful for trend-over-time visual comparison)
+  colour_mode: temperature
+  # Matplotlib colormap name used for both colour modes
+  colormap: turbo
+
 # Plot text configuration
 plot_text:
   # Title patterns (can use {location}, {start_year}, {end_year}, {batch}, {total_batches})

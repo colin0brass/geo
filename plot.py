@@ -23,7 +23,16 @@ class Visualizer:
     MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
     
-    def __init__(self, df: pd.DataFrame, t_min_c: float = None, t_max_c: float = None, out_dir: str = 'output', settings_file: str = 'settings.yaml') -> None:
+    def __init__(
+        self,
+        df: pd.DataFrame,
+        t_min_c: float = None,
+        t_max_c: float = None,
+        out_dir: str = 'output',
+        settings_file: str = 'settings.yaml',
+        colour_mode: str = 'temperature',
+        colormap_name: str = 'turbo'
+    ) -> None:
         """
         Initialize the Visualizer with data and plotting settings.
         
@@ -33,6 +42,8 @@ class Visualizer:
             t_max_c: Maximum temperature for color normalization (optional).
             out_dir: Output directory for plots.
             settings_file: Path to YAML settings file.
+            colour_mode: Colour mapping mode ('temperature' or 'year').
+            colormap_name: Matplotlib colormap name for point colouring.
         Raises:
             ValueError: If the DataFrame is empty or None.
         """
@@ -54,13 +65,27 @@ class Visualizer:
 
         self.df = self.add_data_fields(df)
 
+        valid_modes = {"temperature", "year"}
+        if colour_mode not in valid_modes:
+            raise ValueError(f"Invalid colour_mode '{colour_mode}'. Expected one of {sorted(valid_modes)}")
+        self.colour_mode = colour_mode
+
         self.first_year = pd.to_datetime(self.df['date'].min()).year
         self.last_year = pd.to_datetime(self.df['date'].max()).year
 
         self.tmin_c = t_min_c if t_min_c is not None else np.min(self.df["temp_C"])
         self.tmax_c = t_max_c if t_max_c is not None else np.max(self.df["temp_C"])
+        try:
+            self.cmap = plt.get_cmap(colormap_name)
+        except Exception as e:
+            raise ValueError(f"Unknown colormap '{colormap_name}': {e}") from e
+        self.colormap_name = colormap_name
         self.norm = Normalize(vmin=self.tmin_c, vmax=self.tmax_c)
-        self.cmap = cm.turbo
+        if self.first_year == self.last_year:
+            self.year_norm = Normalize(vmin=self.first_year - 0.5, vmax=self.first_year + 0.5)
+        else:
+            self.year_norm = Normalize(vmin=self.first_year, vmax=self.last_year)
+        self.year_cmap = self.cmap
 
     @classmethod
     def load_settings_from_yaml(cls, yaml_path: str) -> dict:
@@ -151,6 +176,27 @@ class Visualizer:
         height = mgr.get('colourbar.height')
         fontsize = mgr.get('colourbar.fontsize')
 
+        if self.colour_mode == 'year':
+            left_year = (left_c + left_f) / 2.0
+            cbar_ax_year = fig.add_axes([left_year, bottom, width, height], frameon=False)
+            cbar_ax_year.set_yticks([]), cbar_ax_year.set_xticks([])
+            cbar_year = plt.colorbar(
+                cm.ScalarMappable(norm=self.year_norm, cmap=self.year_cmap),
+                ax=cbar_ax_year,
+                orientation='vertical'
+            )
+            cbar_year.ax.set_title('Year', fontsize=fontsize)
+            cbar_year.ax.tick_params(labelsize=fontsize-2)
+            if self.first_year != self.last_year:
+                year_span = self.last_year - self.first_year
+                if year_span <= 10:
+                    cbar_year.set_ticks(np.arange(self.first_year, self.last_year + 1, 1))
+                elif year_span <= 30:
+                    cbar_year.set_ticks(np.arange(self.first_year, self.last_year + 1, 5))
+            else:
+                cbar_year.set_ticks([self.first_year])
+            return
+
         # Celsius colorbar
         cbar_ax_c = fig.add_axes([left_c, bottom, width, height], frameon=False)
         cbar_ax_c.set_yticks([]), cbar_ax_c.set_xticks([])
@@ -166,6 +212,23 @@ class Visualizer:
         cbar_f = plt.colorbar(cm.ScalarMappable(norm=norm_f, cmap=self.cmap), ax=cbar_ax_f, orientation='vertical')
         cbar_f.ax.set_title(r'$^\circ\mathrm{F}$', fontsize=fontsize)
         cbar_f.ax.tick_params(labelsize=fontsize-2)
+
+    def get_point_colours(self, df: pd.DataFrame):
+        """
+        Build RGBA point colours based on the active colour mode.
+
+        Args:
+            df: DataFrame with plotting data.
+
+        Returns:
+            Array-like RGBA colours for scatter plotting.
+        """
+        if self.colour_mode == 'year':
+            years = pd.to_datetime(df['date']).dt.year.astype(float)
+            return self.year_cmap(self.year_norm(years))
+
+        c = self.norm(df["temp_C"])
+        return self.cmap(c)
 
     def draw_temp_circles(self, ax: plt.Axes, num_rows: int = 1) -> None:
         """
@@ -198,12 +261,12 @@ class Visualizer:
             num_rows: Number of rows in subplot grid (for font scaling).
         """
         settings = SettingsManager(self.all_settings[self.layout], num_rows)
-        c = self.norm(df["temp_C"])
+        point_colours = self.get_point_colours(df)
         
         marker_size = settings.get('figure.marker_size')
         xtick_fontsize = settings.get('figure.xtick_fontsize')
         
-        ax.scatter(df['angle'], df["temp_C"], c=self.cmap(c), s=marker_size)
+        ax.scatter(df['angle'], df["temp_C"], c=point_colours, s=marker_size)
         self.draw_temp_circles(ax, num_rows)
         ax.set_theta_offset(np.pi/2)
         ax.set_theta_direction(-1)

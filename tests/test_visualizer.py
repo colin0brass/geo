@@ -108,3 +108,31 @@ def test_plot_polar_with_range(tmp_path):
     assert output_file.exists()
     # Check temp range was calculated
     assert vis.tmin_c < vis.tmax_c
+
+
+def test_plot_polar_year_colour_mode(tmp_path):
+    """Test plot_polar with year-based colouring."""
+    df = pd.DataFrame({
+        'date': pd.date_range('2020-01-01', periods=730),
+        'temp_C': [15 + 10 * (i % 365) / 365 for i in range(730)]
+    })
+
+    vis = Visualizer(df, colour_mode='year')
+    output_file = tmp_path / "year_colour_mode.png"
+
+    vis.plot_polar(title="Year Colour Test", save_file=str(output_file), show_plot=False)
+
+    assert output_file.exists()
+    assert vis.colour_mode == 'year'
+
+
+def test_visualizer_invalid_colour_mode():
+    df = pd.DataFrame({'date': ['2025-01-01'], 'temp_C': [10]})
+    with pytest.raises(ValueError):
+        Visualizer(df, colour_mode='invalid')
+
+
+def test_visualizer_invalid_colormap_name():
+    df = pd.DataFrame({'date': ['2025-01-01'], 'temp_C': [10]})
+    with pytest.raises(ValueError):
+        Visualizer(df, colormap_name='not_a_cmap')

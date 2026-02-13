@@ -5,7 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 from unittest.mock import patch
-from cli import parse_args, parse_years, get_place_list, calculate_grid_layout, parse_grid, load_places, load_grid_settings
+from cli import parse_args, parse_years, get_place_list, calculate_grid_layout, parse_grid, load_places, load_grid_settings, load_colour_mode, load_colormap, CLIError
 from cds import Location
 
 
@@ -29,13 +29,19 @@ def test_parse_years_range():
 
 
 def test_parse_years_invalid_format():
-    with pytest.raises(SystemExit):
+    with pytest.raises(CLIError) as exc_info:
         parse_years("not-a-year")
+    assert "Invalid --years format" in str(exc_info.value)
 
 
 def test_parse_years_invalid_range():
-    with pytest.raises(SystemExit):
+    with pytest.raises(CLIError):
         parse_years("2020-2024-2025")
+
+
+def test_parse_years_reversed_range():
+    with pytest.raises(CLIError):
+        parse_years("2025-2020")
 
 
 # Test parse_args function
@@ -61,6 +67,13 @@ def test_parse_args_with_place_list():
         args = parse_args()
         assert args.place_list == 'preferred'
         assert args.place is None
+        assert args.all is False
+
+
+def test_parse_args_with_list_all_alias():
+    with patch('sys.argv', ['geo_temp.py', '--list', 'all']):
+        args = parse_args()
+        assert args.place_list == 'all'
         assert args.all is False
 
 
@@ -91,6 +104,79 @@ def test_parse_args_with_show():
     with patch('sys.argv', ['geo_temp.py', '--show']):
         args = parse_args()
         assert args.show is True
+
+
+def test_parse_args_with_colour_mode():
+    with patch('sys.argv', ['geo_temp.py', '--colour-mode', 'year']):
+        args = parse_args()
+        assert args.colour_mode == 'year'
+
+
+def test_parse_args_with_color_mode_alias():
+    with patch('sys.argv', ['geo_temp.py', '--color-mode', 'year']):
+        args = parse_args()
+        assert args.colour_mode == 'year'
+
+
+def test_parse_args_invalid_argument_hint_for_start_year():
+    with patch('sys.argv', ['geo_temp.py', '--start-year', '2025']):
+        with pytest.raises(CLIError) as exc_info:
+            parse_args()
+    assert "--years" in str(exc_info.value)
+
+
+def test_load_colour_mode_default(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("grid:\n  max_auto_rows: 4\n")
+    assert load_colour_mode(config_file) == 'temperature'
+
+
+def test_load_colour_mode_from_config(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("plotting:\n  colour_mode: year\n")
+    assert load_colour_mode(config_file) == 'year'
+
+
+def test_load_colour_mode_cli_override(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("plotting:\n  colour_mode: temperature\n")
+    assert load_colour_mode(config_file, cli_colour_mode='year') == 'year'
+
+
+def test_load_colour_mode_invalid_config_value(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("plotting:\n  colour_mode: invalid\n")
+    assert load_colour_mode(config_file) == 'temperature'
+
+
+def test_load_colormap_default(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("plotting:\n  colour_mode: temperature\n")
+    assert load_colormap(config_file) == 'turbo'
+
+
+def test_load_colormap_from_config(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("plotting:\n  colormap: plasma\n")
+    assert load_colormap(config_file) == 'plasma'
+
+
+def test_load_colormap_invalid_value(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("plotting:\n  colormap: not_a_cmap\n")
+    assert load_colormap(config_file) == 'turbo'
+
+
+def test_load_colormap_blank_value(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("plotting:\n  colormap: \"\"\n")
+    assert load_colormap(config_file) == 'turbo'
+
+
+def test_load_colormap_non_string_value(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("plotting:\n  colormap: 123\n")
+    assert load_colormap(config_file) == 'turbo'
 
 
 # Test get_place_list function
@@ -133,6 +219,28 @@ def test_get_place_list_all():
         lon = None
         tz = None
     
+    result, list_name = get_place_list(Args(), places, default_place, place_lists)
+    assert len(result) == 2
+    assert set(p.name for p in result) == {'Austin, TX', 'Cambridge, MA'}
+    assert list_name == 'all'
+
+
+def test_get_place_list_all_alias_from_list():
+    places = {
+        'Austin, TX': Location(name='Austin, TX', lat=30.27, lon=-97.74, tz='America/Chicago'),
+        'Cambridge, MA': Location(name='Cambridge, MA', lat=42.37, lon=-71.11, tz='America/New_York'),
+    }
+    default_place = 'Austin, TX'
+    place_lists = {'default': ['Austin, TX']}
+
+    class Args:
+        all = False
+        place_list = 'all'
+        place = None
+        lat = None
+        lon = None
+        tz = None
+
     result, list_name = get_place_list(Args(), places, default_place, place_lists)
     assert len(result) == 2
     assert set(p.name for p in result) == {'Austin, TX', 'Cambridge, MA'}
@@ -221,8 +329,9 @@ def test_get_place_list_invalid_place_list():
         lon = None
         tz = None
     
-    with pytest.raises(SystemExit):
+    with pytest.raises(CLIError) as exc_info:
         get_place_list(Args(), places, default_place, place_lists)
+    assert "Unknown place list" in str(exc_info.value)
 
 
 def test_get_place_list_invalid_place_no_coords():
@@ -238,8 +347,9 @@ def test_get_place_list_invalid_place_no_coords():
         lon = None
         tz = None
     
-    with pytest.raises(SystemExit):
+    with pytest.raises(CLIError) as exc_info:
         get_place_list(Args(), places, default_place, place_lists)
+    assert "Unknown place" in str(exc_info.value)
 
 
 # Test calculate_grid_layout function
@@ -320,27 +430,27 @@ def test_parse_grid_none():
 
 
 def test_parse_grid_invalid_no_x():
-    with pytest.raises(SystemExit):
+    with pytest.raises(CLIError):
         parse_grid("43")
 
 
 def test_parse_grid_invalid_too_many_parts():
-    with pytest.raises(SystemExit):
+    with pytest.raises(CLIError):
         parse_grid("4x3x2")
 
 
 def test_parse_grid_invalid_non_numeric():
-    with pytest.raises(SystemExit):
+    with pytest.raises(CLIError):
         parse_grid("axb")
 
 
 def test_parse_grid_invalid_zero():
-    with pytest.raises(SystemExit):
+    with pytest.raises(CLIError):
         parse_grid("0x3")
 
 
 def test_parse_grid_invalid_negative():
-    with pytest.raises(SystemExit):
+    with pytest.raises(CLIError):
         parse_grid("4x-3")
 
 

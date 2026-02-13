@@ -94,12 +94,16 @@ def test_create_batch_subplot_single_batch(mock_visualizer_class, tmp_path):
         config=Path("config.yaml"),
         settings=Path("settings.yaml"),
         t_min_c=5.0,
-        t_max_c=20.0
+        t_max_c=20.0,
+        colour_mode='year',
+        colormap_name='plasma'
     )
     
     # Verify
-    assert "Overall_noon_temps_polar_2024_2024.png" in result
+    assert "Overall_noon_temperatures_2024_2024.png" in result
     mock_visualizer_class.assert_called_once()
+    assert mock_visualizer_class.call_args[1]['colour_mode'] == 'year'
+    assert mock_visualizer_class.call_args[1]['colormap_name'] == 'plasma'
     mock_vis_instance.plot_polar_subplots.assert_called_once()
     call_kwargs = mock_vis_instance.plot_polar_subplots.call_args[1]
     assert "Mid-Day Temperatures (2024-2024)" in call_kwargs['title']
@@ -160,12 +164,16 @@ def test_create_individual_plot(mock_visualizer_class, tmp_path):
         config=Path("config.yaml"),
         settings=Path("settings.yaml"),
         t_min_c=5.0,
-        t_max_c=35.0
+        t_max_c=35.0,
+        colour_mode='year',
+        colormap_name='plasma'
     )
     
     # Verify filename format (spaces and commas removed)
-    assert "Austin_TX_noon_temps_polar_2024_2024.png" in result
+    assert "Austin_TX_noon_temperatures_2024_2024.png" in result
     mock_visualizer_class.assert_called_once()
+    assert mock_visualizer_class.call_args[1]['colour_mode'] == 'year'
+    assert mock_visualizer_class.call_args[1]['colormap_name'] == 'plasma'
     mock_vis_instance.plot_polar.assert_called_once()
     
     call_kwargs = mock_vis_instance.plot_polar.call_args[1]
@@ -397,11 +405,15 @@ def test_plot_all_multiple_locations(mock_create_main, mock_create_individual, m
         settings=Path("settings.yaml"),
         show_main=False,
         show_individual=False,
-        grid=None
+        grid=None,
+        colour_mode='year',
+        colormap_name='plasma'
     )
     
     # Multiple places: should create combined plot only, no individual plots
     mock_create_main.assert_called_once()
+    assert mock_create_main.call_args[1]['colour_mode'] == 'year'
+    assert mock_create_main.call_args[1]['colormap_name'] == 'plasma'
     mock_create_individual.assert_not_called()
 # Unit testing these functions would require either:
 # - Significant refactoring to inject dependencies

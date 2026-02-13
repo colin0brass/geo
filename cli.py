@@ -7,6 +7,7 @@ Handles command-line argument parsing and grid layout calculations.
 from __future__ import annotations
 
 import argparse
+import difflib
 import logging
 import math
 import sys
@@ -14,6 +15,7 @@ from datetime import datetime
 from pathlib import Path
 
 import yaml
+from matplotlib import colormaps as mpl_colormaps
 
 from cds import Location
 from config_manager import load_places
@@ -21,6 +23,44 @@ from config_manager import load_places
 logger = logging.getLogger("geo_temp")
 
 __version__ = "1.0.0"
+VALID_COLOUR_MODES = ("temperature", "year")
+DEFAULT_COLORMAP = "turbo"
+
+
+class CLIError(ValueError):
+    """User-facing CLI validation error with optional hint text."""
+
+    def __init__(self, message: str, hint: str | None = None):
+        self.message = message
+        self.hint = hint
+        super().__init__(self.__str__())
+
+    def __str__(self) -> str:
+        if self.hint:
+            return f"{self.message}\nHint: {self.hint}"
+        return self.message
+
+
+class FriendlyArgumentParser(argparse.ArgumentParser):
+    """ArgumentParser that raises CLIError instead of exiting immediately."""
+
+    def error(self, message: str) -> None:
+        hint = None
+        if "unrecognized arguments" in message:
+            if "--start-year" in message or "--end-year" in message:
+                hint = "Use --years YYYY or --years YYYY-YYYY (for example: --years 2020-2025)."
+            elif "--colour_mode" in message:
+                hint = "Use --colour-mode (or --color-mode), not --colour_mode."
+        usage = self.format_usage().strip()
+        raise CLIError(f"Argument error: {message}\n{usage}", hint=hint)
+
+
+def _suggest_values(value: str, options: list[str], max_suggestions: int = 5) -> str | None:
+    """Return a short suggestion string from close matches."""
+    matches = difflib.get_close_matches(value, options, n=max_suggestions, cutoff=0.5)
+    if not matches:
+        return None
+    return ", ".join(matches)
 
 
 def parse_args() -> argparse.Namespace:
@@ -30,7 +70,7 @@ def parse_args() -> argparse.Namespace:
     Returns:
         argparse.Namespace: Parsed command-line arguments.
     """
-    parser = argparse.ArgumentParser(
+    parser = FriendlyArgumentParser(
         description="Generate geographic temperature plots from ERA5 data.",
         epilog="""
 Examples:
@@ -38,6 +78,7 @@ Examples:
   %(prog)s --place "Austin, TX" --years 2020-2025  # Specific place
   %(prog)s --lat 30.27 --lon -97.74 --years 2024  # Custom coordinates
   %(prog)s --all --years 2024                     # All configured places
+  %(prog)s --list all --years 2024                # Alias for --all
   %(prog)s --list-places                          # List available places
         """,
         formatter_class=argparse.RawDescriptionHelpFormatter
@@ -61,7 +102,7 @@ Examples:
         nargs='?',
         const='default',
         default=None,
-        help="Name of a predefined place list (e.g., 'default', 'us_cities'). If no list name provided, uses 'default' list."
+        help="Name of a predefined place list (e.g., 'default', 'us_cities'). If no list name is provided, uses 'default'. Use 'all' as an alias for --all."
     )
     location_exclusive.add_argument(
         "-a", "--all",
@@ -150,6 +191,13 @@ Examples:
         default=None,
         help="Grid dimensions as COLSxROWS (e.g., 4x3 for 4 columns × 3 rows)"
     )
+    display_group.add_argument(
+        "--colour-mode", "--color-mode",
+        dest="colour_mode",
+        choices=VALID_COLOUR_MODES,
+        default=None,
+        help="Colour mapping mode: 'temperature' (default) or 'year' for trend-over-time colouring"
+    )
     
     # Advanced options
     advanced_group = parser.add_argument_group("advanced options")
@@ -183,27 +231,37 @@ def parse_years(years_str: str) -> tuple[int, int]:
         tuple[int, int]: (start_year, end_year)
         
     Raises:
-        SystemExit: If the year format is invalid.
+        CLIError: If the year format is invalid.
     """
     if not years_str:
-        logger.error("--years argument is required (e.g. --years 2025 or --years 2020-2025)")
-        sys.exit(1)
+        raise CLIError(
+            "--years argument is required.",
+            "Use --years 2025 or --years 2020-2025."
+        )
     if '-' in years_str:
         try:
+            if years_str.count('-') != 1:
+                raise ValueError()
             start, end = years_str.split('-')
             start_year = int(start)
             end_year = int(end)
-        except Exception:
-            logger.error(f"Invalid --years format: {years_str}. Use YYYY or YYYY-YYYY.")
-            sys.exit(1)
+            if start_year > end_year:
+                raise ValueError()
+        except ValueError:
+            raise CLIError(
+                f"Invalid --years format: '{years_str}'.",
+                "Use YYYY or YYYY-YYYY with start <= end (for example: --years 2020-2025)."
+            )
     else:
         try:
             year = int(years_str)
             start_year = year
             end_year = year
         except Exception:
-            logger.error(f"Invalid --years format: {years_str}. Use YYYY or YYYY-YYYY.")
-            sys.exit(1)
+            raise CLIError(
+                f"Invalid --years format: '{years_str}'.",
+                "Use YYYY or YYYY-YYYY (for example: --years 2025 or --years 2020-2025)."
+            )
     return start_year, end_year
 
 
@@ -221,17 +279,28 @@ def get_place_list(args: argparse.Namespace, places: dict[str, Location], defaul
         tuple: (List of Location objects to process, list name or None for single places)
         
     Raises:
-        SystemExit: If invalid place or place list is specified.
+        CLIError: If invalid place or place list is specified.
     """
     # --all takes precedence
     if args.all:
+        return list(places.values()), "all"
+
+    # --list all acts as an alias for --all
+    if args.place_list == "all":
         return list(places.values()), "all"
     
     # --place-list uses a named list
     if args.place_list:
         if args.place_list not in place_lists:
-            logger.error(f"Unknown place list '{args.place_list}'. Available lists: {list(place_lists.keys())}")
-            sys.exit(1)
+            available_lists = sorted(place_lists.keys())
+            suggestions = _suggest_values(args.place_list, available_lists)
+            hint = "Use --list-places to see all available place lists."
+            if suggestions:
+                hint = f"Did you mean one of: {suggestions}?"
+            raise CLIError(
+                f"Unknown place list '{args.place_list}'.",
+                hint
+            )
         place_names = place_lists[args.place_list]
         return [places[name] for name in place_names if name in places], args.place_list
     
@@ -242,8 +311,16 @@ def get_place_list(args: argparse.Namespace, places: dict[str, Location], defaul
             return [places[args.place]], None
         # Custom place - require coordinates
         if args.lat is None or args.lon is None:
-            logger.error(f"Unknown place '{args.place}'. Please provide --lat and --lon for custom locations.")
-            sys.exit(1)
+            available_places = sorted(places.keys())
+            suggestions = _suggest_values(args.place, available_places)
+            if suggestions:
+                hint = f"Did you mean: {suggestions}?"
+            else:
+                hint = "Provide --lat and --lon for a custom place, or run --list-places to see configured names."
+            raise CLIError(
+                f"Unknown place '{args.place}'.",
+                hint
+            )
         # Create custom location (tz will auto-detect if not provided)
         if args.tz:
             return [Location(name=args.place, lat=args.lat, lon=args.lon, tz=args.tz)], None
@@ -254,8 +331,10 @@ def get_place_list(args: argparse.Namespace, places: dict[str, Location], defaul
     if default_place in places:
         return [places[default_place]], None
     else:
-        logger.error(f"Default place '{default_place}' not found in config.yaml")
-        sys.exit(1)
+        raise CLIError(
+            f"Default place '{default_place}' not found in config.yaml.",
+            "Set places.default_place to a valid configured place name."
+        )
 
 
 def parse_grid(grid_str: str | None) -> tuple[int, int] | None:
@@ -269,14 +348,16 @@ def parse_grid(grid_str: str | None) -> tuple[int, int] | None:
         tuple[int, int] | None: (rows, cols) or None if grid_str is None.
         
     Raises:
-        SystemExit: If the grid format is invalid.
+        CLIError: If the grid format is invalid.
     """
     if grid_str is None:
         return None
         
     if 'x' not in grid_str.lower():
-        logger.error(f"Invalid grid format '{grid_str}'. Use COLSxROWS (e.g., '4x3' for 4 columns by 3 rows)")
-        sys.exit(1)
+        raise CLIError(
+            f"Invalid grid format '{grid_str}'.",
+            "Use COLSxROWS (e.g., --grid 4x3 for 4 columns by 3 rows)."
+        )
         
     try:
         parts = grid_str.lower().split('x')
@@ -288,8 +369,10 @@ def parse_grid(grid_str: str | None) -> tuple[int, int] | None:
             raise ValueError()
         return (rows, cols)
     except ValueError:
-        logger.error(f"Invalid grid format '{grid_str}'. Use COLSxROWS (e.g., '4x3' for 4 columns by 3 rows)")
-        sys.exit(1)
+        raise CLIError(
+            f"Invalid grid format '{grid_str}'.",
+            "Use COLSxROWS with positive integers (e.g., --grid 4x3)."
+        )
 
 
 def load_grid_settings(config_file: Path) -> tuple[int, int]:
@@ -312,6 +395,80 @@ def load_grid_settings(config_file: Path) -> tuple[int, int]:
     except Exception as e:
         logger.warning(f"Failed to load grid settings from {config_file}: {e}. Using defaults (4x6).")
         return (4, 6)
+
+
+def load_colour_mode(config_file: Path, cli_colour_mode: str | None = None) -> str:
+    """
+    Resolve the colour mode from CLI override or config YAML.
+
+    Priority:
+    1. CLI --colour-mode value (if provided)
+    2. config.yaml plotting.colour_mode
+    3. "temperature" default
+
+    Args:
+        config_file: Path to config YAML file.
+        cli_colour_mode: Optional CLI override value.
+
+    Returns:
+        str: Resolved colour mode ('temperature' or 'year').
+    """
+    if cli_colour_mode is not None:
+        return cli_colour_mode
+
+    default_mode = "temperature"
+    try:
+        with open(config_file, 'r') as f:
+            config = yaml.safe_load(f) or {}
+
+        config_mode = config.get('plotting', {}).get('colour_mode', default_mode)
+        if config_mode not in VALID_COLOUR_MODES:
+            logger.warning(
+                f"Invalid plotting.colour_mode '{config_mode}' in {config_file}. "
+                f"Using default '{default_mode}'."
+            )
+            return default_mode
+
+        return config_mode
+    except Exception as e:
+        logger.warning(f"Failed to load colour mode from {config_file}: {e}. Using default '{default_mode}'.")
+        return default_mode
+
+
+def load_colormap(config_file: Path) -> str:
+    """
+    Resolve plotting colormap from config YAML.
+
+    Args:
+        config_file: Path to config YAML file.
+
+    Returns:
+        str: Valid matplotlib colormap name.
+    """
+    try:
+        with open(config_file, 'r') as f:
+            config = yaml.safe_load(f) or {}
+
+        colormap = config.get('plotting', {}).get('colormap', DEFAULT_COLORMAP)
+        if not isinstance(colormap, str) or not colormap.strip():
+            logger.warning(
+                f"Invalid plotting.colormap '{colormap}' in {config_file}. "
+                f"Using default '{DEFAULT_COLORMAP}'."
+            )
+            return DEFAULT_COLORMAP
+
+        colormap = colormap.strip()
+        if colormap not in mpl_colormaps:
+            logger.warning(
+                f"Unknown plotting.colormap '{colormap}' in {config_file}. "
+                f"Using default '{DEFAULT_COLORMAP}'."
+            )
+            return DEFAULT_COLORMAP
+
+        return colormap
+    except Exception as e:
+        logger.warning(f"Failed to load colormap from {config_file}: {e}. Using default '{DEFAULT_COLORMAP}'.")
+        return DEFAULT_COLORMAP
 
 
 def calculate_grid_layout(num_places: int, max_rows: int = 4, max_cols: int = 6) -> tuple[int, int]:
