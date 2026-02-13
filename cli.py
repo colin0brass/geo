@@ -22,7 +22,7 @@ from config_manager import load_places
 logger = logging.getLogger("geo")
 
 __version__ = "1.0.0"
-VALID_COLOUR_MODES = ("temperature", "year")
+VALID_COLOUR_MODES = ("y_value", "year")
 VALID_MEASURES = ("noon_temperature", "daily_precipitation")
 DEFAULT_COLOUR_MODE = VALID_COLOUR_MODES[0]
 DEFAULT_MEASURE = VALID_MEASURES[0]
@@ -204,7 +204,7 @@ Examples:
         dest="colour_mode",
         choices=VALID_COLOUR_MODES,
         default=None,
-        help="Colour mapping mode: 'temperature' (default) or 'year' for trend-over-time colouring"
+        help="Colour mapping mode: 'y_value' (default) or 'year' for trend-over-time colouring"
     )
 
     # Advanced options
@@ -412,14 +412,17 @@ def load_colour_mode(config_file: Path, cli_colour_mode: str | None = None) -> s
     Priority:
     1. CLI --colour-mode value (if provided)
     2. config.yaml plotting.colour_mode
-    3. "temperature" default
+    3. "y_value" default
 
     Args:
         config_file: Path to config YAML file.
         cli_colour_mode: Optional CLI override value.
 
     Returns:
-        str: Resolved colour mode ('temperature' or 'year').
+        str: Resolved colour mode ('y_value' or 'year').
+
+    Raises:
+        CLIError: If plotting.colour_mode is configured with an invalid value.
     """
     if cli_colour_mode is not None:
         return cli_colour_mode
@@ -431,13 +434,14 @@ def load_colour_mode(config_file: Path, cli_colour_mode: str | None = None) -> s
 
         config_mode = config.get('plotting', {}).get('colour_mode', default_mode)
         if config_mode not in VALID_COLOUR_MODES:
-            logger.warning(
-                f"Invalid plotting.colour_mode '{config_mode}' in {config_file}. "
-                f"Using default '{default_mode}'."
+            raise CLIError(
+                f"Invalid plotting.colour_mode '{config_mode}' in {config_file}.",
+                f"Use one of: {', '.join(VALID_COLOUR_MODES)}."
             )
-            return default_mode
 
         return config_mode
+    except CLIError:
+        raise
     except Exception as e:
         logger.warning(f"Failed to load colour mode from {config_file}: {e}. Using default '{default_mode}'.")
         return default_mode

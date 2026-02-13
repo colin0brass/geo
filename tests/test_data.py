@@ -120,6 +120,61 @@ def test_retrieve_and_concat_data_single_location(tmp_path, monkeypatch):
     mock_cds.get_noon_series.assert_called_once()
 
 
+def test_retrieve_and_concat_data_precipitation_measure(tmp_path, monkeypatch):
+    """Test retrieving data with a non-default measure routes to correct CDS method."""
+    loc = Location(name="Rain City", lat=40.0, lon=-73.0, tz="America/New_York")
+
+    mock_cds = MagicMock()
+    mock_df = pd.DataFrame({
+        'date': ['2024-01-01'],
+        'precip_mm': [2.5],
+        'place_name': ['Rain City'],
+        'grid_lat': [40.0],
+        'grid_lon': [-73.0],
+    })
+    mock_cds.get_daily_precipitation_series.return_value = mock_df
+
+    def mock_cds_init(cache_dir, progress_manager=None):
+        return mock_cds
+
+    monkeypatch.setattr('data.CDS', mock_cds_init)
+
+    result = retrieve_and_concat_data(
+        [loc],
+        2024,
+        2024,
+        tmp_path,
+        tmp_path,
+        measure='daily_precipitation',
+    )
+
+    assert not result.empty
+    assert 'precip_mm' in result.columns
+    assert result['precip_mm'].iloc[0] == 2.5
+    mock_cds.get_daily_precipitation_series.assert_called_once()
+
+
+def test_read_and_save_data_file_precipitation_measure(tmp_path):
+    """Test precipitation measure cache round-trip."""
+    loc = Location(name="Rain Test", lat=40.0, lon=-73.0, tz="America/New_York")
+    df = pd.DataFrame({
+        'date': ['2025-01-01', '2025-01-02'],
+        'precip_mm': [1.0, 2.5],
+        'grid_lat': [40.0, 40.0],
+        'grid_lon': [-73.0, -73.0],
+        'place_name': ['Rain Test', 'Rain Test'],
+    })
+    out_file = tmp_path / "rain.yaml"
+
+    save_data_file(df, out_file, loc, measure='daily_precipitation')
+    df2 = read_data_file(out_file, measure='daily_precipitation')
+
+    assert not df2.empty
+    assert 'precip_mm' in df2.columns
+    assert df2['precip_mm'].tolist() == [1.0, 2.5]
+    assert 'temp_F' not in df2.columns
+
+
 def test_retrieve_and_concat_data_multiple_locations(tmp_path, monkeypatch):
     """Test retrieving and concatenating data for multiple locations."""
     loc1 = Location(name="City A", lat=40.0, lon=-73.0, tz="America/New_York")

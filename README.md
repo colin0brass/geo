@@ -86,8 +86,8 @@ python geo.py -L -y 2024 --grid 4x3
 
 # If places exceed grid capacity, multiple images are generated
 python geo.py -a -y 2024 --grid 4x4
-# Creates: all_noon_temperatures_2024_2024_part1of2.png (16 places)
-#          all_noon_temperatures_2024_2024_part2of2.png (remaining places)
+# Creates: all_noon_temperature_2024_2024_part1of2.png (16 places)
+#          all_noon_temperature_2024_2024_part2of2.png (remaining places)
 ```
 
 **Advanced options:**
@@ -265,15 +265,15 @@ python geo.py -p "MyCity" --lat 40.7 --lon -74.0 -y 2024
 |--------|-------|-------------|---------|
 | `--show` | `-s` | Display plots on screen after generation | off |
 | `--grid COLSxROWS` | `-g` | Manual grid (e.g., 4x3) | auto |
-| `--colour-mode {temperature,year}` / `--color-mode {temperature,year}` | `—` | Point colouring mode (`temperature` or `year`) | from `config.yaml` (`temperature`) |
+| `--colour-mode {y_value,year}` / `--color-mode {y_value,year}` | `—` | Point colouring mode (`y_value` or `year`) | from `config.yaml` (`y_value`) |
 
 **Notes:**
 - Individual plots are only created for single places (using `--place`)
 - Place lists (`--all`, `--list`) only create combined subplot images
 - Combined plots use the list name in filenames:
-  - Single place: `Austin_TX_noon_temperatures_2020_2025.png`
-  - Place list: `default_noon_temperatures_2020_2025.png`
-  - All places: `all_noon_temperatures_2020_2025.png`
+  - Single place: `Austin_TX_noon_temperature_2020_2025.png`
+  - Place list: `default_noon_temperature_2020_2025.png`
+  - All places: `all_noon_temperature_2020_2025.png`
 
 ### Paths and Files
 
@@ -324,12 +324,12 @@ These settings determine the maximum grid size (default 4×6 = 24 places) when t
 
 ```yaml
 plotting:
-  colour_mode: temperature  # temperature or year
+  colour_mode: y_value  # y_value or year
   valid_colormaps: [turbo, viridis, plasma, inferno, magma, cividis]  # first item is default fallback
   colormap: turbo           # must be one of valid_colormaps
 ```
 
-- `temperature`: colours points by temperature value (current/default behaviour)
+- `y_value`: colours points by plotted y-axis value (current/default behaviour for temperature plots)
 - `year`: colours points by year progression to make long-term trend shifts easier to spot
 - `valid_colormaps`: controls which colormaps are allowed and sets default fallback by first item
 - `colormap`: controls the active colour palette used by both modes
@@ -342,15 +342,15 @@ Customize plot titles, filenames, and attribution text using format placeholders
 
 ```yaml
 plot_text:
-  # Title patterns (use {location}, {start_year}, {end_year}, {batch}, {total_batches})
-  single_plot_title: "{location} Mid-Day Temperatures ({start_year}-{end_year})"
-  subplot_title: "Mid-Day Temperatures ({start_year}-{end_year})"
-  subplot_title_with_batch: "Mid-Day Temperatures ({start_year}-{end_year}) - Part {batch}/{total_batches}"
+  # Title patterns (use {location}, {start_year}, {end_year}, {batch}, {total_batches}, {measure_label}, {measure_key}, {measure_unit})
+  single_plot_title: "{location} {measure_label} ({start_year}-{end_year})"
+  subplot_title: "{measure_label} ({start_year}-{end_year})"
+  subplot_title_with_batch: "{measure_label} ({start_year}-{end_year}) - Part {batch}/{total_batches}"
   
   # Filename patterns (location names automatically sanitized for filenames)
-  single_plot_filename: "{location}_noon_temperatures_{start_year}_{end_year}.png"
-  subplot_filename: "{list_name}_noon_temperatures_{start_year}_{end_year}.png"
-  subplot_filename_with_batch: "{list_name}_noon_temperatures_{start_year}_{end_year}_part{batch}of{total_batches}.png"
+  single_plot_filename: "{location}_{measure_key}_{start_year}_{end_year}.png"
+  subplot_filename: "{list_name}_{measure_key}_{start_year}_{end_year}.png"
+  subplot_filename_with_batch: "{list_name}_{measure_key}_{start_year}_{end_year}_part{batch}of{total_batches}.png"
   
   # Credit and data source text
   credit: "Mid-Day Temperature Analysis & Visualisation by Colin Osborne"
@@ -365,6 +365,9 @@ plot_text:
 - `{end_year}` - End year of data
 - `{batch}` - Current batch number (for multi-batch plots)
 - `{total_batches}` - Total number of batches
+- `{measure}` / `{measure_key}` - Measure key (for example: `noon_temperature`)
+- `{measure_label}` - Human-readable measure label (for example: `Mid-Day Temperature`)
+- `{measure_unit}` - Measure unit string (for example: `°C`, `mm`)
 
 **Example customizations:**
 ```yaml
@@ -459,8 +462,8 @@ See comments in the file for detailed options and row-based configuration patter
 ## Output Files
 
 **Plots** are saved in `output/` directory (configurable with `--out-dir`):
-- Individual plots: `Austin_TX_noon_temperatures_2020_2025.png`
-- Combined subplot: `default_noon_temperatures_2020_2025.png`
+- Individual plots: `Austin_TX_noon_temperature_2020_2025.png`
+- Combined subplot: `default_noon_temperature_2020_2025.png`
 
 **Data cache files (YAML)** are cached in `data_cache/` directory (configurable with `--data-cache-dir`):
 - Naming convention: `<Place_Name>.yaml` (for example: `Austin_TX.yaml`)
@@ -594,8 +597,10 @@ When places exceed grid capacity, multiple images are automatically generated:
 ```bash
 python geo.py -a -y 2024 --grid 4x4
 # Outputs:
-#   all_noon_temperatures_2024_2024_part1of2.png (16 places)
-#   all_noon_temperatures_2024_2024_part2of2.png (remaining places)
+#   all_noon_temperature_2024_2024_part1of2.png (16 places)
+#   all_noon_temperature_2024_2024_part2of2.png (remaining places)
+#   all_noon_temperature_2024_2024_part1of2.png (16 places)
+#   all_noon_temperature_2024_2024_part2of2.png (remaining places)
 ```
 
 ### Smart Scaling

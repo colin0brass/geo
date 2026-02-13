@@ -98,7 +98,14 @@ def main() -> int:
         logger.info(f"Show plots: {args.show}")
         return 0
 
-    df_overall = retrieve_and_concat_data(place_list, start_year, end_year, args.cache_dir, args.data_cache_dir)
+    df_overall = retrieve_and_concat_data(
+        place_list,
+        start_year,
+        end_year,
+        args.cache_dir,
+        args.data_cache_dir,
+        measure=args.measure,
+    )
     plot_all(
         df_overall,
         place_list,
@@ -111,6 +118,7 @@ def main() -> int:
         args.show,
         grid,
         list_name,
+        args.measure,
         colour_mode,
         colormap_name
     )

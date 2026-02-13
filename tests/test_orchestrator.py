@@ -99,13 +99,13 @@ def test_create_batch_subplot_single_batch(mock_visualizer_class, tmp_path):
     )
 
     # Verify
-    assert "Overall_noon_temperatures_2024_2024.png" in result
+    assert "Overall_noon_temperature_2024_2024.png" in result
     mock_visualizer_class.assert_called_once()
     assert mock_visualizer_class.call_args[1]['colour_mode'] == 'year'
     assert mock_visualizer_class.call_args[1]['colormap_name'] == 'plasma'
     mock_vis_instance.plot_polar_subplots.assert_called_once()
     call_kwargs = mock_vis_instance.plot_polar_subplots.call_args[1]
-    assert "Mid-Day Temperatures (2024-2024)" in call_kwargs['title']
+    assert "Mid-Day Temperature (2024-2024)" in call_kwargs['title']
     assert call_kwargs['num_rows'] == 1
     assert call_kwargs['num_cols'] == 2
 
@@ -142,6 +142,47 @@ def test_create_batch_subplot_multiple_batches(mock_visualizer_class, tmp_path):
 
 
 @patch('orchestrator.Visualizer')
+def test_create_batch_subplot_uses_measure_labels_from_config(mock_visualizer_class, tmp_path):
+    """Test measure label text is loaded from plotting.measure_labels config."""
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "\n".join([
+            "plotting:",
+            "  measure_labels:",
+            "    daily_precipitation:",
+            "      label: Rainfall",
+            "      unit: mm/day",
+        ])
+    )
+
+    df_batch = pd.DataFrame({'place_name': ['City A'], 'temp_C': [10.0]})
+    loc = Location(name="City A", lat=40.0, lon=-73.0, tz="America/New_York")
+
+    mock_vis_instance = MagicMock()
+    mock_visualizer_class.return_value = mock_vis_instance
+
+    create_batch_subplot(
+        df_batch=df_batch,
+        batch_places=[loc],
+        batch_idx=0,
+        num_batches=1,
+        batch_rows=1,
+        batch_cols=1,
+        start_year=2024,
+        end_year=2024,
+        out_dir=tmp_path,
+        config=config_file,
+        settings=Path("settings.yaml"),
+        t_min_c=5.0,
+        t_max_c=20.0,
+        measure='daily_precipitation',
+    )
+
+    call_kwargs = mock_vis_instance.plot_polar_subplots.call_args[1]
+    assert "Rainfall (2024-2024)" in call_kwargs['title']
+
+
+@patch('orchestrator.Visualizer')
 def test_create_individual_plot(mock_visualizer_class, tmp_path):
     """Test creating an individual location plot."""
     df = pd.DataFrame({
@@ -169,7 +210,7 @@ def test_create_individual_plot(mock_visualizer_class, tmp_path):
     )
 
     # Verify filename format (spaces and commas removed)
-    assert "Austin_TX_noon_temperatures_2024_2024.png" in result
+    assert "Austin_TX_noon_temperature_2024_2024.png" in result
     mock_visualizer_class.assert_called_once()
     assert mock_visualizer_class.call_args[1]['colour_mode'] == 'year'
     assert mock_visualizer_class.call_args[1]['colormap_name'] == 'plasma'

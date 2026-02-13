@@ -29,7 +29,7 @@ class Visualizer:
         t_max_c: float = None,
         out_dir: str = 'output',
         settings_file: str = 'settings.yaml',
-        colour_mode: str = 'temperature',
+        colour_mode: str = 'y_value',
         colormap_name: str = 'turbo'
     ) -> None:
         """
@@ -41,7 +41,7 @@ class Visualizer:
             t_max_c: Maximum temperature for color normalization (optional).
             out_dir: Output directory for plots.
             settings_file: Path to YAML settings file.
-            colour_mode: Colour mapping mode ('temperature' or 'year').
+            colour_mode: Colour mapping mode ('y_value' or 'year').
             colormap_name: Matplotlib colormap name for point colouring.
         Raises:
             ValueError: If the DataFrame is empty or None.
@@ -64,7 +64,7 @@ class Visualizer:
 
         self.df = self.add_data_fields(df)
 
-        valid_modes = {"temperature", "year"}
+        valid_modes = {"y_value", "year"}
         if colour_mode not in valid_modes:
             raise ValueError(f"Invalid colour_mode '{colour_mode}'. Expected one of {sorted(valid_modes)}")
         self.colour_mode = colour_mode

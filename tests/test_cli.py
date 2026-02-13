@@ -155,7 +155,7 @@ def test_parse_args_invalid_argument_hint_for_start_year():
 def test_load_colour_mode_default(tmp_path):
     config_file = tmp_path / "config.yaml"
     config_file.write_text("grid:\n  max_auto_rows: 4\n")
-    assert load_colour_mode(config_file) == 'temperature'
+    assert load_colour_mode(config_file) == 'y_value'
 
 
 def test_load_colour_mode_from_config(tmp_path):
@@ -166,14 +166,31 @@ def test_load_colour_mode_from_config(tmp_path):
 
 def test_load_colour_mode_cli_override(tmp_path):
     config_file = tmp_path / "config.yaml"
-    config_file.write_text("plotting:\n  colour_mode: temperature\n")
+    config_file.write_text("plotting:\n  colour_mode: y_value\n")
     assert load_colour_mode(config_file, cli_colour_mode='year') == 'year'
+
+
+def test_load_colour_mode_invalid_temperature_config_value(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("plotting:\n  colour_mode: temperature\n")
+    with pytest.raises(CLIError) as exc_info:
+        load_colour_mode(config_file)
+    assert "Invalid plotting.colour_mode" in str(exc_info.value)
+
+
+def test_parse_args_rejects_legacy_colour_mode_temperature():
+    with patch('sys.argv', ['geo.py', '--colour-mode', 'temperature']):
+        with pytest.raises(CLIError) as exc_info:
+            parse_args()
+    assert "invalid choice" in str(exc_info.value)
 
 
 def test_load_colour_mode_invalid_config_value(tmp_path):
     config_file = tmp_path / "config.yaml"
     config_file.write_text("plotting:\n  colour_mode: invalid\n")
-    assert load_colour_mode(config_file) == 'temperature'
+    with pytest.raises(CLIError) as exc_info:
+        load_colour_mode(config_file)
+    assert "Invalid plotting.colour_mode" in str(exc_info.value)
 
 
 def test_load_colormap_default(tmp_path):

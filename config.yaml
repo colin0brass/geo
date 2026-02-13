@@ -17,9 +17,17 @@ grid:
 # Plotting behaviour configuration
 plotting:
   # Colour mapping mode for plotted points:
-  # - temperature: colour by temperature value
+  # - y_value: colour by plotted y-axis value (e.g., temperature)
   # - year: colour by year progression (useful for trend-over-time visual comparison)
-  colour_mode: temperature
+  colour_mode: y_value
+  # Measure display labels and units used in templated plot text
+  measure_labels:
+    noon_temperature:
+      label: "Mid-Day Temperature"
+      unit: "°C"
+    daily_precipitation:
+      label: "Daily Precipitation"
+      unit: "mm"
   # Allowed colormaps for plotting (first entry is used as default fallback)
   valid_colormaps: [turbo, viridis, plasma, inferno, magma, cividis]
   # Matplotlib colormap name used for both colour modes
@@ -27,19 +35,19 @@ plotting:
 
 # Plot text configuration
 plot_text:
-  # Title patterns (can use {location}, {start_year}, {end_year}, {batch}, {total_batches})
-  single_plot_title: "{location} Mid-Day Temperatures ({start_year}-{end_year})"
-  subplot_title: "Mid-Day Temperatures ({start_year}-{end_year})"
-  subplot_title_with_batch: "Mid-Day Temperatures ({start_year}-{end_year}) - Part {batch}/{total_batches}"
+  # Title patterns (can use {location}, {start_year}, {end_year}, {batch}, {total_batches}, {measure_label}, {measure_key}, {measure_unit})
+  single_plot_title: "{location} {measure_label} ({start_year}-{end_year})"
+  subplot_title: "{measure_label} ({start_year}-{end_year})"
+  subplot_title_with_batch: "{measure_label} ({start_year}-{end_year}) - Part {batch}/{total_batches}"
   
-  # Filename patterns (can use {location}, {list_name}, {start_year}, {end_year}, {batch}, {total_batches})
+  # Filename patterns (can use {location}, {list_name}, {start_year}, {end_year}, {batch}, {total_batches}, {measure_label}, {measure_key})
   # Note: {location} will be sanitized (spaces->underscores, commas removed)
-  single_plot_filename: "{location}_noon_temperatures_{start_year}_{end_year}.png"
-  subplot_filename: "{list_name}_noon_temperatures_{start_year}_{end_year}.png"
-  subplot_filename_with_batch: "{list_name}_noon_temperatures_{start_year}_{end_year}_part{batch}of{total_batches}.png"
+  single_plot_filename: "{location}_{measure_key}_{start_year}_{end_year}.png"
+  subplot_filename: "{list_name}_{measure_key}_{start_year}_{end_year}.png"
+  subplot_filename_with_batch: "{list_name}_{measure_key}_{start_year}_{end_year}_part{batch}of{total_batches}.png"
   
   # Credit and attribution text
-  credit: "Mid-Day Temperature Analysis & Visualisation by Colin Osborne"
+  credit: "Climate Data Analysis & Visualisation by Colin Osborne"
   data_source: "Data from: ERA5 via CDS"
   single_plot_credit: "Analysis & visualisation by Colin Osborne"
 

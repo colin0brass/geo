@@ -34,6 +34,46 @@ def load_plot_text_config(config_path: Path = Path("config.yaml")) -> dict:
         return {}
 
 
+def load_measure_labels_config(config_path: Path = Path("config.yaml")) -> dict[str, dict[str, str]]:
+    """
+    Load measure label/unit mappings from config.
+
+    Args:
+        config_path: Path to the configuration YAML file.
+
+    Returns:
+        dict[str, dict[str, str]]: Mapping of measure key to label/unit dict.
+    """
+    defaults = {
+        "noon_temperature": {"label": "Mid-Day Temperature", "unit": "°C"},
+        "daily_precipitation": {"label": "Daily Precipitation", "unit": "mm"},
+    }
+
+    try:
+        with open(config_path, 'r') as f:
+            config = yaml.safe_load(f) or {}
+
+        configured = config.get('plotting', {}).get('measure_labels', {})
+        if not isinstance(configured, dict):
+            return defaults
+
+        merged = {key: value.copy() for key, value in defaults.items()}
+        for measure_key, metadata in configured.items():
+            if not isinstance(metadata, dict):
+                continue
+            label = metadata.get('label')
+            unit = metadata.get('unit')
+            merged_label = label if isinstance(label, str) else measure_key.replace('_', ' ').title()
+            merged_unit = unit if isinstance(unit, str) else ''
+            merged[measure_key] = {
+                'label': merged_label,
+                'unit': merged_unit,
+            }
+        return merged
+    except Exception:
+        return defaults
+
+
 def get_plot_text(config: dict, key: str, **kwargs) -> str:
     """
     Get formatted plot text from configuration.
@@ -48,13 +88,13 @@ def get_plot_text(config: dict, key: str, **kwargs) -> str:
     """
     # Default patterns if config is missing
     defaults = {
-        'single_plot_title': "{location} Mid-Day Temperatures ({start_year}-{end_year})",
-        'subplot_title': "Mid-Day Temperatures ({start_year}-{end_year})",
-        'subplot_title_with_batch': "Mid-Day Temperatures ({start_year}-{end_year}) - Part {batch}/{total_batches}",
-        'single_plot_filename': "{location}_noon_temps_polar_{start_year}_{end_year}.png",
-        'subplot_filename': "{list_name}_noon_temps_polar_{start_year}_{end_year}.png",
-        'subplot_filename_with_batch': "{list_name}_noon_temps_polar_{start_year}_{end_year}_part{batch}of{total_batches}.png",
-        'credit': "Mid-Day Temperature Analysis & Visualisation by Colin Osborne",
+        'single_plot_title': "{location} {measure_label} ({start_year}-{end_year})",
+        'subplot_title': "{measure_label} ({start_year}-{end_year})",
+        'subplot_title_with_batch': "{measure_label} ({start_year}-{end_year}) - Part {batch}/{total_batches}",
+        'single_plot_filename': "{location}_{measure_key}_{start_year}_{end_year}.png",
+        'subplot_filename': "{list_name}_{measure_key}_{start_year}_{end_year}.png",
+        'subplot_filename_with_batch': "{list_name}_{measure_key}_{start_year}_{end_year}_part{batch}of{total_batches}.png",
+        'credit': "Climate Data Analysis & Visualisation by Colin Osborne",
         'data_source': "Data from: ERA5 via CDS",
         'single_plot_credit': "Analysis & visualisation by Colin Osborne"
     }

@@ -14,10 +14,25 @@ import pandas as pd
 
 from cds import Location
 from cli import calculate_grid_layout, load_grid_settings
-from config_manager import load_plot_text_config, get_plot_text
+from config_manager import get_plot_text, load_measure_labels_config, load_plot_text_config
 from plot import Visualizer
 
 logger = logging.getLogger("geo")
+
+
+def _measure_plot_context(measure: str, measure_labels: dict[str, dict[str, str]]) -> dict[str, str]:
+    """Build template context values for plot text based on selected measure."""
+    default_label = measure.replace('_', ' ').title()
+    measure_metadata = measure_labels.get(measure, {})
+    measure_label = measure_metadata.get('label', default_label)
+    measure_unit = measure_metadata.get('unit', '')
+    return {
+        'measure': measure,
+        'measure_key': measure,
+        'measure_label': measure_label,
+        'measure_unit': measure_unit,
+        'y_value_label': measure_label,
+    }
 
 
 def calculate_grid_dimensions(num_places: int, grid: tuple[int, int] | None, config: Path) -> tuple[int, int, int]:
@@ -66,7 +81,8 @@ def create_batch_subplot(
     t_min_c: float,
     t_max_c: float,
     list_name: str | None = None,
-    colour_mode: str = "temperature",
+    measure: str = "noon_temperature",
+    colour_mode: str = "y_value",
     colormap_name: str = "turbo"
 ) -> str:
     """
@@ -87,16 +103,19 @@ def create_batch_subplot(
         t_min_c: Minimum temperature across all data.
         t_max_c: Maximum temperature across all data.
         list_name: Name of place list for filename (e.g., "all", "arctic"), None for default.
-        colour_mode: Colour mapping mode ('temperature' or 'year').
+        measure: Data measure key (e.g., "noon_temperature", "daily_precipitation").
+        colour_mode: Colour mapping mode ('y_value' or 'year').
         colormap_name: Matplotlib colormap name.
     Returns:
         Path to the saved plot file.
     """
     # Load plot text configuration
     plot_text_config = load_plot_text_config(config)
+    measure_labels = load_measure_labels_config(config)
 
     # Use list name in filename if provided, otherwise use "Overall"
     filename_prefix = list_name if list_name else "Overall"
+    measure_ctx = _measure_plot_context(measure, measure_labels)
 
     # Ensure output directory exists
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -111,6 +130,7 @@ def create_batch_subplot(
             end_year=end_year,
             batch=batch_idx + 1,
             total_batches=num_batches,
+            **measure_ctx,
         )
         filename = get_plot_text(
             plot_text_config,
@@ -120,6 +140,7 @@ def create_batch_subplot(
             end_year=end_year,
             batch=batch_idx + 1,
             total_batches=num_batches,
+            **measure_ctx,
         )
     else:
         title = get_plot_text(
@@ -127,6 +148,7 @@ def create_batch_subplot(
             'subplot_title',
             start_year=start_year,
             end_year=end_year,
+            **measure_ctx,
         )
         filename = get_plot_text(
             plot_text_config,
@@ -134,11 +156,12 @@ def create_batch_subplot(
             list_name=filename_prefix,
             start_year=start_year,
             end_year=end_year,
+            **measure_ctx,
         )
 
     plot_file = out_dir / filename
-    credit = get_plot_text(plot_text_config, 'credit')
-    data_source = get_plot_text(plot_text_config, 'data_source')
+    credit = get_plot_text(plot_text_config, 'credit', **measure_ctx)
+    data_source = get_plot_text(plot_text_config, 'data_source', **measure_ctx)
 
     vis = Visualizer(
         df_batch,
@@ -178,7 +201,8 @@ def create_main_plots(
     t_max_c: float,
     grid: tuple[int, int] | None,
     list_name: str | None = None,
-    colour_mode: str = "temperature",
+    measure: str = "noon_temperature",
+    colour_mode: str = "y_value",
     colormap_name: str = "turbo"
 ) -> list[str]:
     """
@@ -196,7 +220,8 @@ def create_main_plots(
         t_max_c: Maximum temperature across all data.
         grid: Optional fixed grid dimensions (rows, cols).
         list_name: Name of place list for filename (e.g., "all", "arctic"), None for default.
-        colour_mode: Colour mapping mode ('temperature' or 'year').
+        measure: Data measure key (e.g., "noon_temperature", "daily_precipitation").
+        colour_mode: Colour mapping mode ('y_value' or 'year').
         colormap_name: Matplotlib colormap name.
     Returns:
         List of paths to saved plot files.
@@ -238,6 +263,7 @@ def create_main_plots(
             t_min_c=t_min_c,
             t_max_c=t_max_c,
             list_name=list_name,
+            measure=measure,
             colour_mode=colour_mode,
             colormap_name=colormap_name
         )
@@ -256,7 +282,8 @@ def create_individual_plot(
     settings: Path,
     t_min_c: float,
     t_max_c: float,
-    colour_mode: str = "temperature",
+    measure: str = "noon_temperature",
+    colour_mode: str = "y_value",
     colormap_name: str = "turbo"
 ) -> str:
     """
@@ -272,13 +299,16 @@ def create_individual_plot(
         settings: Path to plot settings YAML file.
         t_min_c: Minimum temperature across all data.
         t_max_c: Maximum temperature across all data.
-        colour_mode: Colour mapping mode ('temperature' or 'year').
+        measure: Data measure key (e.g., "noon_temperature", "daily_precipitation").
+        colour_mode: Colour mapping mode ('y_value' or 'year').
         colormap_name: Matplotlib colormap name.
     Returns:
         Path to the saved plot file.
     """
     # Load plot text configuration
     plot_text_config = load_plot_text_config(config)
+    measure_labels = load_measure_labels_config(config)
+    measure_ctx = _measure_plot_context(measure, measure_labels)
 
     # Ensure output directory exists
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -290,6 +320,7 @@ def create_individual_plot(
         location=loc.name,
         start_year=start_year,
         end_year=end_year,
+        **measure_ctx,
     )
     filename = get_plot_text(
         plot_text_config,
@@ -297,9 +328,10 @@ def create_individual_plot(
         location=loc.name,
         start_year=start_year,
         end_year=end_year,
+        **measure_ctx,
     )
-    credit = get_plot_text(plot_text_config, 'single_plot_credit')
-    data_source = get_plot_text(plot_text_config, 'data_source')
+    credit = get_plot_text(plot_text_config, 'single_plot_credit', **measure_ctx)
+    data_source = get_plot_text(plot_text_config, 'data_source', **measure_ctx)
 
     plot_file = out_dir / filename
     vis = Visualizer(
@@ -336,7 +368,8 @@ def plot_all(
     show_individual: bool,
     grid: tuple[int, int] | None = None,
     list_name: str | None = None,
-    colour_mode: str = "temperature",
+    measure: str = "noon_temperature",
+    colour_mode: str = "y_value",
     colormap_name: str = "turbo"
 ) -> None:
     """
@@ -354,7 +387,8 @@ def plot_all(
         show_individual: Whether to display individual plots on screen.
         grid: Optional fixed grid dimensions (rows, cols). If None, auto-calculate.
         list_name: Name of place list (e.g., "all", "arctic"). Not currently used.
-        colour_mode: Colour mapping mode ('temperature' or 'year').
+        measure: Data measure key (e.g., "noon_temperature", "daily_precipitation").
+        colour_mode: Colour mapping mode ('y_value' or 'year').
         colormap_name: Matplotlib colormap name.
     """
     t_min_c = df_overall["temp_C"].min()
@@ -379,6 +413,7 @@ def plot_all(
             settings=settings,
             t_min_c=t_min_c,
             t_max_c=t_max_c,
+            measure=measure,
             colour_mode=colour_mode,
             colormap_name=colormap_name
         )
@@ -401,6 +436,7 @@ def plot_all(
             t_max_c=t_max_c,
             grid=grid,
             list_name=list_name,
+            measure=measure,
             colour_mode=colour_mode,
             colormap_name=colormap_name
         )

@@ -7,6 +7,7 @@ Handles data retrieval, caching, and I/O operations for temperature data.
 from __future__ import annotations
 
 import logging
+import inspect
 from copy import deepcopy
 from datetime import date, datetime
 from pathlib import Path
@@ -93,6 +94,48 @@ DATA_KEY = CURRENT_SCHEMA['data_key']
 VARIABLES_KEY = CURRENT_SCHEMA['variables_key']
 NOON_TEMP_VAR = CURRENT_SCHEMA['primary_variable']
 VARIABLES_METADATA_TEMPLATE = CURRENT_SCHEMA.get('variables', {})
+
+MEASURE_TO_CACHE_VAR = {
+    'noon_temperature': NOON_TEMP_VAR,
+    'daily_precipitation': 'daily_precip_mm',
+}
+
+MEASURE_TO_VALUE_COLUMN = {
+    'noon_temperature': 'temp_C',
+    'daily_precipitation': 'precip_mm',
+}
+
+MEASURE_TO_CDS_METHOD = {
+    'noon_temperature': 'get_noon_series',
+    'daily_precipitation': 'get_daily_precipitation_series',
+}
+
+
+def _get_measure_cache_var(measure: str) -> str:
+    """Resolve cache variable key for a logical measure name."""
+    try:
+        return MEASURE_TO_CACHE_VAR[measure]
+    except KeyError as exc:
+        allowed = ', '.join(sorted(MEASURE_TO_CACHE_VAR.keys()))
+        raise ValueError(f"Unsupported measure '{measure}'. Allowed: {allowed}") from exc
+
+
+def _get_measure_value_column(measure: str) -> str:
+    """Resolve DataFrame value column for a logical measure name."""
+    try:
+        return MEASURE_TO_VALUE_COLUMN[measure]
+    except KeyError as exc:
+        allowed = ', '.join(sorted(MEASURE_TO_VALUE_COLUMN.keys()))
+        raise ValueError(f"Unsupported measure '{measure}'. Allowed: {allowed}") from exc
+
+
+def _get_measure_cds_method(measure: str) -> str:
+    """Resolve CDS client method name for a logical measure name."""
+    try:
+        return MEASURE_TO_CDS_METHOD[measure]
+    except KeyError as exc:
+        allowed = ', '.join(sorted(MEASURE_TO_CDS_METHOD.keys()))
+        raise ValueError(f"Unsupported measure '{measure}'. Allowed: {allowed}") from exc
 
 
 def _schema_legacy_data_paths(schema_def: dict) -> list[str]:
@@ -218,19 +261,32 @@ def _extract_temp_map_from_schema_mapping(data: dict) -> dict:
     return {}
 
 
-def _build_variables_metadata() -> dict:
-    """Build default variable metadata for v2 cache schema."""
-    if VARIABLES_METADATA_TEMPLATE:
-        return deepcopy(VARIABLES_METADATA_TEMPLATE)
-    return {
-        NOON_TEMP_VAR: {
+def _build_variables_metadata(measure: str = 'noon_temperature') -> dict:
+    """Build variable metadata for v2 cache schema with selected measure included."""
+    metadata = deepcopy(VARIABLES_METADATA_TEMPLATE) if VARIABLES_METADATA_TEMPLATE else {}
+    cache_var = _get_measure_cache_var(measure)
+
+    defaults = {
+        'noon_temperature': {
             'units': 'C',
             'source_variable': '2m_temperature',
             'source_dataset': 'reanalysis-era5-single-levels',
             'temporal_definition': 'daily_local_noon',
             'precision': 2,
-        }
+        },
+        'daily_precipitation': {
+            'units': 'mm',
+            'source_variable': 'total_precipitation',
+            'source_dataset': 'reanalysis-era5-single-levels',
+            'temporal_definition': 'daily_total_local',
+            'precision': 2,
+        },
     }
+
+    if cache_var not in metadata:
+        metadata[cache_var] = defaults[measure]
+
+    return metadata
 
 
 def _extract_legacy_noon_temps(data: dict) -> dict:
@@ -279,8 +335,8 @@ def _is_v2_schema(data: dict) -> bool:
     return (
         isinstance(data, dict)
         and data.get('schema_version') == SCHEMA_VERSION
+        and isinstance(data.get(VARIABLES_KEY), dict)
         and isinstance(data.get(DATA_KEY), dict)
-        and NOON_TEMP_VAR in data[DATA_KEY]
     )
 
 
@@ -337,22 +393,21 @@ def _write_cache_yaml_v2(cache_data: dict, out_file: Path) -> None:
         f.write(f"  grid_lon: {cache_data['place']['grid_lon']}\n")
 
         f.write(f"{VARIABLES_KEY}:\n")
-        f.write(f"  {NOON_TEMP_VAR}:\n")
-        f.write(f"    units: {cache_data[VARIABLES_KEY][NOON_TEMP_VAR]['units']}\n")
-        f.write(f"    source_variable: {cache_data[VARIABLES_KEY][NOON_TEMP_VAR]['source_variable']}\n")
-        f.write(f"    source_dataset: {cache_data[VARIABLES_KEY][NOON_TEMP_VAR]['source_dataset']}\n")
-        f.write(f"    temporal_definition: {cache_data[VARIABLES_KEY][NOON_TEMP_VAR]['temporal_definition']}\n")
-        f.write(f"    precision: {cache_data[VARIABLES_KEY][NOON_TEMP_VAR]['precision']}\n")
+        for variable_name, variable_meta in cache_data.get(VARIABLES_KEY, {}).items():
+            f.write(f"  {variable_name}:\n")
+            for key in ('units', 'source_variable', 'source_dataset', 'temporal_definition', 'precision'):
+                if key in variable_meta:
+                    f.write(f"    {key}: {variable_meta[key]}\n")
 
         f.write(f"{DATA_KEY}:\n")
-        f.write(f"  {NOON_TEMP_VAR}:\n")
-        temp_map = cache_data[DATA_KEY][NOON_TEMP_VAR]
-        for year in sorted(temp_map.keys()):
-            f.write(f"    {year}:\n")
-            for month in sorted(temp_map[year].keys()):
-                days_dict = temp_map[year][month]
-                days_str = '{' + ', '.join(f'{day}: {temp}' for day, temp in sorted(days_dict.items())) + '}'
-                f.write(f"      {month}: {days_str}\n")
+        for variable_name, value_map in cache_data.get(DATA_KEY, {}).items():
+            f.write(f"  {variable_name}:\n")
+            for year in sorted(value_map.keys()):
+                f.write(f"    {year}:\n")
+                for month in sorted(value_map[year].keys()):
+                    days_dict = value_map[year][month]
+                    days_str = '{' + ', '.join(f'{day}: {value}' for day, value in sorted(days_dict.items())) + '}'
+                    f.write(f"      {month}: {days_str}\n")
 
 
 def migrate_cache_file_to_v2(yaml_file: Path) -> bool:
@@ -427,7 +482,7 @@ def _load_cache_data_v2(yaml_file: Path, auto_migrate: bool = True) -> dict:
     )
 
 
-def get_cached_years(yaml_file: Path) -> set[int]:
+def get_cached_years(yaml_file: Path, measure: str = 'noon_temperature') -> set[int]:
     """
     Get the set of years available in a YAML cache file.
 
@@ -442,9 +497,9 @@ def get_cached_years(yaml_file: Path) -> set[int]:
             return set()
 
         data = _load_cache_data_v2(yaml_file, auto_migrate=True)
-        noon_temps = data[DATA_KEY][NOON_TEMP_VAR]
-        if noon_temps:
-            return set(int(year) for year in noon_temps.keys())
+        value_map = data[DATA_KEY].get(_get_measure_cache_var(measure), {})
+        if value_map:
+            return set(int(year) for year in value_map.keys())
         return set()
     except Exception as e:
         logger.warning(f"Error reading cached years from {yaml_file}: {e}")
@@ -456,10 +511,11 @@ def retrieve_and_concat_data(
     start_year: int,
     end_year: int,
     cache_dir: Path,
-    data_cache_dir: Path
+    data_cache_dir: Path,
+    measure: str = 'noon_temperature',
 ) -> pd.DataFrame:
     """
-    Retrieve temperature data for all places and concatenate into a single DataFrame.
+    Retrieve measure data for all places and concatenate into a single DataFrame.
 
     Args:
         place_list: List of Location objects to retrieve data for.
@@ -469,8 +525,9 @@ def retrieve_and_concat_data(
         data_cache_dir: Directory for caching YAML data files.
 
     Returns:
-        pd.DataFrame: Concatenated DataFrame with temperature data for all places.
+        pd.DataFrame: Concatenated DataFrame with selected measure data for all places.
     """
+    cds_method_name = _get_measure_cds_method(measure)
     df_overall = pd.DataFrame()
     progress_mgr = get_progress_manager()
     requested_years = set(range(start_year, end_year + 1))
@@ -483,7 +540,7 @@ def retrieve_and_concat_data(
         # Check which years are already cached
         cached_years = set()
         if yaml_file.exists():
-            cached_years = get_cached_years(yaml_file)
+            cached_years = get_cached_years(yaml_file, measure=measure)
 
         # Determine if this place needs any CDS fetches
         missing_years = sorted(requested_years - cached_years)
@@ -513,15 +570,18 @@ def retrieve_and_concat_data(
         # Check which years are already cached
         cached_years = set()
         if yaml_file.exists():
-            cached_years = get_cached_years(yaml_file)
+            cached_years = get_cached_years(yaml_file, measure=measure)
 
         # Determine which years need to be fetched
         missing_years = sorted(requested_years - cached_years)
 
         # Load cached data for this location
         if cached_years:
-            logger.info(f"Loading {loc.name} from cache (years: {min(cached_years)}-{max(cached_years)})")
-            df_cached = read_data_file(yaml_file, start_year, end_year)
+            logger.info(
+                f"Loading {loc.name} from cache for {measure} "
+                f"(years: {min(cached_years)}-{max(cached_years)})"
+            )
+            df_cached = read_data_file(yaml_file, start_year, end_year, measure=measure)
             df_overall = pd.concat([df_overall, df_cached], ignore_index=True)
 
         # Fetch missing years
@@ -533,6 +593,13 @@ def retrieve_and_concat_data(
             progress_mgr.notify_location_start(loc.name, cds_place_num, total_cds_places, len(missing_years))
 
             cds = CDS(cache_dir=cache_dir, progress_manager=progress_mgr)
+            if not hasattr(cds, cds_method_name):
+                raise NotImplementedError(
+                    f"Measure '{measure}' is not implemented by CDS client "
+                    f"(missing method '{cds_method_name}')."
+                )
+            cds_method = getattr(cds, cds_method_name)
+            cds_signature = inspect.signature(cds_method)
 
             for year_idx, year in enumerate(missing_years, 1):
                 start_d = date(year, 1, 1)
@@ -542,10 +609,13 @@ def retrieve_and_concat_data(
                 progress_mgr.notify_year_start(loc.name, year, year_idx, len(missing_years))
 
                 logger.info(f"  Retrieving {year} for {loc.name}...")
-                df_year = cds.get_noon_series(loc, start_d, end_d, notify_progress=False)
+                if 'notify_progress' in cds_signature.parameters:
+                    df_year = cds_method(loc, start_d, end_d, notify_progress=False)
+                else:
+                    df_year = cds_method(loc, start_d, end_d)
 
                 # Append to cache file (merges with existing data)
-                save_data_file(df_year, yaml_file, loc, append=True)
+                save_data_file(df_year, yaml_file, loc, append=True, measure=measure)
 
                 # Add to overall dataframe
                 df_overall = pd.concat([df_overall, df_year], ignore_index=True)
@@ -556,11 +626,17 @@ def retrieve_and_concat_data(
             # Notify location complete to move to next line
             progress_mgr.notify_location_complete(loc.name)
 
-    df_overall['date'] = pd.to_datetime(df_overall['date'])
+    if not df_overall.empty:
+        df_overall['date'] = pd.to_datetime(df_overall['date'])
     return df_overall
 
 
-def read_data_file(in_file: Path, start_year: int | None = None, end_year: int | None = None) -> pd.DataFrame:
+def read_data_file(
+    in_file: Path,
+    start_year: int | None = None,
+    end_year: int | None = None,
+    measure: str = 'noon_temperature',
+) -> pd.DataFrame:
     """
     Read a YAML data file into a pandas DataFrame.
 
@@ -569,16 +645,24 @@ def read_data_file(in_file: Path, start_year: int | None = None, end_year: int |
         start_year: Optional start year to filter data.
         end_year: Optional end year to filter data.
     Returns:
-        DataFrame with parsed dates and temperature data.
+        DataFrame with parsed dates and selected measure data.
     """
     data = _load_cache_data_v2(in_file, auto_migrate=True)
 
     place_info = data['place']
-    temps = data[DATA_KEY][NOON_TEMP_VAR]
+    cache_var = _get_measure_cache_var(measure)
+    value_column = _get_measure_value_column(measure)
+    value_map = data[DATA_KEY].get(cache_var, {})
+
+    if not value_map:
+        empty_columns = ['date', value_column, 'place_name', 'grid_lat', 'grid_lon']
+        if measure == 'noon_temperature':
+            empty_columns.insert(2, 'temp_F')
+        return pd.DataFrame(columns=empty_columns)
 
     # Reconstruct DataFrame from hierarchical structure
     rows = []
-    for year_str, months in temps.items():
+    for year_str, months in value_map.items():
         year = int(year_str)
 
         # Filter by year range if specified
@@ -589,64 +673,85 @@ def read_data_file(in_file: Path, start_year: int | None = None, end_year: int |
 
         for month_str, days in months.items():
             month = int(month_str)
-            for day_str, temp_c in days.items():
+            for day_str, value in days.items():
                 day = int(day_str)
                 date_obj = datetime(year, month, day)
-                rows.append({
+                row = {
                     'date': date_obj,
-                    'temp_C': temp_c,
-                    'temp_F': temp_c * 9.0 / 5.0 + 32.0,
+                    value_column: value,
                     'place_name': place_info['name'],
                     'grid_lat': place_info['grid_lat'],
                     'grid_lon': place_info['grid_lon']
-                })
+                }
+                if measure == 'noon_temperature':
+                    temp_c = float(value)
+                    row['temp_F'] = temp_c * 9.0 / 5.0 + 32.0
+                rows.append(row)
 
     df = pd.DataFrame(rows)
-    df['date'] = pd.to_datetime(df['date'])
+    if not df.empty:
+        df['date'] = pd.to_datetime(df['date'])
     return df
 
 
-def save_data_file(df: pd.DataFrame, out_file: Path, location: Location, append: bool = False) -> None:
+def save_data_file(
+    df: pd.DataFrame,
+    out_file: Path,
+    location: Location,
+    append: bool = False,
+    measure: str = 'noon_temperature',
+) -> None:
     """
     Save a DataFrame to a YAML file with hierarchical structure.
 
     Args:
-        df: DataFrame to save (must have 'date', 'temp_C', 'grid_lat', 'grid_lon' columns).
+        df: DataFrame to save.
         out_file: Output file path (.yaml extension).
         location: Location object with place metadata.
         append: If True, merge with existing file; if False, overwrite.
     """
     out_file.parent.mkdir(parents=True, exist_ok=True)
+    value_column = _get_measure_value_column(measure)
+    cache_var = _get_measure_cache_var(measure)
+    if value_column not in df.columns:
+        raise KeyError(f"Missing required column '{value_column}' for measure '{measure}'")
 
     # Extract unique grid coordinates (should be same for all rows)
     grid_lat = float(df['grid_lat'].iloc[0])
     grid_lon = float(df['grid_lon'].iloc[0])
 
-    # Build hierarchical structure for new data: year -> month -> day -> temp_C
-    new_temps_by_year = {}
+    # Build hierarchical structure for new data: year -> month -> day -> value
+    new_values_by_year = {}
     for _, row in df.iterrows():
         date_obj = pd.to_datetime(row['date'])
         year = date_obj.year
         month = date_obj.month
         day = date_obj.day
-        temp_c = round(float(row['temp_C']), 2)
+        value = round(float(row[value_column]), 2)
 
-        if year not in new_temps_by_year:
-            new_temps_by_year[year] = {}
-        if month not in new_temps_by_year[year]:
-            new_temps_by_year[year][month] = {}
-        new_temps_by_year[year][month][day] = temp_c
+        if year not in new_values_by_year:
+            new_values_by_year[year] = {}
+        if month not in new_values_by_year[year]:
+            new_values_by_year[year][month] = {}
+        new_values_by_year[year][month][day] = value
 
-    # If appending, merge with existing data
-    if append and out_file.exists():
+    existing_data = None
+    if out_file.exists():
         try:
             existing_data = _load_cache_data_v2(out_file, auto_migrate=True)
+        except Exception as e:
+            if append:
+                logger.warning(f"Error loading existing cache for append: {e}. Overwriting.")
+            existing_data = None
 
-            # Merge temperature data (new data overwrites existing for same dates)
-            normalized_existing = _normalize_temp_map(existing_data[DATA_KEY][NOON_TEMP_VAR])
+    # If appending, merge with existing data
+    if append and existing_data is not None:
+        try:
+            # Merge selected measure data (new data overwrites existing for same dates)
+            normalized_existing = _normalize_temp_map(existing_data[DATA_KEY].get(cache_var, {}))
 
             # Merge with new data
-            for year, months in new_temps_by_year.items():
+            for year, months in new_values_by_year.items():
                 if year not in normalized_existing:
                     normalized_existing[year] = {}
                 for month, days in months.items():
@@ -656,12 +761,21 @@ def save_data_file(df: pd.DataFrame, out_file: Path, location: Location, append:
                         normalized_existing[year][month][day] = temp
 
             # Use merged data
-            temps_by_year = normalized_existing
+            values_by_year = normalized_existing
         except Exception as e:
             logger.warning(f"Error merging with existing cache: {e}. Overwriting.")
-            temps_by_year = new_temps_by_year
+            values_by_year = new_values_by_year
     else:
-        temps_by_year = new_temps_by_year
+        values_by_year = new_values_by_year
+
+    metadata = _build_variables_metadata(measure=measure)
+    data_section = {}
+    if append and existing_data is not None:
+        metadata = deepcopy(existing_data.get(VARIABLES_KEY, metadata))
+        if cache_var not in metadata:
+            metadata.update(_build_variables_metadata(measure=measure))
+        data_section = deepcopy(existing_data.get(DATA_KEY, {}))
+    data_section[cache_var] = values_by_year
 
     # Create YAML structure
     yaml_data = {
@@ -674,10 +788,8 @@ def save_data_file(df: pd.DataFrame, out_file: Path, location: Location, append:
             'grid_lat': grid_lat,
             'grid_lon': grid_lon
         },
-        VARIABLES_KEY: _build_variables_metadata(),
-        DATA_KEY: {
-            NOON_TEMP_VAR: temps_by_year,
-        }
+        VARIABLES_KEY: metadata,
+        DATA_KEY: data_section,
     }
     _write_cache_yaml_v2(yaml_data, out_file)
 
