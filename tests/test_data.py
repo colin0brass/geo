@@ -3,8 +3,7 @@ Tests for data module (data retrieval and I/O operations).
 """
 import pytest
 import pandas as pd
-from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 import yaml
 from data import (
     DATA_KEY,

@@ -1,9 +1,8 @@
 """
 Tests for orchestrator module (plot coordination and batching).
 """
-import pytest
 from pathlib import Path
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 import pandas as pd
 
 from orchestrator import (

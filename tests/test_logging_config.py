@@ -3,9 +3,6 @@ Tests for logging_config module (logging configuration).
 """
 import pytest
 import logging
-import tempfile
-from pathlib import Path
-from unittest.mock import patch, mock_open
 from logging_config import setup_logging, get_logger
 
 

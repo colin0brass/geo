@@ -1,9 +1,7 @@
 # Test CLI utilities
 import pytest
-import pandas as pd
 import subprocess
 import sys
-from pathlib import Path
 from unittest.mock import patch
 from cli import (
     CLIError,
@@ -13,7 +11,6 @@ from cli import (
     load_colormap,
     load_colour_mode,
     load_grid_settings,
-    load_places,
     parse_args,
     parse_grid,
     parse_years,

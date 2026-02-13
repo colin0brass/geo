@@ -4,13 +4,9 @@ Tests for config_manager module.
 Tests configuration file management, place loading, and config saving.
 """
 
-import tempfile
-from pathlib import Path
-
-import pytest
 import yaml
 
-from config_manager import load_places, save_config, add_place_to_config
+from config_manager import load_places, save_config
 from cds import Location
 
 

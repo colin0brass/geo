@@ -1,8 +1,5 @@
 """Tests for progress reporting system."""
 
-from io import StringIO
-import sys
-
 from progress import (
     ProgressManager,
     ConsoleProgressHandler,
