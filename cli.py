@@ -30,7 +30,17 @@ from geo_core.grid import calculate_grid_layout as core_calculate_grid_layout
 logger = logging.getLogger("geo")
 
 __version__ = "1.0.0"
-VALID_MEASURES = ("noon_temperature", "daily_precipitation")
+VALID_MEASURES = (
+    "noon_temperature",
+    "daily_precipitation",
+    "daily_solar_radiation_energy",
+)
+MEASURE_ALIASES = {
+    "temp": "noon_temperature",
+    "precipitation": "daily_precipitation",
+    "solar": "daily_solar_radiation_energy",
+}
+MEASURE_CHOICES = tuple(VALID_MEASURES) + tuple(MEASURE_ALIASES.keys())
 DEFAULT_COLOUR_MODE = VALID_COLOUR_MODES[0]
 DEFAULT_MEASURE = VALID_MEASURES[0]
 DEFAULT_COLORMAP = "turbo"
@@ -96,6 +106,11 @@ def _suggest_values(value: str, options: list[str], max_suggestions: int = 5) ->
     if not matches:
         return None
     return ", ".join(matches)
+
+
+def normalize_measure(measure: str) -> str:
+    """Normalize CLI measure aliases to canonical internal measure keys."""
+    return MEASURE_ALIASES.get(measure, measure)
 
 
 def parse_args() -> argparse.Namespace:
@@ -216,9 +231,13 @@ Examples:
     )
     output_group.add_argument(
         "-m", "--measure",
-        choices=VALID_MEASURES,
+        choices=MEASURE_CHOICES,
         default=DEFAULT_MEASURE,
-        help="Data measure to use: 'noon_temperature' or 'daily_precipitation'"
+        help=(
+            "Data measure to use: 'noon_temperature', "
+            "'daily_precipitation', 'daily_solar_radiation_energy' "
+            "(aliases: 'temp', 'precipitation', 'solar')"
+        )
     )
 
     # Display options
@@ -260,7 +279,9 @@ Examples:
         help="Enable verbose console output (DEBUG level, log file always at DEBUG)"
     )
 
-    return parser.parse_args()
+    args = parser.parse_args()
+    args.measure = normalize_measure(args.measure)
+    return args
 
 
 def parse_years(years_str: str) -> tuple[int, int]:

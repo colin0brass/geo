@@ -24,6 +24,28 @@ class ProgressHandler(Protocol):
         """Called when processing completes for a location."""
         ...
 
+    def on_month_start(
+        self,
+        location_name: str,
+        year: int,
+        month: int,
+        current_month: int,
+        total_months: int,
+    ) -> None:
+        """Called when processing starts for a month within a year."""
+        ...
+
+    def on_month_complete(
+        self,
+        location_name: str,
+        year: int,
+        month: int,
+        current_month: int,
+        total_months: int,
+    ) -> None:
+        """Called when processing completes for a month within a year."""
+        ...
+
 
 class ProgressManager:
     """Manages progress event handlers and dispatches events."""
@@ -59,6 +81,34 @@ class ProgressManager:
         """Notify all handlers that location processing completed."""
         for handler in self.handlers:
             handler.on_location_complete(location_name)
+
+    def notify_month_start(
+        self,
+        location_name: str,
+        year: int,
+        month: int,
+        current_month: int,
+        total_months: int,
+    ) -> None:
+        """Notify handlers that month processing started (if supported)."""
+        for handler in self.handlers:
+            month_start = getattr(handler, "on_month_start", None)
+            if callable(month_start):
+                month_start(location_name, year, month, current_month, total_months)
+
+    def notify_month_complete(
+        self,
+        location_name: str,
+        year: int,
+        month: int,
+        current_month: int,
+        total_months: int,
+    ) -> None:
+        """Notify handlers that month processing completed (if supported)."""
+        for handler in self.handlers:
+            month_complete = getattr(handler, "on_month_complete", None)
+            if callable(month_complete):
+                month_complete(location_name, year, month, current_month, total_months)
 
 
 _progress_manager = ProgressManager()

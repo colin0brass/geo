@@ -2,6 +2,7 @@
 
 from .cds_base import CDS, Location
 from .cds_precipitation import PrecipitationCDS
+from .cds_solar_radiation import SolarRadiationCDS
 from .cds_temperature import TemperatureCDS
 from .data_retrieval import RetrievalCoordinator
 from .schema import Schema
@@ -12,6 +13,7 @@ __all__ = [
     "Location",
     "TemperatureCDS",
     "PrecipitationCDS",
+    "SolarRadiationCDS",
     "Schema",
     "CacheStore",
     "RetrievalCoordinator",

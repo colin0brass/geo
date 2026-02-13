@@ -205,3 +205,62 @@ def test_get_progress_manager_singleton():
     manager2 = get_progress_manager()
 
     assert manager1 is manager2
+
+
+def test_progress_manager_notify_month_start_and_complete():
+    manager = ProgressManager()
+
+    class MockHandler:
+        def __init__(self):
+            self.month_start_calls = []
+            self.month_complete_calls = []
+
+        def on_location_start(self, *args):
+            pass
+
+        def on_year_start(self, *args):
+            pass
+
+        def on_year_complete(self, *args):
+            pass
+
+        def on_location_complete(self, *args):
+            pass
+
+        def on_month_start(self, location_name, year, month, current_month, total_months):
+            self.month_start_calls.append((location_name, year, month, current_month, total_months))
+
+        def on_month_complete(self, location_name, year, month, current_month, total_months):
+            self.month_complete_calls.append((location_name, year, month, current_month, total_months))
+
+    handler = MockHandler()
+    manager.register_handler(handler)
+
+    manager.notify_month_start("Test City", 2024, 3, 3, 12)
+    manager.notify_month_complete("Test City", 2024, 3, 3, 12)
+
+    assert handler.month_start_calls == [("Test City", 2024, 3, 3, 12)]
+    assert handler.month_complete_calls == [("Test City", 2024, 3, 3, 12)]
+
+
+def test_progress_manager_notify_month_events_ignores_handlers_without_month_methods():
+    manager = ProgressManager()
+
+    class LegacyHandler:
+        def on_location_start(self, *args):
+            pass
+
+        def on_year_start(self, *args):
+            pass
+
+        def on_year_complete(self, *args):
+            pass
+
+        def on_location_complete(self, *args):
+            pass
+
+    handler = LegacyHandler()
+    manager.register_handler(handler)
+
+    manager.notify_month_start("Test City", 2024, 1, 1, 12)
+    manager.notify_month_complete("Test City", 2024, 1, 1, 12)

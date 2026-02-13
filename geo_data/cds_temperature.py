@@ -103,8 +103,12 @@ class TemperatureCDS(CDS):
             return self._empty_series_frame(empty_columns)
 
         day_span = (end_d - start_d).days + 1
+        fetch_mode = getattr(self, "temp_fetch_mode", "auto")
 
-        if day_span <= self.month_fetch_day_span_threshold:
+        if fetch_mode == "auto":
+            fetch_mode = "monthly" if day_span <= self.month_fetch_day_span_threshold else "yearly"
+
+        if fetch_mode == "monthly":
             month_pairs = list(self._month_range(start_d, end_d))
             all_dfs = self._collect_period_frames(
                 location,
@@ -119,16 +123,22 @@ class TemperatureCDS(CDS):
                 empty_columns,
             )
 
-        years = list(range(start_d.year, end_d.year + 1))
-        all_dfs = self._collect_period_frames(
-            location,
-            [(year, None) for year in years],
-            lambda period: self.get_year_daily_noon_data(location, period[0], half_box_deg),
-            notify_progress,
-        )
-        return self._finalize_series_dataframe(
-            all_dfs,
-            start_d,
-            end_d,
-            empty_columns,
+        if fetch_mode == "yearly":
+            years = list(range(start_d.year, end_d.year + 1))
+            all_dfs = self._collect_period_frames(
+                location,
+                [(year, None) for year in years],
+                lambda period: self.get_year_daily_noon_data(location, period[0], half_box_deg),
+                notify_progress,
+            )
+            return self._finalize_series_dataframe(
+                all_dfs,
+                start_d,
+                end_d,
+                empty_columns,
+            )
+
+        raise ValueError(
+            f"Unsupported temperature fetch mode '{fetch_mode}'. "
+            "Expected one of: monthly, yearly, auto"
         )

@@ -6,6 +6,7 @@ import xarray as xr
 from pathlib import Path
 from geo_data.cds_base import Location
 from geo_data.cds_precipitation import PrecipitationCDS
+from geo_data.cds_solar_radiation import SolarRadiationCDS
 from geo_data.cds_temperature import TemperatureCDS
 
 
@@ -91,6 +92,19 @@ def test_cds_get_noon_series_long_range_uses_year_fetch(tmp_path):
     assert cds.month_calls == 0
 
 
+def test_cds_get_noon_series_short_range_yearly_override(tmp_path):
+    class DummyYearlyTempCDS(DummyCDS):
+        def __init__(self, cache_dir: Path):
+            super().__init__(cache_dir)
+            self.temp_fetch_mode = "yearly"
+
+    cds = DummyYearlyTempCDS(cache_dir=tmp_path)
+    loc = Location(name="Test", lat=1.0, lon=2.0, tz="UTC")
+    _ = cds.get_noon_series(loc, pd.Timestamp('2025-01-01').date(), pd.Timestamp('2025-01-31').date())
+    assert cds.year_calls == 1
+    assert cds.month_calls == 0
+
+
 def test_cds_get_daily_precipitation_series(tmp_path):
     class DummyPrecipCDS(PrecipitationCDS):
         def __init__(self, cache_dir: Path):
@@ -142,7 +156,7 @@ def test_cds_get_daily_precipitation_series(tmp_path):
     assert df["precip_mm"].iloc[0] == pytest.approx(24.0)
 
 
-def test_cds_get_daily_precipitation_series_long_range_uses_year_fetch(tmp_path):
+def test_cds_get_daily_precipitation_series_long_range_uses_month_fetch(tmp_path):
     class DummyPrecipCDS(PrecipitationCDS):
         def __init__(self, cache_dir: Path):
             self.client = None
@@ -183,8 +197,196 @@ def test_cds_get_daily_precipitation_series_long_range_uses_year_fetch(tmp_path)
         pd.Timestamp("2025-04-15").date(),
     )
 
+    assert cds.precip_year_calls == 0
+    assert cds.precip_month_calls == 4
+
+
+def test_cds_get_daily_precipitation_series_long_range_yearly_override(tmp_path):
+    class DummyPrecipCDS(PrecipitationCDS):
+        def __init__(self, cache_dir: Path):
+            self.client = None
+            self.cache_dir = cache_dir
+            self.progress_manager = None
+            self.default_half_box_deg = 0.25
+            self.max_nearest_time_delta = pd.Timedelta("30min")
+            self.month_fetch_day_span_threshold = 62
+            self.precipitation_fetch_mode = "yearly"
+            self.precip_month_calls = 0
+            self.precip_year_calls = 0
+
+        def get_month_daily_precipitation_data(self, location, year, month, half_box_deg=0.25):
+            self.precip_month_calls += 1
+            return pd.DataFrame({
+                'date': [f'{year}-{month:02d}-01'],
+                'precip_mm': [1.0],
+                'grid_lat': [location.lat],
+                'grid_lon': [location.lon],
+                'place_name': [location.name],
+            })
+
+        def get_year_daily_precipitation_data(self, location, year, half_box_deg=0.25):
+            self.precip_year_calls += 1
+            return pd.DataFrame({
+                'date': [f'{year}-01-01'],
+                'precip_mm': [1.0],
+                'grid_lat': [location.lat],
+                'grid_lon': [location.lon],
+                'place_name': [location.name],
+            })
+
+    cds = DummyPrecipCDS(cache_dir=tmp_path)
+    loc = Location(name="Cambridge, UK", lat=52.21, lon=0.12, tz="UTC")
+
+    _ = cds.get_daily_precipitation_series(
+        loc,
+        pd.Timestamp("2025-01-01").date(),
+        pd.Timestamp("2025-04-15").date(),
+    )
+
     assert cds.precip_year_calls == 1
     assert cds.precip_month_calls == 0
+
+
+def test_cds_get_daily_solar_radiation_energy_series(tmp_path):
+    class DummySolarCDS(SolarRadiationCDS):
+        def __init__(self, cache_dir: Path):
+            self.client = None
+            self.cache_dir = cache_dir
+            self.progress_manager = None
+            self.default_half_box_deg = 0.25
+            self.max_nearest_time_delta = pd.Timedelta("30min")
+            self.month_fetch_day_span_threshold = 62
+
+        def _cds_retrieve_era5_month(
+            self,
+            out_nc,
+            year,
+            month,
+            loc,
+            day=None,
+            hour=None,
+            variable="2m_temperature",
+            half_box_deg=0.25,
+        ):
+            assert variable == "surface_solar_radiation_downwards"
+            return out_nc
+
+        def _open_and_concat_for_var(self, nc_files, expected_var):
+            assert expected_var == "ssrd"
+            times = pd.date_range("2025-01-01T00:00:00Z", periods=24, freq="h")
+            ssrd = np.full((24, 1, 1), 1_000_000.0, dtype=float)  # 1 MJ/m² each hour
+            return xr.Dataset(
+                data_vars={"ssrd": (("time", "latitude", "longitude"), ssrd)},
+                coords={
+                    "time": times,
+                    "latitude": [52.21],
+                    "longitude": [0.12],
+                },
+            )
+
+    cds = DummySolarCDS(cache_dir=tmp_path)
+    loc = Location(name="Cambridge, UK", lat=52.21, lon=0.12, tz="UTC")
+
+    df = cds.get_daily_solar_radiation_energy_series(
+        loc,
+        pd.Timestamp("2025-01-01").date(),
+        pd.Timestamp("2025-01-01").date(),
+    )
+
+    assert len(df) == 1
+    assert df["place_name"].iloc[0] == "Cambridge, UK"
+    assert df["solar_energy_MJ_m2"].iloc[0] == pytest.approx(24.0)
+
+
+def test_cds_get_daily_solar_radiation_energy_series_long_range_uses_month_fetch(tmp_path):
+    class DummySolarCDS(SolarRadiationCDS):
+        def __init__(self, cache_dir: Path):
+            self.client = None
+            self.cache_dir = cache_dir
+            self.progress_manager = None
+            self.default_half_box_deg = 0.25
+            self.max_nearest_time_delta = pd.Timedelta("30min")
+            self.month_fetch_day_span_threshold = 62
+            self.solar_month_calls = 0
+            self.solar_year_calls = 0
+
+        def get_month_daily_solar_radiation_energy_data(self, location, year, month, half_box_deg=0.25):
+            self.solar_month_calls += 1
+            return pd.DataFrame({
+                'date': [f'{year}-{month:02d}-01'],
+                'solar_energy_MJ_m2': [1.0],
+                'grid_lat': [location.lat],
+                'grid_lon': [location.lon],
+                'place_name': [location.name],
+            })
+
+        def get_year_daily_solar_radiation_energy_data(self, location, year, half_box_deg=0.25):
+            self.solar_year_calls += 1
+            return pd.DataFrame({
+                'date': [f'{year}-01-01'],
+                'solar_energy_MJ_m2': [1.0],
+                'grid_lat': [location.lat],
+                'grid_lon': [location.lon],
+                'place_name': [location.name],
+            })
+
+    cds = DummySolarCDS(cache_dir=tmp_path)
+    loc = Location(name="Cambridge, UK", lat=52.21, lon=0.12, tz="UTC")
+
+    _ = cds.get_daily_solar_radiation_energy_series(
+        loc,
+        pd.Timestamp("2025-01-01").date(),
+        pd.Timestamp("2025-04-15").date(),
+    )
+
+    assert cds.solar_year_calls == 0
+    assert cds.solar_month_calls == 4
+
+
+def test_cds_get_daily_solar_radiation_energy_series_long_range_yearly_override(tmp_path):
+    class DummySolarCDS(SolarRadiationCDS):
+        def __init__(self, cache_dir: Path):
+            self.client = None
+            self.cache_dir = cache_dir
+            self.progress_manager = None
+            self.default_half_box_deg = 0.25
+            self.max_nearest_time_delta = pd.Timedelta("30min")
+            self.month_fetch_day_span_threshold = 62
+            self.solar_fetch_mode = "yearly"
+            self.solar_month_calls = 0
+            self.solar_year_calls = 0
+
+        def get_month_daily_solar_radiation_energy_data(self, location, year, month, half_box_deg=0.25):
+            self.solar_month_calls += 1
+            return pd.DataFrame({
+                'date': [f'{year}-{month:02d}-01'],
+                'solar_energy_MJ_m2': [1.0],
+                'grid_lat': [location.lat],
+                'grid_lon': [location.lon],
+                'place_name': [location.name],
+            })
+
+        def get_year_daily_solar_radiation_energy_data(self, location, year, half_box_deg=0.25):
+            self.solar_year_calls += 1
+            return pd.DataFrame({
+                'date': [f'{year}-01-01'],
+                'solar_energy_MJ_m2': [1.0],
+                'grid_lat': [location.lat],
+                'grid_lon': [location.lon],
+                'place_name': [location.name],
+            })
+
+    cds = DummySolarCDS(cache_dir=tmp_path)
+    loc = Location(name="Cambridge, UK", lat=52.21, lon=0.12, tz="UTC")
+
+    _ = cds.get_daily_solar_radiation_energy_series(
+        loc,
+        pd.Timestamp("2025-01-01").date(),
+        pd.Timestamp("2025-04-15").date(),
+    )
+
+    assert cds.solar_year_calls == 1
+    assert cds.solar_month_calls == 0
 
 
 def test_cds_invalid_location():

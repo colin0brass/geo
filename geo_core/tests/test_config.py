@@ -229,12 +229,19 @@ def test_load_retrieval_settings_from_config(tmp_path):
         "  half_box_deg: 0.1\n"
         "  max_nearest_time_delta_minutes: 20\n"
         "  month_fetch_day_span_threshold: 40\n"
+        "  fetch_mode:\n"
+        "    noon_temperature: yearly\n"
+        "    daily_precipitation: yearly\n"
+        "    daily_solar_radiation_energy: auto\n"
     )
 
     settings = load_retrieval_settings(config_file)
     assert settings["half_box_deg"] == 0.1
     assert settings["max_nearest_time_delta_minutes"] == 20
     assert settings["month_fetch_day_span_threshold"] == 40
+    assert settings["fetch_mode"]["noon_temperature"] == "yearly"
+    assert settings["fetch_mode"]["daily_precipitation"] == "yearly"
+    assert settings["fetch_mode"]["daily_solar_radiation_energy"] == "auto"
 
 
 def test_load_retrieval_settings_invalid_value_raises(tmp_path):
@@ -243,6 +250,49 @@ def test_load_retrieval_settings_invalid_value_raises(tmp_path):
 
     with pytest.raises(ValueError):
         load_retrieval_settings(config_file)
+
+
+def test_load_retrieval_settings_invalid_fetch_mode_raises(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "retrieval:\n"
+        "  fetch_mode:\n"
+        "    daily_precipitation: invalid\n"
+    )
+
+    with pytest.raises(ValueError):
+        load_retrieval_settings(config_file)
+
+
+def test_load_retrieval_settings_legacy_fetch_mode_keys_still_work(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "retrieval:\n"
+        "  temp_fetch_mode: yearly\n"
+        "  precipitation_fetch_mode: auto\n"
+        "  solar_fetch_mode: yearly\n"
+    )
+
+    settings = load_retrieval_settings(config_file)
+    assert settings["fetch_mode"]["noon_temperature"] == "yearly"
+    assert settings["fetch_mode"]["daily_precipitation"] == "auto"
+    assert settings["fetch_mode"]["daily_solar_radiation_energy"] == "yearly"
+
+
+def test_load_retrieval_settings_nested_short_fetch_mode_keys_still_work(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "retrieval:\n"
+        "  fetch_mode:\n"
+        "    temp: yearly\n"
+        "    precipitation: auto\n"
+        "    solar: yearly\n"
+    )
+
+    settings = load_retrieval_settings(config_file)
+    assert settings["fetch_mode"]["noon_temperature"] == "yearly"
+    assert settings["fetch_mode"]["daily_precipitation"] == "auto"
+    assert settings["fetch_mode"]["daily_solar_radiation_energy"] == "yearly"
 
 
 def test_load_runtime_paths_defaults_when_section_missing(tmp_path):

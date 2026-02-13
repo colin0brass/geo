@@ -93,6 +93,10 @@ class CDS:
             minutes=int(retrieval_settings["max_nearest_time_delta_minutes"])
         )
         self.month_fetch_day_span_threshold = int(retrieval_settings["month_fetch_day_span_threshold"])
+        fetch_mode = retrieval_settings["fetch_mode"]
+        self.temp_fetch_mode = str(fetch_mode["noon_temperature"])
+        self.precipitation_fetch_mode = str(fetch_mode["daily_precipitation"])
+        self.solar_fetch_mode = str(fetch_mode["daily_solar_radiation_energy"])
 
         cdsapi_logger = logging.getLogger('cdsapi')
         cdsapi_logger.handlers.clear()

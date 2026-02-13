@@ -1,12 +1,12 @@
 
 # geo
 
-**geo** is a Python package for downloading, caching, analyzing, and visualizing ERA5 climate data, with support for daily local noon temperature and daily precipitation for specified locations. It supports batch processing, flexible configuration, and publication-quality polar plots.
+**geo** is a Python package for downloading, caching, analyzing, and visualizing ERA5 climate data, with support for daily local noon temperature, daily precipitation, and daily solar radiation energy for specified locations. It supports batch processing, flexible configuration, and publication-quality polar plots.
 
 ---
 
 ## Features
-- ✨ Download and cache ERA5 temperature and precipitation data for any location
+- ✨ Download and cache ERA5 temperature, precipitation, and solar radiation data for any location
 - 📊 Generate publication-quality polar plots of annual temperature cycles
 - 🌍 **55 pre-configured global locations** with 13 thematic place lists
 - 🕐 **Automatic timezone detection** from coordinates (no manual lookup needed)
@@ -156,6 +156,7 @@ df_all = coordinator.retrieve([loc], 2020, 2020, measure="noon_temperature")
   - `geo_data/cds_base.py`: Shared ERA5 retrieval primitives + `Location`
   - `geo_data/cds_temperature.py`: Temperature retrieval client (`TemperatureCDS`)
   - `geo_data/cds_precipitation.py`: Precipitation retrieval client (`PrecipitationCDS`)
+  - `geo_data/cds_solar_radiation.py`: Solar-radiation retrieval client (`SolarRadiationCDS`)
   - `geo_data/data_retrieval.py`: Retrieval orchestration (`RetrievalCoordinator`)
   - `geo_data/cache_store.py`: Cache path/read/write helpers (`CacheStore`)
   - `geo_data/schema.py`: Schema model + registry constants (`Schema`, `DEFAULT_SCHEMA`)
@@ -290,7 +291,7 @@ python geo.py -p "MyCity" --lat 40.7 --lon -74.0 -y 2024
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `--measure {noon_temperature,daily_precipitation}` | Select which data measure to process. | `noon_temperature` |
+| `--measure {noon_temperature,daily_precipitation,daily_solar_radiation_energy,temp,precipitation,solar}` | Select which data measure to process (short aliases are normalized automatically). | `noon_temperature` |
 
 ### Display Options
 

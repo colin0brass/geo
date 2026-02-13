@@ -124,6 +124,30 @@ def test_parse_args_with_measure_short_option():
         assert args.measure == 'daily_precipitation'
 
 
+def test_parse_args_with_solar_measure():
+    with patch('sys.argv', ['geo.py', '--measure', 'daily_solar_radiation_energy']):
+        args = parse_args()
+        assert args.measure == 'daily_solar_radiation_energy'
+
+
+def test_parse_args_with_temp_alias():
+    with patch('sys.argv', ['geo.py', '--measure', 'temp']):
+        args = parse_args()
+        assert args.measure == 'noon_temperature'
+
+
+def test_parse_args_with_precipitation_alias():
+    with patch('sys.argv', ['geo.py', '--measure', 'precipitation']):
+        args = parse_args()
+        assert args.measure == 'daily_precipitation'
+
+
+def test_parse_args_with_solar_alias():
+    with patch('sys.argv', ['geo.py', '--measure', 'solar']):
+        args = parse_args()
+        assert args.measure == 'daily_solar_radiation_energy'
+
+
 def test_parse_args_runtime_paths_from_custom_config(tmp_path):
     config_file = tmp_path / "custom.yaml"
     config_file.write_text(
@@ -148,6 +172,10 @@ def test_validate_measure_support_default_ok():
 
 def test_validate_measure_support_precipitation_ok():
     validate_measure_support('daily_precipitation')
+
+
+def test_validate_measure_support_solar_ok():
+    validate_measure_support('daily_solar_radiation_energy')
 
 
 def test_parse_args_with_colour_mode():

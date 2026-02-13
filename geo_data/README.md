@@ -4,7 +4,7 @@
 
 ## Responsibilities
 
-- CDS/ERA5 retrieval clients (`cds_base.py`, `cds_temperature.py`, `cds_precipitation.py`)
+- CDS/ERA5 retrieval clients (`cds_base.py`, `cds_temperature.py`, `cds_precipitation.py`, `cds_solar_radiation.py`)
 - Measure-aware data retrieval orchestration (`data_retrieval.py` / `RetrievalCoordinator`)
 - Cache path/read/write helpers (`cache_store.py` / `CacheStore`)
 - Schema model and registry (`schema.py` / `Schema`)
@@ -27,6 +27,8 @@ Plot rendering and plot orchestration live in `geo_plot` (`geo_plot/plot.py`, `g
   - `TemperatureCDS` (daily local-noon temperature)
 - `cds_precipitation.py`
   - `PrecipitationCDS` (daily precipitation)
+- `cds_solar_radiation.py`
+  - `SolarRadiationCDS` (daily solar radiation energy)
 - `data_retrieval.py`
   - retrieval orchestration class (`RetrievalCoordinator`)
 - `cache_store.py`

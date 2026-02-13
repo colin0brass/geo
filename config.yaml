@@ -26,6 +26,11 @@ retrieval:
   max_nearest_time_delta_minutes: 30
   # For short date ranges (days <= threshold), fetch month chunks instead of full years
   month_fetch_day_span_threshold: 62
+  # Per-measure fetch chunking strategy: monthly, yearly, or auto
+  fetch_mode:
+    noon_temperature: auto
+    daily_precipitation: monthly
+    daily_solar_radiation_energy: monthly
 
 # Runtime path defaults
 runtime_paths:
@@ -52,6 +57,13 @@ plotting:
       label: "Daily Precipitation"
       unit: "mm"
       y_value_column: "precip_mm"
+      y_min: 0
+      y_step: 5
+      range_text: "{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}"
+    daily_solar_radiation_energy:
+      label: "Daily Solar Radiation"
+      unit: "MJ/m²"
+      y_value_column: "solar_energy_MJ_m2"
       y_min: 0
       y_step: 5
       range_text: "{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}"

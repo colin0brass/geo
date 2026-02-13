@@ -34,9 +34,11 @@ versions:
     measure_cache_vars:
       noon_temperature: noon_temp_C
       daily_precipitation: daily_precip_mm
+      daily_solar_radiation_energy: daily_solar_energy_MJ_m2
     measure_value_columns:
       noon_temperature: temp_C
       daily_precipitation: precip_mm
+      daily_solar_radiation_energy: solar_energy_MJ_m2
     migration:
       from_version: 1
       field_mappings:
@@ -51,4 +53,16 @@ versions:
         source_variable: 2m_temperature
         source_dataset: reanalysis-era5-single-levels
         temporal_definition: daily_local_noon
+        precision: 2
+      daily_precip_mm:
+        units: mm
+        source_variable: total_precipitation
+        source_dataset: reanalysis-era5-single-levels
+        temporal_definition: daily_total_local
+        precision: 2
+      daily_solar_energy_MJ_m2:
+        units: MJ/m2
+        source_variable: surface_solar_radiation_downwards
+        source_dataset: reanalysis-era5-single-levels
+        temporal_definition: daily_total_local
         precision: 2

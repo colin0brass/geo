@@ -10,12 +10,14 @@ from .schema import DEFAULT_SCHEMA
 DEFAULT_MEASURE_TO_CACHE_VAR = {
     'noon_temperature': DEFAULT_SCHEMA.primary_variable,
     'daily_precipitation': 'daily_precip_mm',
+    'daily_solar_radiation_energy': 'daily_solar_energy_MJ_m2',
 }
 
 
 DEFAULT_MEASURE_TO_VALUE_COLUMN = {
     'noon_temperature': 'temp_C',
     'daily_precipitation': 'precip_mm',
+    'daily_solar_radiation_energy': 'solar_energy_MJ_m2',
 }
 
 
@@ -126,6 +128,13 @@ class MeasureRegistry:
             'daily_precipitation': {
                 'units': 'mm',
                 'source_variable': 'total_precipitation',
+                'source_dataset': 'reanalysis-era5-single-levels',
+                'temporal_definition': 'daily_total_local',
+                'precision': 2,
+            },
+            'daily_solar_radiation_energy': {
+                'units': 'MJ/m2',
+                'source_variable': 'surface_solar_radiation_downwards',
                 'source_dataset': 'reanalysis-era5-single-levels',
                 'temporal_definition': 'daily_total_local',
                 'precision': 2,

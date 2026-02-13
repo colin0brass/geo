@@ -23,6 +23,11 @@ DEFAULT_RETRIEVAL_SETTINGS = {
     "half_box_deg": 0.25,
     "max_nearest_time_delta_minutes": 30,
     "month_fetch_day_span_threshold": 62,
+    "fetch_mode": {
+        "noon_temperature": "auto",
+        "daily_precipitation": "monthly",
+        "daily_solar_radiation_energy": "monthly",
+    },
 }
 REQUIRED_PLOT_TEXT_KEYS = (
     'single_plot_title',
@@ -177,7 +182,7 @@ def load_runtime_paths(config_file: Path = Path("config.yaml")) -> dict[str, str
     return paths
 
 
-def load_retrieval_settings(config_file: Path = Path("config.yaml")) -> dict[str, float | int]:
+def load_retrieval_settings(config_file: Path = Path("config.yaml")) -> dict[str, float | int | dict[str, str]]:
     """Load retrieval tuning settings from config YAML.
 
     Settings are expected in the top-level ``retrieval`` section.
@@ -206,6 +211,57 @@ def load_retrieval_settings(config_file: Path = Path("config.yaml")) -> dict[str
         settings['month_fetch_day_span_threshold'] = int(retrieval['month_fetch_day_span_threshold'])
     if settings['month_fetch_day_span_threshold'] <= 0:
         raise ValueError("retrieval.month_fetch_day_span_threshold must be > 0")
+
+    valid_fetch_modes = {'monthly', 'yearly', 'auto'}
+
+    configured_fetch_mode = retrieval.get('fetch_mode')
+    if configured_fetch_mode is not None:
+        if not isinstance(configured_fetch_mode, dict):
+            raise ValueError("retrieval.fetch_mode must be a mapping")
+
+        merged_fetch_mode = settings['fetch_mode'].copy()
+        canonical_measures = (
+            'noon_temperature',
+            'daily_precipitation',
+            'daily_solar_radiation_energy',
+        )
+        for metric_name in canonical_measures:
+            if metric_name in configured_fetch_mode:
+                mode_value = configured_fetch_mode[metric_name]
+                if not isinstance(mode_value, str) or not mode_value.strip():
+                    raise ValueError(f"retrieval.fetch_mode.{metric_name} must be a non-empty string")
+                merged_fetch_mode[metric_name] = mode_value.strip().lower()
+
+        nested_legacy_key_map = {
+            'temp': 'noon_temperature',
+            'precipitation': 'daily_precipitation',
+            'solar': 'daily_solar_radiation_energy',
+        }
+        for legacy_key, canonical_key in nested_legacy_key_map.items():
+            if legacy_key in configured_fetch_mode:
+                mode_value = configured_fetch_mode[legacy_key]
+                if not isinstance(mode_value, str) or not mode_value.strip():
+                    raise ValueError(f"retrieval.fetch_mode.{legacy_key} must be a non-empty string")
+                merged_fetch_mode[canonical_key] = mode_value.strip().lower()
+
+        settings['fetch_mode'] = merged_fetch_mode
+
+    legacy_fetch_mode_map = {
+        'temp_fetch_mode': 'noon_temperature',
+        'precipitation_fetch_mode': 'daily_precipitation',
+        'solar_fetch_mode': 'daily_solar_radiation_energy',
+    }
+    for legacy_key, metric_name in legacy_fetch_mode_map.items():
+        if legacy_key in retrieval:
+            legacy_value = retrieval[legacy_key]
+            if not isinstance(legacy_value, str) or not legacy_value.strip():
+                raise ValueError(f"retrieval.{legacy_key} must be a non-empty string")
+            settings['fetch_mode'][metric_name] = legacy_value.strip().lower()
+
+    for metric_name, mode_value in settings['fetch_mode'].items():
+        if mode_value not in valid_fetch_modes:
+            allowed = ', '.join(sorted(valid_fetch_modes))
+            raise ValueError(f"retrieval.fetch_mode.{metric_name} must be one of: {allowed}")
 
     return settings
 

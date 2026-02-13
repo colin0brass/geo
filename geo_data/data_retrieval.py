@@ -16,6 +16,7 @@ from geo_core.progress import get_progress_manager
 
 from .cds_base import CDS, Location
 from .cds_precipitation import PrecipitationCDS
+from .cds_solar_radiation import SolarRadiationCDS
 from .cds_temperature import TemperatureCDS
 from .schema import (
     DATA_KEY,
@@ -29,11 +30,13 @@ logger = logging.getLogger("geo")
 MEASURE_TO_CDS_CLIENT = {
     'noon_temperature': lambda: TemperatureCDS,
     'daily_precipitation': lambda: PrecipitationCDS,
+    'daily_solar_radiation_energy': lambda: SolarRadiationCDS,
 }
 
 MEASURE_TO_CDS_METHOD = {
     'noon_temperature': 'get_noon_series',
     'daily_precipitation': 'get_daily_precipitation_series',
+    'daily_solar_radiation_energy': 'get_daily_solar_radiation_energy_series',
 }
 
 
@@ -171,7 +174,10 @@ class RetrievalCoordinator:
             self.progress_mgr.notify_year_start(loc.name, year, year_idx, len(missing_years))
 
             logger.info(f"  Retrieving {year} for {loc.name}...")
-            df_year = cds_method(loc, start_d, end_d, notify_progress=False)
+            cds_kwargs = {"notify_progress": False}
+            if measure in ('daily_precipitation', 'daily_solar_radiation_energy'):
+                cds_kwargs['notify_month_progress'] = True
+            df_year = cds_method(loc, start_d, end_d, **cds_kwargs)
 
             self.cache_store.save_data_file(df_year, yaml_file, loc, append=True, measure=measure)
             df_new = pd.concat([df_new, df_year], ignore_index=True)
@@ -261,6 +267,7 @@ __all__ = [
     "Location",
     "TemperatureCDS",
     "PrecipitationCDS",
+    "SolarRadiationCDS",
     "CacheStore",
     "SCHEMA_VERSION",
     "DATA_KEY",

@@ -221,6 +221,38 @@ def test_coordinator_retrieve_precipitation_measure(tmp_path, monkeypatch):
     mock_cds.get_daily_precipitation_series.assert_called_once()
 
 
+def test_coordinator_retrieve_solar_radiation_measure(tmp_path, monkeypatch):
+    """RetrievalCoordinator routes solar-radiation measure to the correct CDS method."""
+    loc = Location(name="Solar City", lat=40.0, lon=-73.0, tz="America/New_York")
+
+    mock_cds = MagicMock()
+    mock_df = pd.DataFrame({
+        'date': ['2024-01-01'],
+        'solar_energy_MJ_m2': [8.25],
+        'place_name': ['Solar City'],
+        'grid_lat': [40.0],
+        'grid_lon': [-73.0],
+    })
+    mock_cds.get_daily_solar_radiation_energy_series.return_value = mock_df
+
+    def mock_cds_init(cache_dir, progress_manager=None, config_path=None):
+        return mock_cds
+
+    monkeypatch.setattr('geo_data.data_retrieval.SolarRadiationCDS', mock_cds_init)
+
+    result = RetrievalCoordinator(cache_dir=tmp_path, data_cache_dir=tmp_path).retrieve(
+        [loc],
+        2024,
+        2024,
+        measure='daily_solar_radiation_energy',
+    )
+
+    assert not result.empty
+    assert 'solar_energy_MJ_m2' in result.columns
+    assert result['solar_energy_MJ_m2'].iloc[0] == 8.25
+    mock_cds.get_daily_solar_radiation_energy_series.assert_called_once()
+
+
 def test_read_and_save_data_file_precipitation_measure(tmp_path):
     """Test precipitation measure cache round-trip."""
     loc = Location(name="Rain Test", lat=40.0, lon=-73.0, tz="America/New_York")
@@ -239,6 +271,27 @@ def test_read_and_save_data_file_precipitation_measure(tmp_path):
     assert not df2.empty
     assert 'precip_mm' in df2.columns
     assert df2['precip_mm'].tolist() == [1.0, 2.5]
+    assert 'temp_F' not in df2.columns
+
+
+def test_read_and_save_data_file_solar_radiation_measure(tmp_path):
+    """Test solar-radiation measure cache round-trip."""
+    loc = Location(name="Solar Test", lat=40.0, lon=-73.0, tz="America/New_York")
+    df = pd.DataFrame({
+        'date': ['2025-01-01', '2025-01-02'],
+        'solar_energy_MJ_m2': [3.5, 4.75],
+        'grid_lat': [40.0, 40.0],
+        'grid_lon': [-73.0, -73.0],
+        'place_name': ['Solar Test', 'Solar Test'],
+    })
+    out_file = tmp_path / "solar.yaml"
+
+    cache_store.save_data_file(df, out_file, loc, measure='daily_solar_radiation_energy')
+    df2 = cache_store.read_data_file(out_file, measure='daily_solar_radiation_energy')
+
+    assert not df2.empty
+    assert 'solar_energy_MJ_m2' in df2.columns
+    assert df2['solar_energy_MJ_m2'].tolist() == [3.5, 4.75]
     assert 'temp_F' not in df2.columns
 
 
@@ -730,6 +783,7 @@ def test_measure_value_columns_can_be_loaded_from_schema(monkeypatch):
         'measure_value_columns': {
             'noon_temperature': 'temp_c_custom',
             'daily_precipitation': 'rain_mm_custom',
+            'daily_solar_radiation_energy': 'solar_custom',
         }
     })
     monkeypatch.setattr(measure_mapping, 'DEFAULT_SCHEMA', fake_schema)
@@ -737,6 +791,7 @@ def test_measure_value_columns_can_be_loaded_from_schema(monkeypatch):
     loaded = MeasureRegistry._load_measure_to_value_column_mapping()
     assert loaded['noon_temperature'] == 'temp_c_custom'
     assert loaded['daily_precipitation'] == 'rain_mm_custom'
+    assert loaded['daily_solar_radiation_energy'] == 'solar_custom'
 
 
 def test_measure_value_columns_rejects_missing_required_measure(monkeypatch):
@@ -760,10 +815,12 @@ def test_measure_registry_builds_from_schema(monkeypatch):
             'measure_cache_vars': {
                 'noon_temperature': 'noon_temp_custom',
                 'daily_precipitation': 'daily_precip_custom',
+                'daily_solar_radiation_energy': 'daily_solar_custom',
             },
             'measure_value_columns': {
                 'noon_temperature': 'temp_custom',
                 'daily_precipitation': 'precip_custom',
+                'daily_solar_radiation_energy': 'solar_custom',
             },
         },
     )
@@ -772,6 +829,7 @@ def test_measure_registry_builds_from_schema(monkeypatch):
     registry = MeasureRegistry.from_schema()
     assert registry.get_cache_var('noon_temperature') == 'noon_temp_custom'
     assert registry.get_value_column('daily_precipitation') == 'precip_custom'
+    assert registry.get_value_column('daily_solar_radiation_energy') == 'solar_custom'
 
 
 def test_read_data_file_schema_v1_missing_required_place_field_fails(tmp_path):

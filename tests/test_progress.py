@@ -53,3 +53,18 @@ def test_console_progress_handler_location_complete(capsys):
 
     # Should have newline from location complete
     assert "\n" in captured.out
+
+
+def test_console_progress_handler_combined_year_and_month_output(capsys):
+    """Console handler should display year and month progress together."""
+    handler = ConsoleProgressHandler()
+
+    handler.on_location_start("Austin, TX", 1, 1, total_years=2)
+    handler.on_year_start("Austin, TX", 2024, 1, 2)
+    handler.on_month_start("Austin, TX", 2024, 1, 1, 12)
+    handler.on_month_complete("Austin, TX", 2024, 1, 1, 12)
+
+    captured = capsys.readouterr()
+    assert "Year 0/2" in captured.out
+    assert "Month 1/12" in captured.out
+    assert "(01)" in captured.out
