@@ -24,6 +24,9 @@ logger = logging.getLogger("geo_temp")
 
 __version__ = "1.0.0"
 VALID_COLOUR_MODES = ("temperature", "year")
+VALID_MEASURES = ("noon_temperature", "daily_precipitation")
+DEFAULT_COLOUR_MODE = VALID_COLOUR_MODES[0]
+DEFAULT_MEASURE = VALID_MEASURES[0]
 DEFAULT_COLORMAP = "turbo"
 
 
@@ -176,6 +179,12 @@ Examples:
         type=Path,
         default=Path("settings.yaml"),
         help="Path to plot settings YAML file (default: settings.yaml)"
+    )
+    output_group.add_argument(
+        "--measure",
+        choices=VALID_MEASURES,
+        default=DEFAULT_MEASURE,
+        help="Data measure to use: 'noon_temperature' (implemented) or 'daily_precipitation' (planned)"
     )
     
     # Display options
@@ -416,7 +425,7 @@ def load_colour_mode(config_file: Path, cli_colour_mode: str | None = None) -> s
     if cli_colour_mode is not None:
         return cli_colour_mode
 
-    default_mode = "temperature"
+    default_mode = DEFAULT_COLOUR_MODE
     try:
         with open(config_file, 'r') as f:
             config = yaml.safe_load(f) or {}
@@ -443,32 +452,72 @@ def load_colormap(config_file: Path) -> str:
         config_file: Path to config YAML file.
 
     Returns:
-        str: Valid matplotlib colormap name.
+        str: Valid configured colormap name.
     """
     try:
         with open(config_file, 'r') as f:
             config = yaml.safe_load(f) or {}
 
-        colormap = config.get('plotting', {}).get('colormap', DEFAULT_COLORMAP)
+        plotting_config = config.get('plotting', {})
+
+        configured_valid_colormaps = plotting_config.get('valid_colormaps')
+        valid_colormaps = None
+        if configured_valid_colormaps is not None:
+            parsed_colormaps = []
+            if isinstance(configured_valid_colormaps, (list, tuple)):
+                for cmap_name in configured_valid_colormaps:
+                    if isinstance(cmap_name, str):
+                        cmap_name = cmap_name.strip()
+                        if cmap_name and cmap_name in mpl_colormaps:
+                            parsed_colormaps.append(cmap_name)
+
+            if parsed_colormaps:
+                valid_colormaps = parsed_colormaps
+            else:
+                logger.warning(
+                    f"Invalid plotting.valid_colormaps in {config_file}. "
+                    "Ignoring this setting and using matplotlib colormap validation."
+                )
+
+        default_colormap = valid_colormaps[0] if valid_colormaps else DEFAULT_COLORMAP
+
+        colormap = plotting_config.get('colormap', default_colormap)
         if not isinstance(colormap, str) or not colormap.strip():
             logger.warning(
                 f"Invalid plotting.colormap '{colormap}' in {config_file}. "
-                f"Using default '{DEFAULT_COLORMAP}'."
+                f"Using default '{default_colormap}'."
             )
-            return DEFAULT_COLORMAP
+            return default_colormap
 
         colormap = colormap.strip()
-        if colormap not in mpl_colormaps:
+        if valid_colormaps and colormap not in valid_colormaps:
             logger.warning(
                 f"Unknown plotting.colormap '{colormap}' in {config_file}. "
-                f"Using default '{DEFAULT_COLORMAP}'."
+                f"Allowed values: {', '.join(valid_colormaps)}. Using default '{default_colormap}'."
             )
-            return DEFAULT_COLORMAP
+            return default_colormap
 
         return colormap
     except Exception as e:
         logger.warning(f"Failed to load colormap from {config_file}: {e}. Using default '{DEFAULT_COLORMAP}'.")
         return DEFAULT_COLORMAP
+
+
+def validate_measure_support(measure: str) -> None:
+    """Validate that the selected measure is currently implemented."""
+    if measure == "noon_temperature":
+        return
+
+    if measure == "daily_precipitation":
+        raise CLIError(
+            "Measure 'daily_precipitation' is not implemented yet.",
+            "Use --measure noon_temperature for now. Precipitation support will be added next."
+        )
+
+    raise CLIError(
+        f"Unknown measure '{measure}'.",
+        f"Allowed values: {', '.join(VALID_MEASURES)}"
+    )
 
 
 def calculate_grid_layout(num_places: int, max_rows: int = 4, max_cols: int = 6) -> tuple[int, int]:
@@ -575,7 +624,7 @@ def list_years_and_exit(data_cache_dir: Path = Path("data_cache")) -> None:
     Args:
         data_cache_dir: Directory containing cached YAML data files.
     """
-    from data import get_cached_years
+    from data import cache_yaml_path_for_place, get_cached_years
     
     def condense_year_ranges(years: list[int]) -> str:
         """
@@ -626,9 +675,7 @@ def list_years_and_exit(data_cache_dir: Path = Path("data_cache")) -> None:
     
     # Sort places alphabetically for display
     for place_name in sorted(places.keys()):
-        # Generate expected cache file name
-        base_name = f"{place_name.replace(' ', '_').replace(',', '')}_noon_temps"
-        yaml_file = data_cache_dir / f"{base_name}.yaml"
+        yaml_file = cache_yaml_path_for_place(data_cache_dir, place_name)
         
         # Check for cached years
         cached_years = get_cached_years(yaml_file)

@@ -8,7 +8,7 @@ processing, and visualization of ERA5 temperature data.
 import logging
 import sys
 
-from cli import parse_args, parse_grid, parse_years, get_place_list, list_places_and_exit, list_years_and_exit, load_colour_mode, load_colormap, CLIError
+from cli import parse_args, parse_grid, parse_years, get_place_list, list_places_and_exit, list_years_and_exit, load_colour_mode, load_colormap, validate_measure_support, CLIError
 from config_manager import load_places, add_place_to_config
 from data import retrieve_and_concat_data
 from orchestrator import plot_all
@@ -74,6 +74,7 @@ def main() -> int:
     try:
         start_year, end_year = parse_years(args.years)
         grid = parse_grid(args.grid)
+        validate_measure_support(args.measure)
         colour_mode = load_colour_mode(args.config, args.colour_mode)
         colormap_name = load_colormap(args.config)
         places, default_place, place_lists = load_places()
@@ -87,6 +88,7 @@ def main() -> int:
         logger.info("DRY RUN MODE - No data will be downloaded or plots created")
         logger.info(f"Places to process: {[loc.name for loc in place_list]}")
         logger.info(f"Years: {start_year}-{end_year}")
+        logger.info(f"Measure: {args.measure}")
         logger.info(f"Grid: {grid if grid else 'auto'}")
         logger.info(f"Colour mode: {colour_mode}")
         logger.info(f"Colormap: {colormap_name}")

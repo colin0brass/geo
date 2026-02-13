@@ -1,0 +1,27 @@
+current_version: 2
+versions:
+  1:
+    description: Legacy noon temperature schema with root-level temperature map
+    temperature_key: noon_temperatures
+    legacy_temperature_keys:
+      - temperatures
+  2:
+    description: Noon temperature cache schema with explicit variable metadata
+    data_key: data
+    variables_key: variables
+    primary_variable: noon_temp_C
+    migration:
+      from_version: 1
+      field_mappings:
+        data.noon_temp_C:
+          source_candidates:
+            - temp_map_v1
+            - noon_temperatures
+            - temperatures
+    variables:
+      noon_temp_C:
+        units: C
+        source_variable: 2m_temperature
+        source_dataset: reanalysis-era5-single-levels
+        temporal_definition: daily_local_noon
+        precision: 2

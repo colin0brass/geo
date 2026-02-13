@@ -86,8 +86,8 @@ python geo_temp.py -L -y 2024 --grid 4x3
 
 # If places exceed grid capacity, multiple images are generated
 python geo_temp.py -a -y 2024 --grid 4x4
-# Creates: all_noon_temps_polar_2024_2024_part1of2.png (16 places)
-#          all_noon_temps_polar_2024_2024_part2of2.png (remaining places)
+# Creates: all_noon_temperatures_2024_2024_part1of2.png (16 places)
+#          all_noon_temperatures_2024_2024_part2of2.png (remaining places)
 ```
 
 **Advanced options:**
@@ -97,6 +97,9 @@ python geo_temp.py --add-place "Seattle, WA"
 
 # Colour points by year to reveal long-term trend shifts
 python geo_temp.py -p "Austin, TX" -y 1990-2025 --colour-mode year
+
+# Choose data measure (currently noon_temperature is implemented)
+python geo_temp.py -p "Austin, TX" -y 2024 --measure noon_temperature
 
 # Dry-run mode (preview without executing)
 python geo_temp.py -a -y 2024 --dry-run
@@ -250,13 +253,19 @@ python geo_temp.py -p "MyCity" --lat 40.7 --lon -74.0 -y 2024
 |--------|-------|-------------|---------|
 | `--years YEARS` | `-y` | Year or range (e.g., 2024 or 2020-2025) | Previous year |
 
+### Data Measure
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--measure {noon_temperature,daily_precipitation}` | Select which data measure to process. `daily_precipitation` is reserved for upcoming support. | `noon_temperature` |
+
 ### Display Options
 
 | Option | Short | Description | Default |
 |--------|-------|-------------|---------|
 | `--show` | `-s` | Display plots on screen after generation | off |
 | `--grid COLSxROWS` | `-g` | Manual grid (e.g., 4x3) | auto |
-| `--colour-mode {temperature,year}` / `--color-mode {temperature,year}` | | Point colouring mode (`temperature` or `year`) | from `config.yaml` (`temperature`) |
+| `--colour-mode {temperature,year}` / `--color-mode {temperature,year}` | `—` | Point colouring mode (`temperature` or `year`) | from `config.yaml` (`temperature`) |
 
 **Notes:**
 - Individual plots are only created for single places (using `--place`)
@@ -265,6 +274,9 @@ python geo_temp.py -p "MyCity" --lat 40.7 --lon -74.0 -y 2024
   - Single place: `Austin_TX_noon_temperatures_2020_2025.png`
   - Place list: `default_noon_temperatures_2020_2025.png`
   - All places: `all_noon_temperatures_2020_2025.png`
+
+### Paths and Files
+
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--out-dir DIR` | output | Output directory for plots |
@@ -313,12 +325,14 @@ These settings determine the maximum grid size (default 4×6 = 24 places) when t
 ```yaml
 plotting:
   colour_mode: temperature  # temperature or year
-  colormap: turbo           # any Matplotlib colormap name (e.g., turbo, viridis, plasma)
+  valid_colormaps: [turbo, viridis, plasma, inferno, magma, cividis]  # first item is default fallback
+  colormap: turbo           # must be one of valid_colormaps
 ```
 
 - `temperature`: colours points by temperature value (current/default behaviour)
 - `year`: colours points by year progression to make long-term trend shifts easier to spot
-- `colormap`: controls the colour palette used by both modes
+- `valid_colormaps`: controls which colormaps are allowed and sets default fallback by first item
+- `colormap`: controls the active colour palette used by both modes
 
 **Note:** The `--colour-mode` command-line option overrides this setting for a run.
 
@@ -335,7 +349,7 @@ plot_text:
   
   # Filename patterns (location names automatically sanitized for filenames)
   single_plot_filename: "{location}_noon_temperatures_{start_year}_{end_year}.png"
-  subplot_filename: "{list_name}_noon_temperature_{start_year}_{end_year}.png"
+  subplot_filename: "{list_name}_noon_temperatures_{start_year}_{end_year}.png"
   subplot_filename_with_batch: "{list_name}_noon_temperatures_{start_year}_{end_year}_part{batch}of{total_batches}.png"
   
   # Credit and data source text
@@ -449,13 +463,17 @@ See comments in the file for detailed options and row-based configuration patter
 - Combined subplot: `default_noon_temperatures_2020_2025.png`
 
 **Data cache files (YAML)** are cached in `data_cache/` directory (configurable with `--data-cache-dir`):
-- `Austin_TX_noon_temps.yaml` - Hierarchical format with place metadata and temperatures
-- Format: Place info (name, coordinates, timezone) + temperatures organized by year/month/day
+- Naming convention: `<Place_Name>.yaml` (for example: `Austin_TX.yaml`)
+- Newly written files use schema v2 with place metadata, variable metadata, and data arrays
+- Format: `schema_version` + place info + variables metadata + daily data organized by year/month/day
+- Schema versions and keys are defined in `schema.yaml` (currently includes v1 and v2; used for automatic migration, including v1→v2 field mappings)
+- When an older cache file is loaded, geo_temp automatically migrates it and saves it in the current schema before continuing
 - Compact format: 1 line per month for 31% size reduction
 - Git-friendly with clear diffs when adding new data
 
 Example YAML structure:
 ```yaml
+schema_version: 2
 place:
   name: "Austin, TX"
   lat: 30.27
@@ -463,15 +481,18 @@ place:
   timezone: "America/Chicago"
   grid_lat: 30.268
   grid_lon: -97.7435
-temperatures:
-  2025:
-    1:  # January
-      1: 12.74
-      2: 13.60
-      # ... continues for all days
-    2:  # February
-      1: 18.12
-      # ... continues for all months
+variables:
+  noon_temp_C:
+    units: C
+    source_variable: 2m_temperature
+    source_dataset: reanalysis-era5-single-levels
+    temporal_definition: daily_local_noon
+    precision: 2
+data:
+  noon_temp_C:
+    2025:
+      1: {1: 12.74, 2: 13.60}
+      2: {1: 18.12}
 ```
 
 **NetCDF files** are cached in `era5_cache/` directory (configurable with `--cache-dir`):

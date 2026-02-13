@@ -7,6 +7,7 @@ Handles data retrieval, caching, and I/O operations for temperature data.
 from __future__ import annotations
 
 import logging
+from copy import deepcopy
 from datetime import date, datetime
 from pathlib import Path
 
@@ -17,6 +18,326 @@ from cds import CDS, Location
 from progress import get_progress_manager
 
 logger = logging.getLogger("geo_temp")
+
+SCHEMA_REGISTRY_FILE = Path(__file__).with_name('schema.yaml')
+
+
+def _load_cache_schema_registry(schema_file: Path = SCHEMA_REGISTRY_FILE) -> dict:
+    """Load cache schema registry from YAML file."""
+    with open(schema_file, 'r') as f:
+        raw = yaml.safe_load(f) or {}
+
+    current_version = raw.get('current_version')
+    versions = raw.get('versions', {})
+    if current_version is None or not isinstance(versions, dict) or not versions:
+        raise ValueError(f"Invalid cache schema registry: {schema_file}")
+
+    normalized_versions = {str(k): v for k, v in versions.items()}
+    current_key = str(current_version)
+    if current_key not in normalized_versions:
+        raise ValueError(
+            f"Cache schema version {current_version} not found in registry: {schema_file}"
+        )
+
+    return {
+        'current_version': int(current_version),
+        'versions': normalized_versions,
+    }
+
+
+_SCHEMA_REGISTRY = _load_cache_schema_registry()
+SCHEMA_VERSION = _SCHEMA_REGISTRY['current_version']
+CURRENT_SCHEMA = _SCHEMA_REGISTRY['versions'][str(SCHEMA_VERSION)]
+
+DATA_KEY = CURRENT_SCHEMA['data_key']
+VARIABLES_KEY = CURRENT_SCHEMA['variables_key']
+NOON_TEMP_VAR = CURRENT_SCHEMA['primary_variable']
+VARIABLES_METADATA_TEMPLATE = CURRENT_SCHEMA.get('variables', {})
+
+
+def _get_legacy_schema_keys() -> list[str]:
+    """Collect root-level legacy temperature keys from prior schema versions."""
+    collected: list[str] = []
+    versions = _SCHEMA_REGISTRY.get('versions', {})
+    for version_str, schema_def in versions.items():
+        try:
+            version = int(version_str)
+        except ValueError:
+            continue
+        if version >= SCHEMA_VERSION:
+            continue
+
+        primary_key = schema_def.get('temperature_key')
+        if isinstance(primary_key, str) and primary_key and primary_key not in collected:
+            collected.append(primary_key)
+
+        for legacy_key in schema_def.get('legacy_temperature_keys', []):
+            if isinstance(legacy_key, str) and legacy_key and legacy_key not in collected:
+                collected.append(legacy_key)
+
+    return collected
+
+
+LEGACY_TEMPERATURE_KEYS = _get_legacy_schema_keys()
+
+
+def _get_by_path(data: dict, path: str):
+    """Get a nested value from dict using dot-separated path."""
+    node = data
+    for part in path.split('.'):
+        if not isinstance(node, dict) or part not in node:
+            return None
+        node = node[part]
+    return node
+
+
+def _extract_temp_map_from_schema_mapping(data: dict) -> dict:
+    """Extract temperature map using versioned migration field mapping if present."""
+    schema_version = data.get('schema_version')
+    if schema_version is None:
+        return {}
+
+    target_path = f"{DATA_KEY}.{NOON_TEMP_VAR}"
+
+    mapping = None
+
+    migration = CURRENT_SCHEMA.get('migration', {})
+    if isinstance(migration, dict):
+        from_version = migration.get('from_version')
+        if from_version is not None and str(from_version) == str(schema_version):
+            field_mappings = migration.get('field_mappings', {})
+            if isinstance(field_mappings, dict):
+                mapping = field_mappings.get(target_path)
+
+    if mapping is None:
+        current_migrations = CURRENT_SCHEMA.get('migration_from_previous', {})
+        if isinstance(current_migrations, dict):
+            prev_mapping = current_migrations.get(str(schema_version))
+            if prev_mapping is None:
+                prev_mapping = current_migrations.get(schema_version)
+            if prev_mapping is None:
+                try:
+                    prev_mapping = current_migrations.get(int(schema_version))
+                except (TypeError, ValueError):
+                    prev_mapping = None
+            if isinstance(prev_mapping, dict):
+                field_mappings = prev_mapping.get('field_mappings', {})
+                if isinstance(field_mappings, dict):
+                    mapping = field_mappings.get(target_path)
+
+    if mapping is None:
+        schema_def = _SCHEMA_REGISTRY['versions'].get(str(schema_version), {})
+        migration = schema_def.get('migration_to_next', {})
+        if isinstance(migration, dict):
+            field_mappings = migration.get('field_mappings', {})
+            if isinstance(field_mappings, dict):
+                mapping = field_mappings.get(target_path)
+
+    if isinstance(mapping, str):
+        value = _get_by_path(data, mapping)
+        return value if isinstance(value, dict) else {}
+
+    if isinstance(mapping, dict):
+        source_path = mapping.get('source_path')
+        if isinstance(source_path, str):
+            value = _get_by_path(data, source_path)
+            if isinstance(value, dict):
+                return value
+
+        for candidate in mapping.get('source_candidates', []):
+            if not isinstance(candidate, str):
+                continue
+            value = _get_by_path(data, candidate)
+            if isinstance(value, dict):
+                return value
+
+    return {}
+
+
+def _build_variables_metadata() -> dict:
+    """Build default variable metadata for v2 cache schema."""
+    if VARIABLES_METADATA_TEMPLATE:
+        return deepcopy(VARIABLES_METADATA_TEMPLATE)
+    return {
+        NOON_TEMP_VAR: {
+            'units': 'C',
+            'source_variable': '2m_temperature',
+            'source_dataset': 'reanalysis-era5-single-levels',
+            'temporal_definition': 'daily_local_noon',
+            'precision': 2,
+        }
+    }
+
+
+def _extract_legacy_noon_temps(data: dict) -> dict:
+    """Extract legacy temperature map if present."""
+    mapped = _extract_temp_map_from_schema_mapping(data)
+    if mapped:
+        return mapped
+
+    schema_version = data.get('schema_version')
+    if schema_version is not None:
+        schema_def = _SCHEMA_REGISTRY['versions'].get(str(schema_version), {})
+        schema_key = schema_def.get('temperature_key')
+        if isinstance(schema_key, str) and schema_key in data:
+            return data[schema_key]
+
+        for legacy_key in schema_def.get('legacy_temperature_keys', []):
+            if legacy_key in data:
+                return data[legacy_key]
+
+    for legacy_key in LEGACY_TEMPERATURE_KEYS:
+        if legacy_key in data:
+            return data[legacy_key]
+    return {}
+
+
+def _is_v2_schema(data: dict) -> bool:
+    """Check whether a loaded cache document matches v2 schema."""
+    return (
+        isinstance(data, dict)
+        and data.get('schema_version') == SCHEMA_VERSION
+        and isinstance(data.get(DATA_KEY), dict)
+        and NOON_TEMP_VAR in data[DATA_KEY]
+    )
+
+
+def _detect_schema_version(data: dict) -> int | None:
+    """Return schema version from document, or None if unversioned legacy."""
+    raw_version = data.get('schema_version')
+    if raw_version is None:
+        return None
+
+    try:
+        return int(raw_version)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"Invalid schema_version value: {raw_version!r}") from exc
+
+
+def cache_base_name_for_place(place_name: str) -> str:
+    """Build standardized cache file stem for a place name."""
+    safe_place = place_name.replace(' ', '_').replace(',', '')
+    return safe_place
+
+
+def cache_yaml_path_for_place(data_cache_dir: Path, place_name: str) -> Path:
+    """Build full cache YAML path for a place in the configured cache directory."""
+    return data_cache_dir / f"{cache_base_name_for_place(place_name)}.yaml"
+
+
+def _normalize_temp_map(temp_map: dict) -> dict:
+    """Normalize year/month/day keys to integers."""
+    normalized = {}
+    for year_key, months in temp_map.items():
+        year_int = int(year_key)
+        if year_int not in normalized:
+            normalized[year_int] = {}
+        for month_key, days in months.items():
+            month_int = int(month_key)
+            if month_int not in normalized[year_int]:
+                normalized[year_int][month_int] = {}
+            for day_key, temp in days.items():
+                day_int = int(day_key)
+                normalized[year_int][month_int][day_int] = float(temp)
+    return normalized
+
+
+def _write_cache_yaml_v2(cache_data: dict, out_file: Path) -> None:
+    """Write cache document in v2 compact YAML format."""
+    with open(out_file, 'w') as f:
+        f.write(f"schema_version: {SCHEMA_VERSION}\n")
+        f.write("place:\n")
+        f.write(f"  name: {cache_data['place']['name']}\n")
+        f.write(f"  lat: {cache_data['place']['lat']}\n")
+        f.write(f"  lon: {cache_data['place']['lon']}\n")
+        f.write(f"  timezone: {cache_data['place']['timezone']}\n")
+        f.write(f"  grid_lat: {cache_data['place']['grid_lat']}\n")
+        f.write(f"  grid_lon: {cache_data['place']['grid_lon']}\n")
+
+        f.write(f"{VARIABLES_KEY}:\n")
+        f.write(f"  {NOON_TEMP_VAR}:\n")
+        f.write(f"    units: {cache_data[VARIABLES_KEY][NOON_TEMP_VAR]['units']}\n")
+        f.write(f"    source_variable: {cache_data[VARIABLES_KEY][NOON_TEMP_VAR]['source_variable']}\n")
+        f.write(f"    source_dataset: {cache_data[VARIABLES_KEY][NOON_TEMP_VAR]['source_dataset']}\n")
+        f.write(f"    temporal_definition: {cache_data[VARIABLES_KEY][NOON_TEMP_VAR]['temporal_definition']}\n")
+        f.write(f"    precision: {cache_data[VARIABLES_KEY][NOON_TEMP_VAR]['precision']}\n")
+
+        f.write(f"{DATA_KEY}:\n")
+        f.write(f"  {NOON_TEMP_VAR}:\n")
+        temp_map = cache_data[DATA_KEY][NOON_TEMP_VAR]
+        for year in sorted(temp_map.keys()):
+            f.write(f"    {year}:\n")
+            for month in sorted(temp_map[year].keys()):
+                days_dict = temp_map[year][month]
+                days_str = '{' + ', '.join(f'{day}: {temp}' for day, temp in sorted(days_dict.items())) + '}'
+                f.write(f"      {month}: {days_str}\n")
+
+
+def migrate_cache_file_to_v2(yaml_file: Path) -> bool:
+    """
+    Migrate a legacy cache file to schema v2 in-place.
+
+    Returns:
+        bool: True if migration occurred, False if already v2.
+    """
+    with open(yaml_file, 'r') as f:
+        data = yaml.safe_load(f) or {}
+
+    if _is_v2_schema(data):
+        return False
+
+    schema_version = _detect_schema_version(data)
+    if schema_version is not None and schema_version > SCHEMA_VERSION:
+        raise ValueError(
+            f"Cannot migrate {yaml_file}: schema_version {schema_version} is newer than supported {SCHEMA_VERSION}"
+        )
+
+    legacy_temps = _extract_legacy_noon_temps(data)
+    if not legacy_temps or 'place' not in data:
+        raise ValueError(f"Cannot migrate {yaml_file}: missing legacy temperature data or place metadata")
+
+    normalized = _normalize_temp_map(legacy_temps)
+    migrated = {
+        'schema_version': SCHEMA_VERSION,
+        'place': data['place'],
+        VARIABLES_KEY: _build_variables_metadata(),
+        DATA_KEY: {
+            NOON_TEMP_VAR: normalized,
+        },
+    }
+    _write_cache_yaml_v2(migrated, yaml_file)
+    logger.info(f"Migrated cache file to schema v2: {yaml_file}")
+    return True
+
+
+def _load_cache_data_v2(yaml_file: Path, auto_migrate: bool = True) -> dict:
+    """Load cache file and ensure it is schema v2 (optionally auto-migrating)."""
+    with open(yaml_file, 'r') as f:
+        data = yaml.safe_load(f) or {}
+
+    if _is_v2_schema(data):
+        return data
+
+    schema_version = _detect_schema_version(data)
+    if schema_version is not None and schema_version > SCHEMA_VERSION:
+        raise ValueError(
+            f"Cache file '{yaml_file}' uses newer schema_version {schema_version}; "
+            f"max supported is {SCHEMA_VERSION}."
+        )
+
+    should_migrate = auto_migrate and (schema_version is None or schema_version < SCHEMA_VERSION)
+    if should_migrate:
+        migrated = migrate_cache_file_to_v2(yaml_file)
+        if migrated:
+            with open(yaml_file, 'r') as f:
+                data = yaml.safe_load(f) or {}
+            if _is_v2_schema(data):
+                return data
+
+    raise ValueError(
+        f"Cache file '{yaml_file}' is not schema v2. "
+        "Run migration before reading this file."
+    )
 
 
 def get_cached_years(yaml_file: Path) -> set[int]:
@@ -30,11 +351,13 @@ def get_cached_years(yaml_file: Path) -> set[int]:
         Set of years (as integers) available in the file.
     """
     try:
-        with open(yaml_file, 'r') as f:
-            data = yaml.safe_load(f)
-        
-        if 'temperatures' in data:
-            return set(int(year) for year in data['temperatures'].keys())
+        if not yaml_file.exists():
+            return set()
+
+        data = _load_cache_data_v2(yaml_file, auto_migrate=True)
+        noon_temps = data[DATA_KEY][NOON_TEMP_VAR]
+        if noon_temps:
+            return set(int(year) for year in noon_temps.keys())
         return set()
     except Exception as e:
         logger.warning(f"Error reading cached years from {yaml_file}: {e}")
@@ -68,8 +391,7 @@ def retrieve_and_concat_data(
     # First pass: determine which places need CDS retrieval
     places_needing_cds = []
     for loc in place_list:
-        base_name = f"{loc.name.replace(' ', '_').replace(',', '')}_noon_temps"
-        yaml_file = data_cache_dir / f"{base_name}.yaml"
+        yaml_file = cache_yaml_path_for_place(data_cache_dir, loc.name)
         
         # Check which years are already cached
         cached_years = set()
@@ -99,8 +421,7 @@ def retrieve_and_concat_data(
     total_cds_places = len(places_needing_cds)
     
     for loc in place_list:
-        base_name = f"{loc.name.replace(' ', '_').replace(',', '')}_noon_temps"
-        yaml_file = data_cache_dir / f"{base_name}.yaml"
+        yaml_file = cache_yaml_path_for_place(data_cache_dir, loc.name)
         
         # Check which years are already cached
         cached_years = set()
@@ -163,12 +484,10 @@ def read_data_file(in_file: Path, start_year: int | None = None, end_year: int |
     Returns:
         DataFrame with parsed dates and temperature data.
     """
-    # Load YAML format
-    with open(in_file, 'r') as f:
-        data = yaml.safe_load(f)
-    
+    data = _load_cache_data_v2(in_file, auto_migrate=True)
+
     place_info = data['place']
-    temps = data['temperatures']
+    temps = data[DATA_KEY][NOON_TEMP_VAR]
     
     # Reconstruct DataFrame from hierarchical structure
     rows = []
@@ -234,24 +553,10 @@ def save_data_file(df: pd.DataFrame, out_file: Path, location: Location, append:
     # If appending, merge with existing data
     if append and out_file.exists():
         try:
-            with open(out_file, 'r') as f:
-                existing_data = yaml.safe_load(f)
-            
+            existing_data = _load_cache_data_v2(out_file, auto_migrate=True)
+
             # Merge temperature data (new data overwrites existing for same dates)
-            existing_temps = existing_data.get('temperatures', {})
-            # Normalize all keys to integers for merging
-            normalized_existing = {}
-            for year_key, months in existing_temps.items():
-                year_int = int(year_key)
-                if year_int not in normalized_existing:
-                    normalized_existing[year_int] = {}
-                for month_key, days in months.items():
-                    month_int = int(month_key)
-                    if month_int not in normalized_existing[year_int]:
-                        normalized_existing[year_int][month_int] = {}
-                    for day_key, temp in days.items():
-                        day_int = int(day_key)
-                        normalized_existing[year_int][month_int][day_int] = temp
+            normalized_existing = _normalize_temp_map(existing_data[DATA_KEY][NOON_TEMP_VAR])
             
             # Merge with new data
             for year, months in new_temps_by_year.items():
@@ -273,6 +578,7 @@ def save_data_file(df: pd.DataFrame, out_file: Path, location: Location, append:
     
     # Create YAML structure
     yaml_data = {
+        'schema_version': SCHEMA_VERSION,
         'place': {
             'name': location.name,
             'lat': location.lat,
@@ -281,28 +587,11 @@ def save_data_file(df: pd.DataFrame, out_file: Path, location: Location, append:
             'grid_lat': grid_lat,
             'grid_lon': grid_lon
         },
-        'temperatures': temps_by_year
+        VARIABLES_KEY: _build_variables_metadata(),
+        DATA_KEY: {
+            NOON_TEMP_VAR: temps_by_year,
+        }
     }
-    
-    # Write YAML file with compact month formatting (1 line per month)
-    with open(out_file, 'w') as f:
-        # Write place metadata
-        f.write("place:\n")
-        f.write(f"  name: {location.name}\n")
-        f.write(f"  lat: {location.lat}\n")
-        f.write(f"  lon: {location.lon}\n")
-        f.write(f"  timezone: {location.tz}\n")
-        f.write(f"  grid_lat: {grid_lat}\n")
-        f.write(f"  grid_lon: {grid_lon}\n")
-        f.write("temperatures:\n")
-        
-        # Write temperatures in compact format (1 line per month)
-        for year in sorted(temps_by_year.keys()):
-            f.write(f"  {year}:\n")
-            for month in sorted(temps_by_year[year].keys()):
-                days_dict = temps_by_year[year][month]
-                # Format as inline dict: {1: 10.5, 2: 11.2, ...}
-                days_str = '{' + ', '.join(f'{day}: {temp}' for day, temp in sorted(days_dict.items())) + '}'
-                f.write(f"    {month}: {days_str}\n")
+    _write_cache_yaml_v2(yaml_data, out_file)
     
     logger.info(f"Saved data to {out_file}")

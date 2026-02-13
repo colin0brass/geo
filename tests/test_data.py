@@ -6,7 +6,15 @@ import pandas as pd
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 import yaml
-from data import retrieve_and_concat_data, read_data_file, save_data_file, get_cached_years
+from data import (
+    DATA_KEY,
+    NOON_TEMP_VAR,
+    SCHEMA_VERSION,
+    get_cached_years,
+    read_data_file,
+    retrieve_and_concat_data,
+    save_data_file,
+)
 from cds import Location
 
 
@@ -26,6 +34,14 @@ def test_read_and_save_data_file(tmp_path):
     
     # Verify file was created
     assert out_file.exists()
+
+    # Verify v2 schema structure
+    with open(out_file, 'r') as f:
+        raw = yaml.safe_load(f)
+    assert raw['schema_version'] == SCHEMA_VERSION
+    assert 'variables' in raw
+    assert DATA_KEY in raw
+    assert NOON_TEMP_VAR in raw[DATA_KEY]
     
     # Read it back
     df2 = read_data_file(out_file)
@@ -196,7 +212,7 @@ def test_get_cached_years_with_corrupted_yaml(tmp_path):
 
 
 def test_get_cached_years_with_missing_temperatures_key(tmp_path):
-    """Test get_cached_years with missing temperatures key."""
+    """Test get_cached_years with missing data key."""
     yaml_file = tmp_path / "no_temps.yaml"
     with open(yaml_file, 'w') as f:
         yaml.dump({'place': {'name': 'Test'}}, f)
@@ -335,7 +351,7 @@ def test_retrieve_and_concat_data_uses_cached_years(tmp_path, monkeypatch):
     })
     data_cache_dir = tmp_path / "data_cache"
     data_cache_dir.mkdir()
-    yaml_file = data_cache_dir / "Test_noon_temps.yaml"
+    yaml_file = data_cache_dir / "Test.yaml"
     save_data_file(df_2024, yaml_file, loc)
     
     # Mock CDS for 2025
@@ -374,7 +390,7 @@ def test_retrieve_and_concat_data_all_cached(tmp_path, monkeypatch):
     })
     data_cache_dir = tmp_path / "data_cache"
     data_cache_dir.mkdir()
-    yaml_file = data_cache_dir / "Test_noon_temps.yaml"
+    yaml_file = data_cache_dir / "Test.yaml"
     save_data_file(df, yaml_file, loc)
     
     # Mock CDS to detect if it's called
@@ -409,7 +425,7 @@ def test_save_data_file_key_normalization(tmp_path):
     with open(yaml_file, 'r') as f:
         data = yaml.safe_load(f)
     # Add a year as string (simulating the bug)
-    data['temperatures']['2023'] = {1: {1: 5.0}}
+    data[DATA_KEY][NOON_TEMP_VAR]['2023'] = {1: {1: 5.0}}
     with open(yaml_file, 'w') as f:
         yaml.dump(data, f)
     
@@ -425,6 +441,124 @@ def test_save_data_file_key_normalization(tmp_path):
     # Verify all years are detected (including the string key)
     cached_years = get_cached_years(yaml_file)
     assert cached_years == {2023, 2024, 2025}
+
+
+def test_read_data_file_legacy_temperatures_key(tmp_path):
+    """Test one-way migration from legacy 'temperatures' key to v2 schema."""
+    yaml_file = tmp_path / "legacy.yaml"
+    legacy = {
+        'place': {
+            'name': 'Legacy Place',
+            'lat': 40.0,
+            'lon': -73.0,
+            'timezone': 'America/New_York',
+            'grid_lat': 40.0,
+            'grid_lon': -73.0,
+        },
+        'temperatures': {
+            2024: {
+                1: {1: 12.5}
+            }
+        }
+    }
+    with open(yaml_file, 'w') as f:
+        yaml.safe_dump(legacy, f)
+
+    df = read_data_file(yaml_file)
+    assert len(df) == 1
+    assert df['temp_C'].iloc[0] == 12.5
+    assert get_cached_years(yaml_file) == {2024}
+
+    with open(yaml_file, 'r') as f:
+        migrated = yaml.safe_load(f)
+    assert migrated['schema_version'] == SCHEMA_VERSION
+    assert DATA_KEY in migrated and NOON_TEMP_VAR in migrated[DATA_KEY]
+
+
+def test_read_data_file_schema_v1_auto_migrates(tmp_path):
+    """Test one-way migration from schema v1 to current schema."""
+    yaml_file = tmp_path / "v1.yaml"
+    v1_doc = {
+        'schema_version': 1,
+        'place': {
+            'name': 'V1 Place',
+            'lat': 40.0,
+            'lon': -73.0,
+            'timezone': 'America/New_York',
+            'grid_lat': 40.0,
+            'grid_lon': -73.0,
+        },
+        'noon_temperatures': {
+            2024: {
+                1: {1: 14.25}
+            }
+        }
+    }
+    with open(yaml_file, 'w') as f:
+        yaml.safe_dump(v1_doc, f)
+
+    df = read_data_file(yaml_file)
+    assert len(df) == 1
+    assert df['temp_C'].iloc[0] == 14.25
+
+    with open(yaml_file, 'r') as f:
+        migrated = yaml.safe_load(f)
+    assert migrated['schema_version'] == SCHEMA_VERSION
+    assert DATA_KEY in migrated and NOON_TEMP_VAR in migrated[DATA_KEY]
+
+
+def test_read_data_file_schema_v1_uses_field_mapping_candidates(tmp_path):
+    """Test v1->v2 migration using schema-defined source_candidates mapping."""
+    yaml_file = tmp_path / "v1_mapping.yaml"
+    v1_doc = {
+        'schema_version': 1,
+        'place': {
+            'name': 'V1 Mapping Place',
+            'lat': 40.0,
+            'lon': -73.0,
+            'timezone': 'America/New_York',
+            'grid_lat': 40.0,
+            'grid_lon': -73.0,
+        },
+        'temp_map_v1': {
+            2024: {
+                1: {1: 9.5}
+            }
+        }
+    }
+    with open(yaml_file, 'w') as f:
+        yaml.safe_dump(v1_doc, f)
+
+    df = read_data_file(yaml_file)
+    assert len(df) == 1
+    assert df['temp_C'].iloc[0] == 9.5
+
+    with open(yaml_file, 'r') as f:
+        migrated = yaml.safe_load(f)
+    assert migrated['schema_version'] == SCHEMA_VERSION
+    assert DATA_KEY in migrated and NOON_TEMP_VAR in migrated[DATA_KEY]
+
+
+def test_read_data_file_rejects_newer_schema_version(tmp_path):
+    """Test that cache files with unsupported newer schema versions are rejected."""
+    yaml_file = tmp_path / "future.yaml"
+    future_doc = {
+        'schema_version': SCHEMA_VERSION + 1,
+        'place': {
+            'name': 'Future Place',
+            'lat': 40.0,
+            'lon': -73.0,
+            'timezone': 'America/New_York',
+            'grid_lat': 40.0,
+            'grid_lon': -73.0,
+        },
+        'data': {'noon_temp_C': {2024: {1: {1: 10.0}}}},
+    }
+    with open(yaml_file, 'w') as f:
+        yaml.safe_dump(future_doc, f)
+
+    with pytest.raises(ValueError, match='newer schema_version'):
+        read_data_file(yaml_file)
 
 
 def test_retrieve_and_concat_data_prints_cds_summary(tmp_path, monkeypatch, capsys):
@@ -472,7 +606,7 @@ def test_retrieve_and_concat_data_prints_all_cached_message(tmp_path, monkeypatc
     })
     data_cache_dir = tmp_path / "data_cache"
     data_cache_dir.mkdir()
-    yaml_file = data_cache_dir / "Test_noon_temps.yaml"
+    yaml_file = data_cache_dir / "Test.yaml"
     save_data_file(df, yaml_file, loc)
     
     mock_cds = MagicMock()

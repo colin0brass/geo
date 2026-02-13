@@ -5,7 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 from unittest.mock import patch
-from cli import parse_args, parse_years, get_place_list, calculate_grid_layout, parse_grid, load_places, load_grid_settings, load_colour_mode, load_colormap, CLIError
+from cli import parse_args, parse_years, get_place_list, calculate_grid_layout, parse_grid, load_places, load_grid_settings, load_colour_mode, load_colormap, validate_measure_support, DEFAULT_COLORMAP, CLIError
 from cds import Location
 
 
@@ -52,6 +52,7 @@ def test_parse_args_default():
         assert args.place_list is None
         assert args.all is False
         assert args.show is False
+        assert args.measure == 'noon_temperature'
 
 
 def test_parse_args_with_place():
@@ -106,6 +107,22 @@ def test_parse_args_with_show():
         assert args.show is True
 
 
+def test_parse_args_with_measure():
+    with patch('sys.argv', ['geo_temp.py', '--measure', 'daily_precipitation']):
+        args = parse_args()
+        assert args.measure == 'daily_precipitation'
+
+
+def test_validate_measure_support_default_ok():
+    validate_measure_support('noon_temperature')
+
+
+def test_validate_measure_support_precipitation_not_implemented():
+    with pytest.raises(CLIError) as exc_info:
+        validate_measure_support('daily_precipitation')
+    assert 'not implemented yet' in str(exc_info.value)
+
+
 def test_parse_args_with_colour_mode():
     with patch('sys.argv', ['geo_temp.py', '--colour-mode', 'year']):
         args = parse_args()
@@ -151,32 +168,42 @@ def test_load_colour_mode_invalid_config_value(tmp_path):
 
 def test_load_colormap_default(tmp_path):
     config_file = tmp_path / "config.yaml"
-    config_file.write_text("plotting:\n  colour_mode: temperature\n")
-    assert load_colormap(config_file) == 'turbo'
+    config_file.write_text("plotting:\n  valid_colormaps: [viridis, plasma]\n")
+    assert load_colormap(config_file) == 'viridis'
+
+
+def test_colormap_default_constant():
+    assert DEFAULT_COLORMAP == 'turbo'
 
 
 def test_load_colormap_from_config(tmp_path):
     config_file = tmp_path / "config.yaml"
-    config_file.write_text("plotting:\n  colormap: plasma\n")
+    config_file.write_text("plotting:\n  valid_colormaps: [viridis, plasma]\n  colormap: plasma\n")
     assert load_colormap(config_file) == 'plasma'
 
 
 def test_load_colormap_invalid_value(tmp_path):
     config_file = tmp_path / "config.yaml"
-    config_file.write_text("plotting:\n  colormap: not_a_cmap\n")
-    assert load_colormap(config_file) == 'turbo'
+    config_file.write_text("plotting:\n  valid_colormaps: [viridis, plasma]\n  colormap: not_a_cmap\n")
+    assert load_colormap(config_file) == 'viridis'
 
 
 def test_load_colormap_blank_value(tmp_path):
     config_file = tmp_path / "config.yaml"
-    config_file.write_text("plotting:\n  colormap: \"\"\n")
-    assert load_colormap(config_file) == 'turbo'
+    config_file.write_text("plotting:\n  valid_colormaps: [viridis, plasma]\n  colormap: \"\"\n")
+    assert load_colormap(config_file) == 'viridis'
 
 
 def test_load_colormap_non_string_value(tmp_path):
     config_file = tmp_path / "config.yaml"
-    config_file.write_text("plotting:\n  colormap: 123\n")
-    assert load_colormap(config_file) == 'turbo'
+    config_file.write_text("plotting:\n  valid_colormaps: [viridis, plasma]\n  colormap: 123\n")
+    assert load_colormap(config_file) == 'viridis'
+
+
+def test_load_colormap_invalid_valid_colormap_list_falls_back(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("plotting:\n  valid_colormaps: [not_a_map, also_bad]\n")
+    assert load_colormap(config_file) == DEFAULT_COLORMAP
 
 
 # Test get_place_list function

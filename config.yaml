@@ -20,6 +20,8 @@ plotting:
   # - temperature: colour by temperature value
   # - year: colour by year progression (useful for trend-over-time visual comparison)
   colour_mode: temperature
+  # Allowed colormaps for plotting (first entry is used as default fallback)
+  valid_colormaps: [turbo, viridis, plasma, inferno, magma, cividis]
   # Matplotlib colormap name used for both colour modes
   colormap: turbo
 
