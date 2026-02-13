@@ -78,13 +78,38 @@ class RetrievalCoordinator:
         data_cache_dir: Path = Path("data_cache"),
         config_path: Path = Path("config.yaml"),
         status_reporter: Callable[[str], None] | None = print,
+        fetch_mode_override: str | None = None,
     ) -> None:
+        if fetch_mode_override not in (None, 'month', 'year'):
+            raise ValueError("fetch_mode_override must be one of: None, 'month', 'year'")
+
         self.cache_dir = cache_dir
         self.data_cache_dir = data_cache_dir
         self.config_path = config_path
         self.status_reporter = status_reporter
+        self.fetch_mode_override = fetch_mode_override
         self.progress_mgr = get_progress_manager()
         self.cache_store = CacheStore()
+
+    def _apply_fetch_mode_override(self, measure_cds_client: CDS, measure: str) -> None:
+        """Apply runtime fetch chunking override to the active measure CDS client."""
+        if self.fetch_mode_override is None:
+            return
+
+        override_mode = 'monthly' if self.fetch_mode_override == 'month' else 'yearly'
+        attribute_by_measure = {
+            'noon_temperature': 'temp_fetch_mode',
+            'daily_precipitation': 'precipitation_fetch_mode',
+            'daily_solar_radiation_energy': 'solar_fetch_mode',
+        }
+
+        try:
+            attr_name = attribute_by_measure[measure]
+        except KeyError as exc:
+            allowed = ', '.join(sorted(attribute_by_measure.keys()))
+            raise ValueError(f"Unsupported measure '{measure}'. Allowed: {allowed}") from exc
+
+        setattr(measure_cds_client, attr_name, override_mode)
 
     def _cache_status_for_location(
         self,
@@ -159,6 +184,7 @@ class RetrievalCoordinator:
             self.progress_mgr,
             self.config_path,
         )
+        self._apply_fetch_mode_override(measure_cds_client, measure)
         if not hasattr(measure_cds_client, cds_method_name):
             raise NotImplementedError(
                 f"Measure '{measure}' is not implemented by CDS client "

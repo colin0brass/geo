@@ -44,6 +44,7 @@ MEASURE_CHOICES = tuple(VALID_MEASURES) + tuple(MEASURE_ALIASES.keys())
 DEFAULT_COLOUR_MODE = VALID_COLOUR_MODES[0]
 DEFAULT_MEASURE = VALID_MEASURES[0]
 DEFAULT_COLORMAP = "turbo"
+VALID_DOWNLOAD_BY = ("config", "month", "year", "compare")
 
 
 def _resolve_runtime_path_defaults() -> tuple[Path, dict[str, str]]:
@@ -277,6 +278,15 @@ Examples:
         "-v", "--verbose",
         action="store_true",
         help="Enable verbose console output (DEBUG level, log file always at DEBUG)"
+    )
+    advanced_group.add_argument(
+        "--download-by",
+        choices=VALID_DOWNLOAD_BY,
+        default="config",
+        help=(
+            "Download chunking override: 'config' (use config.yaml), 'month', 'year', "
+            "or 'compare' (benchmark month vs year for one selected year)."
+        ),
     )
 
     args = parser.parse_args()

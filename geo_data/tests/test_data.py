@@ -253,6 +253,90 @@ def test_coordinator_retrieve_solar_radiation_measure(tmp_path, monkeypatch):
     mock_cds.get_daily_solar_radiation_energy_series.assert_called_once()
 
 
+def test_coordinator_override_fetch_mode_temperature(tmp_path, monkeypatch):
+    """RetrievalCoordinator applies runtime month override for temperature."""
+    loc = Location(name="Temp City", lat=40.0, lon=-73.0, tz="America/New_York")
+
+    mock_cds = MagicMock()
+    mock_cds.temp_fetch_mode = 'auto'
+    mock_cds.get_noon_series.return_value = pd.DataFrame({
+        'date': ['2024-01-01'],
+        'temp_C': [10.0],
+        'place_name': ['Temp City'],
+        'grid_lat': [40.0],
+        'grid_lon': [-73.0],
+    })
+
+    def mock_cds_init(cache_dir, progress_manager=None, config_path=None):
+        return mock_cds
+
+    monkeypatch.setattr('geo_data.data_retrieval.TemperatureCDS', mock_cds_init)
+
+    RetrievalCoordinator(
+        cache_dir=tmp_path,
+        data_cache_dir=tmp_path,
+        fetch_mode_override='month',
+    ).retrieve([loc], 2024, 2024, measure='noon_temperature')
+
+    assert mock_cds.temp_fetch_mode == 'monthly'
+
+
+def test_coordinator_override_fetch_mode_precipitation(tmp_path, monkeypatch):
+    """RetrievalCoordinator applies runtime year override for precipitation."""
+    loc = Location(name="Rain City", lat=40.0, lon=-73.0, tz="America/New_York")
+
+    mock_cds = MagicMock()
+    mock_cds.precipitation_fetch_mode = 'auto'
+    mock_cds.get_daily_precipitation_series.return_value = pd.DataFrame({
+        'date': ['2024-01-01'],
+        'precip_mm': [2.5],
+        'place_name': ['Rain City'],
+        'grid_lat': [40.0],
+        'grid_lon': [-73.0],
+    })
+
+    def mock_cds_init(cache_dir, progress_manager=None, config_path=None):
+        return mock_cds
+
+    monkeypatch.setattr('geo_data.data_retrieval.PrecipitationCDS', mock_cds_init)
+
+    RetrievalCoordinator(
+        cache_dir=tmp_path,
+        data_cache_dir=tmp_path,
+        fetch_mode_override='year',
+    ).retrieve([loc], 2024, 2024, measure='daily_precipitation')
+
+    assert mock_cds.precipitation_fetch_mode == 'yearly'
+
+
+def test_coordinator_override_fetch_mode_solar(tmp_path, monkeypatch):
+    """RetrievalCoordinator applies runtime month override for solar."""
+    loc = Location(name="Solar City", lat=40.0, lon=-73.0, tz="America/New_York")
+
+    mock_cds = MagicMock()
+    mock_cds.solar_fetch_mode = 'auto'
+    mock_cds.get_daily_solar_radiation_energy_series.return_value = pd.DataFrame({
+        'date': ['2024-01-01'],
+        'solar_energy_MJ_m2': [8.25],
+        'place_name': ['Solar City'],
+        'grid_lat': [40.0],
+        'grid_lon': [-73.0],
+    })
+
+    def mock_cds_init(cache_dir, progress_manager=None, config_path=None):
+        return mock_cds
+
+    monkeypatch.setattr('geo_data.data_retrieval.SolarRadiationCDS', mock_cds_init)
+
+    RetrievalCoordinator(
+        cache_dir=tmp_path,
+        data_cache_dir=tmp_path,
+        fetch_mode_override='month',
+    ).retrieve([loc], 2024, 2024, measure='daily_solar_radiation_energy')
+
+    assert mock_cds.solar_fetch_mode == 'monthly'
+
+
 def test_read_and_save_data_file_precipitation_measure(tmp_path):
     """Test precipitation measure cache round-trip."""
     loc = Location(name="Rain Test", lat=40.0, lon=-73.0, tz="America/New_York")
@@ -293,6 +377,16 @@ def test_read_and_save_data_file_solar_radiation_measure(tmp_path):
     assert 'solar_energy_MJ_m2' in df2.columns
     assert df2['solar_energy_MJ_m2'].tolist() == [3.5, 4.75]
     assert 'temp_F' not in df2.columns
+
+
+def test_coordinator_invalid_fetch_mode_override(tmp_path):
+    """RetrievalCoordinator rejects unknown runtime fetch mode overrides."""
+    with pytest.raises(ValueError, match="fetch_mode_override"):
+        RetrievalCoordinator(
+            cache_dir=tmp_path,
+            data_cache_dir=tmp_path,
+            fetch_mode_override='weekly',
+        )
 
 
 def test_coordinator_retrieve_multiple_locations(tmp_path, monkeypatch):

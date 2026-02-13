@@ -7,6 +7,9 @@ processing, and visualization of ERA5 temperature data.
 
 import logging
 import sys
+import tempfile
+import time
+from pathlib import Path
 
 from cli import parse_args, parse_grid, parse_years, get_place_list, list_places_and_exit, list_years_and_exit, load_colour_mode, load_colormap, validate_measure_support, CLIError
 from config_manager import load_places, add_place_to_config
@@ -76,6 +79,11 @@ def main() -> int:
         start_year, end_year = parse_years(args.years)
         grid = parse_grid(args.grid)
         validate_measure_support(args.measure)
+        if args.download_by == 'compare' and start_year != end_year:
+            raise CLIError(
+                "--download-by compare requires exactly one year.",
+                "Use --years YYYY when benchmarking month vs year download chunking.",
+            )
         colour_mode = load_colour_mode(args.config, args.colour_mode)
         colormap_name = load_colormap(args.config)
         places, default_place, place_lists = load_places()
@@ -91,6 +99,7 @@ def main() -> int:
         logger.info(f"Years: {start_year}-{end_year}")
         logger.info(f"Measure: {args.measure}")
         logger.info(f"Grid: {grid if grid else 'auto'}")
+        logger.info(f"Download strategy: {args.download_by}")
         logger.info(f"Colour mode: {colour_mode}")
         logger.info(f"Colormap: {colormap_name}")
         logger.info(f"Output directory: {args.out_dir}")
@@ -99,10 +108,52 @@ def main() -> int:
         logger.info(f"Show plots: {args.show}")
         return 0
 
+    if args.download_by == 'compare':
+        compare_year = start_year
+        benchmark_results = {}
+        for mode in ('month', 'year'):
+            with tempfile.TemporaryDirectory(prefix=f"geo_compare_{mode}_") as temp_root:
+                temp_root_path = Path(temp_root)
+                retrieval = RetrievalCoordinator(
+                    cache_dir=temp_root_path / 'era5_cache',
+                    data_cache_dir=temp_root_path / 'data_cache',
+                    config_path=args.config,
+                    fetch_mode_override=mode,
+                    status_reporter=None,
+                )
+                logger.info(
+                    "Benchmarking %s chunking for %s (%d place(s), %d)...",
+                    mode,
+                    args.measure,
+                    len(place_list),
+                    compare_year,
+                )
+                start_time = time.perf_counter()
+                retrieval.retrieve(
+                    place_list,
+                    compare_year,
+                    compare_year,
+                    measure=args.measure,
+                )
+                elapsed = time.perf_counter() - start_time
+                benchmark_results[mode] = elapsed
+
+        month_seconds = benchmark_results['month']
+        year_seconds = benchmark_results['year']
+        faster_mode = 'month' if month_seconds < year_seconds else 'year'
+        speedup = max(month_seconds, year_seconds) / max(min(month_seconds, year_seconds), 1e-9)
+        logger.info("\nDownload benchmark for %s in %d", args.measure, compare_year)
+        logger.info("- month chunking: %.2fs", month_seconds)
+        logger.info("- year chunking:  %.2fs", year_seconds)
+        logger.info("=> %s is faster (%.2fx)", faster_mode, speedup)
+        return 0
+
+    fetch_mode_override = None if args.download_by == 'config' else args.download_by
     retrieval = RetrievalCoordinator(
         cache_dir=args.cache_dir,
         data_cache_dir=args.data_cache_dir,
         config_path=args.config,
+        fetch_mode_override=fetch_mode_override,
     )
     df_overall = retrieval.retrieve(
         place_list,

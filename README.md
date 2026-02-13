@@ -106,6 +106,13 @@ python geo.py -p "Austin, TX" -y 1990-2025 --colour-mode year
 # Choose data measure
 python geo.py -p "Austin, TX" -y 2024 --measure noon_temperature
 
+# Force monthly or yearly download chunking for this run
+python geo.py -p "Austin, TX" -y 2024 --download-by month
+python geo.py -p "Austin, TX" -y 2024 --download-by year
+
+# Benchmark month vs year chunking (single year only)
+python geo.py -L preferred -y 2024 --measure daily_precipitation --download-by compare
+
 # Dry-run mode (preview without executing)
 python geo.py -a -y 2024 --dry-run
 
@@ -326,6 +333,7 @@ Unversioned legacy cache documents are no longer auto-migrated; regenerate them 
 | Option | Short | Description |
 |--------|-------|-------------|
 | `--dry-run` | | Preview without downloading/plotting |
+| `--download-by {config,month,year,compare}` | | Override retrieval chunking for this run, or benchmark month vs year for one year |
 | `--verbose` | `-v` | Show DEBUG messages on console (log file always at DEBUG) |
 | `--quiet` | `-q` | Show only errors on console (log file unaffected) |
 
