@@ -3,13 +3,14 @@ from __future__ import annotations
 import sys
 import logging
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
+import cdsapi
 import numpy as np
 import pandas as pd
 import xarray as xr
-import cdsapi
+
 from geo_core.config import load_retrieval_settings
 
 logger = logging.getLogger("geo")
@@ -41,6 +42,7 @@ class Location:
         lon: Longitude.
         tz: Timezone string (IANA format). Auto-detected from lat/lon if None.
     """
+
     name: str
     lat: float
     lon: float
@@ -67,6 +69,7 @@ class CDS:
     Client for downloading and processing ERA5 reanalysis data from the CDS API.
     Handles data retrieval, caching, and conversion to pandas/xarray objects.
     """
+
     def __init__(
         self,
         cache_dir: Path = Path("era5_cache"),
@@ -91,7 +94,6 @@ class CDS:
         )
         self.month_fetch_day_span_threshold = int(retrieval_settings["month_fetch_day_span_threshold"])
 
-        # Suppress verbose cdsapi logging after client initialization
         cdsapi_logger = logging.getLogger('cdsapi')
         cdsapi_logger.handlers.clear()
         cdsapi_logger.setLevel(logging.WARNING)
@@ -204,7 +206,7 @@ class CDS:
         day: int = None,
         hour: int = None,
         variable: str = "2m_temperature",
-        half_box_deg: float | None = None
+        half_box_deg: float | None = None,
     ) -> Path:
         """
         Download ERA5 data for a specific month and location, or use cached file if available.
@@ -242,7 +244,7 @@ class CDS:
         }
 
         if out_nc.exists() and out_nc.stat().st_size > 0:
-            return out_nc  # cache hit
+            return out_nc
 
         logger.info(f"Downloading ERA5 {year:04d}-{month:02d} to {out_nc} ...")
         self.client.retrieve("reanalysis-era5-single-levels", request, str(out_nc))
@@ -254,7 +256,7 @@ class CDS:
         loc: Location,
         dates_utc: pd.DatetimeIndex,
         variable: str = "2m_temperature",
-        half_box_deg: float | None = None
+        half_box_deg: float | None = None,
     ) -> Path:
         """
         Download ERA5 data for a series of UTC dates for a location, or use cached file if available.
@@ -291,7 +293,7 @@ class CDS:
         }
 
         if out_nc.exists() and out_nc.stat().st_size > 0:
-            return out_nc  # cache hit
+            return out_nc
 
         logger.info(f"Downloading ERA5 date series to {out_nc} ...")
         self.client.retrieve("reanalysis-era5-single-levels", request, str(out_nc))
@@ -311,7 +313,6 @@ class CDS:
         if not nc_files:
             raise ValueError("No NetCDF files to open.")
 
-        # Use open_mfdataset for efficient multi-file coordinate alignment.
         ds = xr.open_mfdataset(
             [str(p) for p in nc_files],
             combine="by_coords",
@@ -333,7 +334,7 @@ class CDS:
         month: int,
         day: int = None,
         hour: int = None,
-        half_box_deg: float | None = None
+        half_box_deg: float | None = None,
     ) -> xr.Dataset:
         """
         Retrieve and return an xarray Dataset of ERA5 data for a given month and location.
@@ -347,12 +348,18 @@ class CDS:
         Returns:
             xr.Dataset: ERA5 data for the specified month and location.
         """
-        cache_file = self.cache_dir / f"era5_t2m_{location.name.replace(' ', '_').replace(',', '')}_{year:04d}_{month:02d}.nc"
+        safe_name = self._safe_location_name(location)
+        cache_file = self.cache_dir / f"era5_t2m_{safe_name}_{year:04d}_{month:02d}.nc"
         nc_file = self._cds_retrieve_era5_month(
-            cache_file, year=year, month=month, loc=location, day=day, hour=hour, half_box_deg=half_box_deg)
-        ds = self._open_and_concat_for_var([nc_file], "t2m")
-
-        return ds
+            cache_file,
+            year=year,
+            month=month,
+            loc=location,
+            day=day,
+            hour=hour,
+            half_box_deg=half_box_deg,
+        )
+        return self._open_and_concat_for_var([nc_file], "t2m")
 
     def _month_range(self, start_d: date, end_d: date):
         """
@@ -428,253 +435,3 @@ class CDS:
             df_filtered[round_column] = df_filtered[round_column].round(round_decimals)
 
         return df_filtered.reset_index(drop=True)
-
-
-class TemperatureCDS(CDS):
-    """CDS client specialized for daily local-noon temperature retrieval."""
-
-    def get_series(
-        self,
-        location: Location,
-        start_d: date,
-        end_d: date,
-        notify_progress: bool = True,
-    ) -> pd.DataFrame:
-        return self.get_noon_series(location, start_d, end_d, notify_progress=notify_progress)
-
-    def get_year_daily_noon_data(
-        self,
-        location: Location,
-        year: int,
-        half_box_deg: float | None = None,
-    ) -> pd.DataFrame:
-        tz_local = ZoneInfo(location.tz)
-
-        start_d = date(year, 1, 1)
-        end_d = date(year, 12, 31)
-        local_noons, noon_utc = self._build_local_noon_timestamps(start_d, end_d, tz_local)
-
-        safe_name = self._safe_location_name(location)
-        cache_file = self.cache_dir / f"era5_t2m_{safe_name}_{year:04d}_noons.nc"
-        nc_file = self._cds_retrieve_era5_date_series(cache_file, location, noon_utc, half_box_deg=half_box_deg)
-        ds = self._open_and_concat_for_var([nc_file], "t2m")
-
-        ds_point = self._select_location_point(ds, location)
-        return self._build_noon_temperature_dataframe(
-            ds_point["t2m"],
-            noon_utc,
-            local_noons,
-            self.max_nearest_time_delta,
-            float(ds_point["latitude"].values),
-            float(ds_point["longitude"].values),
-            location.name,
-        )
-
-    def get_month_daily_noon_data(
-        self,
-        location: Location,
-        year: int,
-        month: int,
-        half_box_deg: float | None = None,
-    ) -> pd.DataFrame:
-        tz_local = ZoneInfo(location.tz)
-
-        start_d = date(year, month, 1)
-        if month == 12:
-            end_d = date(year + 1, 1, 1) - timedelta(days=1)
-        else:
-            end_d = date(year, month + 1, 1) - timedelta(days=1)
-
-        local_noons, noon_utc = self._build_local_noon_timestamps(start_d, end_d, tz_local)
-
-        safe_name = self._safe_location_name(location)
-        cache_file = self.cache_dir / f"era5_t2m_{safe_name}_{year:04d}_{month:02d}_noons.nc"
-        nc_file = self._cds_retrieve_era5_date_series(cache_file, location, noon_utc, half_box_deg=half_box_deg)
-        ds = self._open_and_concat_for_var([nc_file], "t2m")
-
-        ds_point = self._select_location_point(ds, location)
-        return self._build_noon_temperature_dataframe(
-            ds_point["t2m"],
-            noon_utc,
-            local_noons,
-            self.max_nearest_time_delta,
-            float(ds_point["latitude"].values),
-            float(ds_point["longitude"].values),
-            location.name,
-        )
-
-    def get_noon_series(
-        self,
-        location: Location,
-        start_d: date,
-        end_d: date,
-        half_box_deg: float | None = None,
-        notify_progress: bool = True,
-    ) -> pd.DataFrame:
-        empty_columns = [
-            "date",
-            "local_noon",
-            "utc_time_used",
-            "temp_C",
-            "temp_F",
-            "grid_lat",
-            "grid_lon",
-            "place_name",
-        ]
-
-        if start_d > end_d:
-            return self._empty_series_frame(empty_columns)
-
-        day_span = (end_d - start_d).days + 1
-
-        if day_span <= self.month_fetch_day_span_threshold:
-            month_pairs = list(self._month_range(start_d, end_d))
-            all_dfs = self._collect_period_frames(
-                location,
-                [(year, month) for year, month in month_pairs],
-                lambda period: self.get_month_daily_noon_data(location, period[0], period[1], half_box_deg),
-                notify_progress,
-            )
-            return self._finalize_series_dataframe(
-                all_dfs,
-                start_d,
-                end_d,
-                empty_columns,
-            )
-
-        years = list(range(start_d.year, end_d.year + 1))
-        all_dfs = self._collect_period_frames(
-            location,
-            [(year, None) for year in years],
-            lambda period: self.get_year_daily_noon_data(location, period[0], half_box_deg),
-            notify_progress,
-        )
-        return self._finalize_series_dataframe(
-            all_dfs,
-            start_d,
-            end_d,
-            empty_columns,
-        )
-
-
-class PrecipitationCDS(CDS):
-    """CDS client specialized for daily precipitation retrieval."""
-
-    def get_series(
-        self,
-        location: Location,
-        start_d: date,
-        end_d: date,
-        notify_progress: bool = True,
-    ) -> pd.DataFrame:
-        return self.get_daily_precipitation_series(location, start_d, end_d, notify_progress=notify_progress)
-
-    def get_daily_precipitation_series(
-        self,
-        location: Location,
-        start_d: date,
-        end_d: date,
-        half_box_deg: float | None = None,
-        notify_progress: bool = True,
-    ) -> pd.DataFrame:
-        empty_columns = [
-            "date",
-            "precip_mm",
-            "grid_lat",
-            "grid_lon",
-            "place_name",
-        ]
-
-        if start_d > end_d:
-            return self._empty_series_frame(empty_columns)
-
-        day_span = (end_d - start_d).days + 1
-
-        if day_span <= self.month_fetch_day_span_threshold:
-            month_pairs = list(self._month_range(start_d, end_d))
-            all_dfs = self._collect_period_frames(
-                location,
-                [(year, month) for year, month in month_pairs],
-                lambda period: self.get_month_daily_precipitation_data(location, period[0], period[1], half_box_deg),
-                notify_progress,
-            )
-        else:
-            years = list(range(start_d.year, end_d.year + 1))
-            all_dfs = self._collect_period_frames(
-                location,
-                [(year, None) for year in years],
-                lambda period: self.get_year_daily_precipitation_data(location, period[0], half_box_deg),
-                notify_progress,
-            )
-
-        return self._finalize_series_dataframe(
-            all_dfs,
-            start_d,
-            end_d,
-            empty_columns,
-            date_as_string=True,
-            round_column="precip_mm",
-            round_decimals=3,
-        )
-
-    def get_month_daily_precipitation_data(
-        self,
-        location: Location,
-        year: int,
-        month: int,
-        half_box_deg: float | None = None,
-    ) -> pd.DataFrame:
-        tz_local = ZoneInfo(location.tz)
-        safe_name = self._safe_location_name(location)
-
-        cache_file = self.cache_dir / f"era5_tp_{safe_name}_{year:04d}_{month:02d}.nc"
-        nc_file = self._cds_retrieve_era5_month(
-            cache_file,
-            year=year,
-            month=month,
-            loc=location,
-            variable="total_precipitation",
-            half_box_deg=half_box_deg,
-        )
-        ds = self._open_and_concat_for_var([nc_file], "tp")
-
-        ds_point = self._select_location_point(ds, location)
-        return self._build_daily_precipitation_dataframe(
-            ds_point["tp"],
-            tz_local,
-            float(ds_point["latitude"].values),
-            float(ds_point["longitude"].values),
-            location.name,
-        )
-
-    def get_year_daily_precipitation_data(
-        self,
-        location: Location,
-        year: int,
-        half_box_deg: float | None = None,
-    ) -> pd.DataFrame:
-        tz_local = ZoneInfo(location.tz)
-        safe_name = self._safe_location_name(location)
-
-        start_dt_utc = datetime(year, 1, 1, 0, 0, tzinfo=timezone.utc)
-        end_dt_utc = datetime(year, 12, 31, 23, 0, tzinfo=timezone.utc)
-        hourly_utc = pd.date_range(start=start_dt_utc, end=end_dt_utc, freq="h")
-
-        cache_file = self.cache_dir / f"era5_tp_{safe_name}_{year:04d}_daily.nc"
-        nc_file = self._cds_retrieve_era5_date_series(
-            cache_file,
-            location,
-            hourly_utc,
-            variable="total_precipitation",
-            half_box_deg=half_box_deg,
-        )
-        ds = self._open_and_concat_for_var([nc_file], "tp")
-
-        ds_point = self._select_location_point(ds, location)
-        return self._build_daily_precipitation_dataframe(
-            ds_point["tp"],
-            tz_local,
-            float(ds_point["latitude"].values),
-            float(ds_point["longitude"].values),
-            location.name,
-        )

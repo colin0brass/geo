@@ -122,7 +122,8 @@ python geo.py -a -y 2024 -q
 ```python
 from datetime import date
 from geo import read_data_file, save_data_file
-from geo_data.cds import Location, TemperatureCDS
+from geo_data.cds_base import Location
+from geo_data.cds_temperature import TemperatureCDS
 from geo_plot.plot import Visualizer
 
 # Timezone is auto-detected from coordinates

@@ -1,11 +1,8 @@
 """Data-layer package for geo (CDS retrieval and cache pipeline)."""
 
-from .cds import (
-    CDS,
-    Location,
-    PrecipitationCDS,
-    TemperatureCDS,
-)
+from .cds_base import CDS, Location
+from .cds_precipitation import PrecipitationCDS
+from .cds_temperature import TemperatureCDS
 from .data import (
     cache_yaml_path_for_place,
     get_cached_years,

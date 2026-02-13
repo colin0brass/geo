@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from geo_data.cds import CDS, Location
+from geo_data.cds_base import CDS, Location
 
 
 RUN_LIVE_CDS = os.environ.get("GEO_RUN_LIVE_CDS", "").strip() == "1"

@@ -12,7 +12,7 @@ from geo_plot.orchestrator import (
     create_main_plots,
     plot_all
 )
-from geo_data.cds import Location
+from geo_data.cds_base import Location
 
 
 def test_calculate_grid_dimensions_no_custom_grid(tmp_path):

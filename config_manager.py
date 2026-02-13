@@ -13,7 +13,7 @@ import yaml
 from geopy.geocoders import Nominatim
 from timezonefinder import TimezoneFinder
 
-from geo_data.cds import Location
+from geo_data.cds_base import Location
 from geo_core.config import (
     extract_places_config,
     find_place_by_name,

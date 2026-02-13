@@ -15,7 +15,7 @@ from geo_data.data import (
     retrieve_and_concat_data,
     save_data_file,
 )
-from geo_data.cds import Location
+from geo_data.cds_base import Location
 
 
 def test_read_and_save_data_file(tmp_path):

@@ -4,7 +4,9 @@ import pandas as pd
 import numpy as np
 import xarray as xr
 from pathlib import Path
-from geo_data.cds import Location, PrecipitationCDS, TemperatureCDS
+from geo_data.cds_base import Location
+from geo_data.cds_precipitation import PrecipitationCDS
+from geo_data.cds_temperature import TemperatureCDS
 
 
 class DummyCDS(TemperatureCDS):

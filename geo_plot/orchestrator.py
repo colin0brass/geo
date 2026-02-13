@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from geo_data.cds import Location
+from geo_data.cds_base import Location
 from geo_core.config import get_plot_text, load_grid_settings, load_measure_labels_config, load_plot_text_config
 from geo_core.grid import calculate_grid_layout
 from .plot import Visualizer

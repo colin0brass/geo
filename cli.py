@@ -15,7 +15,7 @@ from pathlib import Path
 
 import yaml
 
-from geo_data.cds import Location
+from geo_data.cds_base import Location
 from config_manager import load_places
 from geo_core.config import (
     VALID_COLOUR_MODES,

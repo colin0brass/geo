@@ -15,12 +15,9 @@ from collections.abc import Callable
 import pandas as pd
 import yaml
 
-from .cds import (
-    CDS,
-    Location,
-    PrecipitationCDS,
-    TemperatureCDS,
-)
+from .cds_base import CDS, Location
+from .cds_precipitation import PrecipitationCDS
+from .cds_temperature import TemperatureCDS
 from geo_core.progress import get_progress_manager
 
 logger = logging.getLogger("geo")

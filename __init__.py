@@ -14,7 +14,7 @@ from .cli import (
     parse_grid,
     parse_years,
 )
-from .geo_data.cds import CDS, Location
+from .geo_data.cds_base import CDS, Location
 from .geo_data.data import read_data_file, retrieve_and_concat_data, save_data_file
 from .geo_plot.orchestrator import plot_all
 from .geo_plot.plot import Visualizer

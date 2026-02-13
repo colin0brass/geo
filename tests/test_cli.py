@@ -11,7 +11,7 @@ from cli import (
     parse_years,
     validate_measure_support,
 )
-from geo_data.cds import Location
+from geo_data.cds_base import Location
 
 
 def test_cli_help():
