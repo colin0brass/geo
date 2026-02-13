@@ -4,7 +4,9 @@ Tests for data module (data retrieval and I/O operations).
 import pytest
 import pandas as pd
 from unittest.mock import MagicMock
+from types import SimpleNamespace
 import yaml
+import geo_data.measure_mapping as measure_mapping
 from geo_data.data import (
     DATA_KEY,
     NOON_TEMP_VAR,
@@ -12,7 +14,7 @@ from geo_data.data import (
     SCHEMA_VERSION,
 )
 from geo_data.cds_base import Location
-from geo_data.data_schema import CacheSchemaRegistry, _load_cache_schema_registry
+from geo_data.schema import Schema
 from geo_data.data_store import CacheStore
 
 
@@ -87,14 +89,14 @@ def test_read_and_save_data_file(tmp_path):
     assert df2['temp_C'].iloc[0] == 10.0
 
 
-def test_cache_schema_registry_class_properties(tmp_path):
-    """Class-based schema registry exposes expected metadata and loader."""
-    registry = CacheSchemaRegistry()
-    assert registry.schema_version == SCHEMA_VERSION
-    assert registry.data_key == DATA_KEY
-    assert registry.primary_variable == NOON_TEMP_VAR
+def test_schema_class_properties(tmp_path):
+    """Schema class exposes expected metadata and loader."""
+    schema = Schema.load()
+    assert schema.version == SCHEMA_VERSION
+    assert schema.data_key == DATA_KEY
+    assert schema.primary_variable == NOON_TEMP_VAR
 
-    loaded = registry.load_registry()
+    loaded = Schema.load_registry()
     assert isinstance(loaded, dict)
     assert loaded['current_version'] == SCHEMA_VERSION
 
@@ -187,8 +189,8 @@ def test_read_data_file_date_parsing(tmp_path):
     assert df2['date'].iloc[0].day == 15
 
 
-def test_retrieve_and_concat_data_single_location(tmp_path, monkeypatch):
-    """Test retrieving data for a single location."""
+def test_coordinator_retrieve_single_location(tmp_path, monkeypatch):
+    """RetrievalCoordinator retrieves data for a single location."""
     loc = Location(name="Test City", lat=40.0, lon=-73.0, tz="America/New_York")
 
     # Mock CDS to avoid actual API calls
@@ -214,8 +216,8 @@ def test_retrieve_and_concat_data_single_location(tmp_path, monkeypatch):
     mock_cds.get_noon_series.assert_called_once()
 
 
-def test_retrieve_and_concat_data_precipitation_measure(tmp_path, monkeypatch):
-    """Test retrieving data with a non-default measure routes to correct CDS method."""
+def test_coordinator_retrieve_precipitation_measure(tmp_path, monkeypatch):
+    """RetrievalCoordinator routes precipitation measure to the correct CDS method."""
     loc = Location(name="Rain City", lat=40.0, lon=-73.0, tz="America/New_York")
 
     mock_cds = MagicMock()
@@ -269,8 +271,8 @@ def test_read_and_save_data_file_precipitation_measure(tmp_path):
     assert 'temp_F' not in df2.columns
 
 
-def test_retrieve_and_concat_data_multiple_locations(tmp_path, monkeypatch):
-    """Test retrieving and concatenating data for multiple locations."""
+def test_coordinator_retrieve_multiple_locations(tmp_path, monkeypatch):
+    """RetrievalCoordinator retrieves and concatenates data for multiple locations."""
     loc1 = Location(name="City A", lat=40.0, lon=-73.0, tz="America/New_York")
     loc2 = Location(name="City B", lat=51.5, lon=-0.1, tz="Europe/London")
 
@@ -301,8 +303,8 @@ def test_retrieve_and_concat_data_multiple_locations(tmp_path, monkeypatch):
     assert mock_cds.get_noon_series.call_count == 2
 
 
-def test_retrieve_and_concat_data_caches_to_yaml(tmp_path, monkeypatch):
-    """Test that data is saved to YAML cache file."""
+def test_coordinator_retrieve_caches_to_yaml(tmp_path, monkeypatch):
+    """RetrievalCoordinator persists fetched data to YAML cache files."""
     loc = Location(name="Test", lat=40.0, lon=-73.0, tz="America/New_York")
 
     mock_cds = MagicMock()
@@ -487,8 +489,8 @@ def test_read_data_file_with_year_filtering(tmp_path):
     assert set(df_filtered['date'].dt.year.values) == {2024, 2025}
 
 
-def test_retrieve_and_concat_data_uses_cached_years(tmp_path, monkeypatch):
-    """Test that retrieve_and_concat_data uses cached data when available."""
+def test_coordinator_retrieve_uses_cached_years(tmp_path, monkeypatch):
+    """RetrievalCoordinator uses cached data when requested years are present."""
     loc = Location(name="Test", lat=40.0, lon=-73.0, tz="America/New_York")
 
     # Pre-populate cache with 2024 data
@@ -526,8 +528,8 @@ def test_retrieve_and_concat_data_uses_cached_years(tmp_path, monkeypatch):
     mock_cds.get_noon_series.assert_called_once()
 
 
-def test_retrieve_and_concat_data_all_cached(tmp_path, monkeypatch):
-    """Test that no CDS calls are made when all data is cached."""
+def test_coordinator_retrieve_all_cached(tmp_path, monkeypatch):
+    """RetrievalCoordinator skips CDS calls when all requested data is cached."""
     loc = Location(name="Test", lat=40.0, lon=-73.0, tz="America/New_York")
 
     # Pre-populate cache with all requested years
@@ -725,8 +727,8 @@ def test_read_data_file_rejects_unsupported_older_schema_version(tmp_path):
         cache_store_read_data_file(yaml_file)
 
 
-def test_schema_registry_rejects_invalid_required_list_type(tmp_path):
-    """Schema registry should fail if required_* fields are malformed."""
+def test_schema_loader_rejects_invalid_required_list_type(tmp_path):
+    """Schema loader should fail if required_* fields are malformed."""
     schema_file = tmp_path / "schema.yaml"
     schema_file.write_text(
         """
@@ -742,7 +744,35 @@ versions:
     )
 
     with pytest.raises(ValueError, match="required"):
-        _load_cache_schema_registry(schema_file)
+        Schema.load_registry(schema_file)
+
+
+def test_measure_value_columns_can_be_loaded_from_schema(monkeypatch):
+    """measure_value_columns should be loaded from schema when configured."""
+    fake_schema = SimpleNamespace(current={
+        'measure_value_columns': {
+            'noon_temperature': 'temp_c_custom',
+            'daily_precipitation': 'rain_mm_custom',
+        }
+    })
+    monkeypatch.setattr(measure_mapping, 'DEFAULT_SCHEMA', fake_schema)
+
+    loaded = measure_mapping._load_measure_to_value_column_mapping()
+    assert loaded['noon_temperature'] == 'temp_c_custom'
+    assert loaded['daily_precipitation'] == 'rain_mm_custom'
+
+
+def test_measure_value_columns_rejects_missing_required_measure(monkeypatch):
+    """measure_value_columns should fail validation when required measures are missing."""
+    fake_schema = SimpleNamespace(current={
+        'measure_value_columns': {
+            'noon_temperature': 'temp_c_custom',
+        }
+    })
+    monkeypatch.setattr(measure_mapping, 'DEFAULT_SCHEMA', fake_schema)
+
+    with pytest.raises(ValueError, match='measure_value_columns'):
+        measure_mapping._load_measure_to_value_column_mapping()
 
 
 def test_read_data_file_schema_v1_missing_required_place_field_fails(tmp_path):
@@ -770,8 +800,8 @@ def test_read_data_file_schema_v1_missing_required_place_field_fails(tmp_path):
         cache_store_read_data_file(yaml_file)
 
 
-def test_retrieve_and_concat_data_prints_cds_summary(tmp_path, monkeypatch, capsys):
-    """Test that retrieve_and_concat_data prints CDS retrieval summary."""
+def test_coordinator_retrieve_prints_cds_summary(tmp_path, monkeypatch, capsys):
+    """RetrievalCoordinator prints a CDS retrieval summary for uncached places."""
     loc1 = Location(name="City A", lat=40.0, lon=-73.0, tz="America/New_York")
     loc2 = Location(name="City B", lat=51.5, lon=-0.1, tz="Europe/London")
 
@@ -802,8 +832,8 @@ def test_retrieve_and_concat_data_prints_cds_summary(tmp_path, monkeypatch, caps
     assert "=" in captured.out  # Separator lines
 
 
-def test_retrieve_and_concat_data_prints_all_cached_message(tmp_path, monkeypatch, capsys):
-    """Test that retrieve_and_concat_data prints message when all data is cached."""
+def test_coordinator_retrieve_prints_all_cached_message(tmp_path, monkeypatch, capsys):
+    """RetrievalCoordinator prints an all-cached message when no CDS retrieval is needed."""
     loc = Location(name="Test", lat=40.0, lon=-73.0, tz="America/New_York")
 
     # Pre-populate cache

@@ -17,7 +17,7 @@ from geo_core.progress import get_progress_manager
 from .cds_base import CDS, Location
 from .cds_precipitation import PrecipitationCDS
 from .cds_temperature import TemperatureCDS
-from .data_schema import (
+from .schema import (
     DATA_KEY,
     NOON_TEMP_VAR,
     SCHEMA_VERSION,

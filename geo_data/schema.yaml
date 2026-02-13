@@ -31,6 +31,12 @@ versions:
     data_key: data
     variables_key: variables
     primary_variable: noon_temp_C
+    measure_cache_vars:
+      noon_temperature: noon_temp_C
+      daily_precipitation: daily_precip_mm
+    measure_value_columns:
+      noon_temperature: temp_C
+      daily_precipitation: precip_mm
     migration:
       from_version: 1
       field_mappings:

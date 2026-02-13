@@ -4,7 +4,7 @@ from .cds_base import CDS, Location
 from .cds_precipitation import PrecipitationCDS
 from .cds_temperature import TemperatureCDS
 from .data import RetrievalCoordinator
-from .data_schema import CacheSchemaRegistry
+from .schema import Schema
 from .data_store import CacheStore
 
 __all__ = [
@@ -12,7 +12,7 @@ __all__ = [
     "Location",
     "TemperatureCDS",
     "PrecipitationCDS",
-    "CacheSchemaRegistry",
+    "Schema",
     "CacheStore",
     "RetrievalCoordinator",
 ]

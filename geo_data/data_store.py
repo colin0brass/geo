@@ -10,15 +10,19 @@ from pathlib import Path
 import pandas as pd
 
 from .cds_base import Location
-from .data_schema import (
-    DATA_KEY,
-    SCHEMA_VERSION,
-    VARIABLES_KEY,
+from .measure_mapping import (
     _build_variables_metadata,
     _get_measure_cache_var,
     _get_measure_value_column,
+)
+from .migration import _normalize_temp_map
+from .schema import (
+    DATA_KEY,
+    SCHEMA_VERSION,
+    VARIABLES_KEY,
+)
+from .yaml_codec import (
     _load_cache_data_v2,
-    _normalize_temp_map,
     _write_cache_yaml_v2,
 )
 

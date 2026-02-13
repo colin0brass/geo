@@ -7,7 +7,8 @@
 - CDS/ERA5 retrieval clients (`cds_base.py`, `cds_temperature.py`, `cds_precipitation.py`)
 - Measure-aware data retrieval orchestration (`data.py` / `RetrievalCoordinator`)
 - Cache path/read/write helpers (`data_store.py` / `CacheStore`)
-- Schema/migration helpers (`data_schema.py` / `CacheSchemaRegistry`)
+- Schema model and registry (`schema.py` / `Schema`)
+- Schema support modules (`measure_mapping.py`, `migration.py`, `yaml_codec.py`)
 - Cache schema registry (`schema.yaml`)
 - Data-layer tests (`tests/`)
 
@@ -30,10 +31,25 @@ Plot rendering and plot orchestration live in `geo_plot` (`geo_plot/plot.py`, `g
   - retrieval orchestration class (`RetrievalCoordinator`)
 - `data_store.py`
   - cache path/read/write class (`CacheStore`)
-- `data_schema.py`
-  - schema/migration class (`CacheSchemaRegistry`)
+- `schema.py`
+  - schema model (`Schema`) and default loaded schema (`DEFAULT_SCHEMA`)
+  - schema registry loading and core schema constants
+- `measure_mapping.py`
+  - measure-to-cache and measure-to-dataframe mapping helpers
+- `migration.py`
+  - schema-version detection and migration helpers
+- `yaml_codec.py`
+  - YAML read/write and migration codec helpers
 - `schema.yaml`
   - schema registry and migration metadata for cached YAML files
+
+## Schema API
+
+- Preferred for new code: import from `geo_data.schema`.
+- Package-level import also exposes `Schema` via `from geo_data import Schema`.
+- Primary loader entry points are `Schema.load()` and `Schema.load_registry(...)`.
+- Current schema supports `measure_cache_vars` and `measure_value_columns` mappings.
+- Supporting modules: `geo_data.measure_mapping`, `geo_data.migration`, and `geo_data.yaml_codec`.
 
 ## Tests
 
