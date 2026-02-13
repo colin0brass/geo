@@ -9,6 +9,8 @@ from .config import (
     load_grid_settings,
     load_measure_labels_config,
     load_plot_text_config,
+    load_retrieval_settings,
+    load_runtime_paths,
     render_config_yaml,
 )
 from .formatting import condense_year_ranges
@@ -27,6 +29,8 @@ __all__ = [
     "load_grid_settings",
     "load_measure_labels_config",
     "load_plot_text_config",
+    "load_retrieval_settings",
+    "load_runtime_paths",
     "render_config_yaml",
     "ProgressHandler",
     "ProgressManager",

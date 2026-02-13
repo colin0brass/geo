@@ -108,7 +108,7 @@ def test_retrieve_and_concat_data_single_location(tmp_path, monkeypatch):
     })
     mock_cds.get_noon_series.return_value = mock_df
 
-    def mock_cds_init(cache_dir, progress_manager=None):
+    def mock_cds_init(cache_dir, progress_manager=None, config_path=None):
         return mock_cds
 
     monkeypatch.setattr('geo_data.data.CDS', mock_cds_init)
@@ -134,7 +134,7 @@ def test_retrieve_and_concat_data_precipitation_measure(tmp_path, monkeypatch):
     })
     mock_cds.get_daily_precipitation_series.return_value = mock_df
 
-    def mock_cds_init(cache_dir, progress_manager=None):
+    def mock_cds_init(cache_dir, progress_manager=None, config_path=None):
         return mock_cds
 
     monkeypatch.setattr('geo_data.data.CDS', mock_cds_init)
@@ -193,7 +193,7 @@ def test_retrieve_and_concat_data_multiple_locations(tmp_path, monkeypatch):
 
     mock_cds.get_noon_series.side_effect = mock_get_noon_series
 
-    def mock_cds_init(cache_dir, progress_manager=None):
+    def mock_cds_init(cache_dir, progress_manager=None, config_path=None):
         return mock_cds
 
     monkeypatch.setattr('geo_data.data.CDS', mock_cds_init)
@@ -222,7 +222,7 @@ def test_retrieve_and_concat_data_caches_to_yaml(tmp_path, monkeypatch):
     })
     mock_cds.get_noon_series.return_value = mock_df
 
-    monkeypatch.setattr('geo_data.data.CDS', lambda cache_dir, progress_manager=None: mock_cds)
+    monkeypatch.setattr('geo_data.data.CDS', lambda cache_dir, progress_manager=None, config_path=None: mock_cds)
 
     data_cache_dir = tmp_path / "data_cache"
     retrieve_and_concat_data([loc], 2024, 2024, tmp_path, data_cache_dir)
@@ -419,7 +419,7 @@ def test_retrieve_and_concat_data_uses_cached_years(tmp_path, monkeypatch):
         'grid_lon': [-73.0],
     })
     mock_cds.get_noon_series.return_value = df_2025
-    monkeypatch.setattr('geo_data.data.CDS', lambda cache_dir, progress_manager=None: mock_cds)
+    monkeypatch.setattr('geo_data.data.CDS', lambda cache_dir, progress_manager=None, config_path=None: mock_cds)
 
     # Request 2024-2025, should only fetch 2025
     result = retrieve_and_concat_data([loc], 2024, 2025, tmp_path, data_cache_dir)
@@ -450,7 +450,7 @@ def test_retrieve_and_concat_data_all_cached(tmp_path, monkeypatch):
 
     # Mock CDS to detect if it's called
     mock_cds = MagicMock()
-    monkeypatch.setattr('geo_data.data.CDS', lambda cache_dir, progress_manager=None: mock_cds)
+    monkeypatch.setattr('geo_data.data.CDS', lambda cache_dir, progress_manager=None, config_path=None: mock_cds)
 
     # Request cached years only
     result = retrieve_and_concat_data([loc], 2024, 2025, tmp_path, data_cache_dir)
@@ -499,7 +499,7 @@ def test_save_data_file_key_normalization(tmp_path):
 
 
 def test_read_data_file_legacy_temperatures_key(tmp_path):
-    """Test one-way migration from legacy 'temperatures' key to v2 schema."""
+    """Unversioned legacy cache documents should be rejected."""
     yaml_file = tmp_path / "legacy.yaml"
     legacy = {
         'place': {
@@ -519,15 +519,8 @@ def test_read_data_file_legacy_temperatures_key(tmp_path):
     with open(yaml_file, 'w') as f:
         yaml.safe_dump(legacy, f)
 
-    df = read_data_file(yaml_file)
-    assert len(df) == 1
-    assert df['temp_C'].iloc[0] == 12.5
-    assert get_cached_years(yaml_file) == {2024}
-
-    with open(yaml_file, 'r') as f:
-        migrated = yaml.safe_load(f)
-    assert migrated['schema_version'] == SCHEMA_VERSION
-    assert DATA_KEY in migrated and NOON_TEMP_VAR in migrated[DATA_KEY]
+    with pytest.raises(ValueError, match='unversioned cache documents are no longer supported'):
+        read_data_file(yaml_file)
 
 
 def test_read_data_file_schema_v1_auto_migrates(tmp_path):
@@ -616,6 +609,28 @@ def test_read_data_file_rejects_newer_schema_version(tmp_path):
         read_data_file(yaml_file)
 
 
+def test_read_data_file_rejects_unsupported_older_schema_version(tmp_path):
+    """Unknown older schema versions should be rejected, not guessed."""
+    yaml_file = tmp_path / "v0.yaml"
+    v0_doc = {
+        'schema_version': 0,
+        'place': {
+            'name': 'Old Place',
+            'lat': 40.0,
+            'lon': -73.0,
+            'timezone': 'America/New_York',
+            'grid_lat': 40.0,
+            'grid_lon': -73.0,
+        },
+        'temperatures': {2024: {1: {1: 10.0}}},
+    }
+    with open(yaml_file, 'w') as f:
+        yaml.safe_dump(v0_doc, f)
+
+    with pytest.raises(ValueError, match='unsupported schema_version'):
+        read_data_file(yaml_file)
+
+
 def test_schema_registry_rejects_invalid_required_list_type(tmp_path):
     """Schema registry should fail if required_* fields are malformed."""
     schema_file = tmp_path / "schema.yaml"
@@ -676,7 +691,7 @@ def test_retrieve_and_concat_data_prints_cds_summary(tmp_path, monkeypatch, caps
     })
     mock_cds.get_noon_series.return_value = mock_df
 
-    def mock_cds_init(cache_dir, progress_manager=None):
+    def mock_cds_init(cache_dir, progress_manager=None, config_path=None):
         return mock_cds
 
     monkeypatch.setattr('geo_data.data.CDS', mock_cds_init)
@@ -710,7 +725,7 @@ def test_retrieve_and_concat_data_prints_all_cached_message(tmp_path, monkeypatc
     save_data_file(df, yaml_file, loc)
 
     mock_cds = MagicMock()
-    monkeypatch.setattr('geo_data.data.CDS', lambda cache_dir, progress_manager=None: mock_cds)
+    monkeypatch.setattr('geo_data.data.CDS', lambda cache_dir, progress_manager=None, config_path=None: mock_cds)
 
     # Call with cached data
     retrieve_and_concat_data([loc], 2024, 2024, tmp_path, data_cache_dir)

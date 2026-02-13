@@ -117,8 +117,8 @@ def create_batch_subplot(
     filename_prefix = list_name if list_name else "Overall"
     measure_ctx = _measure_plot_context(measure, measure_labels)
     measure_meta = measure_labels.get(measure, {})
-    range_text_template = measure_meta.get('range_text') or plot_text_config.get('range_text')
-    y_value_column = measure_meta.get('y_value_column', 'temp_C')
+    range_text_template = measure_meta['range_text']
+    y_value_column = measure_meta['y_value_column']
 
     # Ensure output directory exists
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -316,8 +316,8 @@ def create_individual_plot(
     measure_labels = load_measure_labels_config(config)
     measure_ctx = _measure_plot_context(measure, measure_labels)
     measure_meta = measure_labels.get(measure, {})
-    range_text_template = measure_meta.get('range_text') or plot_text_config.get('range_text')
-    y_value_column = measure_meta.get('y_value_column', 'temp_C')
+    range_text_template = measure_meta['range_text']
+    y_value_column = measure_meta['y_value_column']
 
     # Ensure output directory exists
     out_dir.mkdir(parents=True, exist_ok=True)

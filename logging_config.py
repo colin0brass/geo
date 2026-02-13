@@ -10,6 +10,50 @@ from pathlib import Path
 import yaml
 
 
+DEFAULT_LOGGING_SETTINGS = {
+    'log_file': 'geo.log',
+    'console_level': 'WARNING',
+    'file_mode': 'w',
+    'suppress_cdsapi': True,
+    'suppress_root_logger': True,
+    'third_party_log_level': 'WARNING',
+}
+
+
+def _load_logging_settings(config_path: Path) -> dict:
+    """Load and validate logging settings from config.yaml."""
+    with open(config_path, "r") as f:
+        config = yaml.safe_load(f) or {}
+
+    logging_config = config.get('logging', {})
+    if not isinstance(logging_config, dict):
+        raise ValueError(f"Invalid logging section in {config_path}; expected mapping.")
+
+    settings = DEFAULT_LOGGING_SETTINGS.copy()
+    settings.update(logging_config)
+
+    console_level = str(settings['console_level']).upper()
+    if not hasattr(logging, console_level):
+        raise ValueError(f"Invalid logging.console_level '{settings['console_level']}'")
+    settings['console_level'] = console_level
+
+    third_party_level = str(settings['third_party_log_level']).upper()
+    if not hasattr(logging, third_party_level):
+        raise ValueError(f"Invalid logging.third_party_log_level '{settings['third_party_log_level']}'")
+    settings['third_party_log_level'] = third_party_level
+
+    if settings['file_mode'] not in ('w', 'a'):
+        raise ValueError("logging.file_mode must be 'w' or 'a'")
+    if not isinstance(settings['suppress_cdsapi'], bool):
+        raise ValueError("logging.suppress_cdsapi must be boolean")
+    if not isinstance(settings['suppress_root_logger'], bool):
+        raise ValueError("logging.suppress_root_logger must be boolean")
+    if not isinstance(settings['log_file'], str) or not settings['log_file'].strip():
+        raise ValueError("logging.log_file must be a non-empty string")
+
+    return settings
+
+
 def setup_logging(config_path: Path = Path("config.yaml")) -> logging.Logger:
     """
     Configure logging using settings from config.yaml.
@@ -20,13 +64,9 @@ def setup_logging(config_path: Path = Path("config.yaml")) -> logging.Logger:
     Returns:
         Configured logger instance.
     """
-    # Load configuration
-    with open(config_path, "r") as f:
-        config = yaml.safe_load(f)
-
-    logging_config = config.get('logging', {})
-    log_file = logging_config.get('log_file', 'geo.log')
-    console_level = logging_config.get('console_level', 'WARNING')
+    settings = _load_logging_settings(config_path)
+    log_file = settings['log_file']
+    console_level = settings['console_level']
 
     # Create logger
     logger = logging.getLogger("geo")
@@ -46,28 +86,27 @@ def setup_logging(config_path: Path = Path("config.yaml")) -> logging.Logger:
     )
 
     # File handler (DEBUG level - captures everything)
-    # Use 'w' mode to clear log file on each run for a clean start
-    file_handler = logging.FileHandler(log_file, mode='w', encoding='utf-8')
+    file_handler = logging.FileHandler(log_file, mode=settings['file_mode'], encoding='utf-8')
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(detailed_formatter)
     logger.addHandler(file_handler)
 
     # Console handler (WARNING level by default - only warnings and errors)
     console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(getattr(logging, console_level.upper()))
+    console_handler.setLevel(getattr(logging, console_level))
     console_handler.setFormatter(simple_formatter)
     logger.addHandler(console_handler)
 
-    # Suppress verbose output from cdsapi library
-    # Remove any existing handlers and set level to WARNING
-    cdsapi_logger = logging.getLogger('cdsapi')
-    cdsapi_logger.handlers.clear()  # Remove any handlers cdsapi may have added
-    cdsapi_logger.setLevel(logging.WARNING)
-    cdsapi_logger.propagate = False
+    third_party_level = getattr(logging, settings['third_party_log_level'])
+    if settings['suppress_cdsapi']:
+        cdsapi_logger = logging.getLogger('cdsapi')
+        cdsapi_logger.handlers.clear()
+        cdsapi_logger.setLevel(third_party_level)
+        cdsapi_logger.propagate = False
 
-    # Also suppress the root logger to catch any cdsapi messages that bypass their logger
-    root_logger = logging.getLogger()
-    root_logger.setLevel(logging.WARNING)
+    if settings['suppress_root_logger']:
+        root_logger = logging.getLogger()
+        root_logger.setLevel(third_party_level)
 
     return logger
 

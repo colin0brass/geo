@@ -150,6 +150,16 @@ def test_create_batch_subplot_uses_measure_labels_from_config(mock_visualizer_cl
     config_file = tmp_path / "config.yaml"
     config_file.write_text(
         "\n".join([
+            "plot_text:",
+            "  single_plot_title: '{location} {measure_label} ({start_year}-{end_year})'",
+            "  subplot_title: '{measure_label} ({start_year}-{end_year})'",
+            "  subplot_title_with_batch: '{measure_label} ({start_year}-{end_year}) - Part {batch}/{total_batches}'",
+            "  single_plot_filename: '{location}_{measure_key}_{start_year}_{end_year}.png'",
+            "  subplot_filename: '{list_name}_{measure_key}_{start_year}_{end_year}.png'",
+            "  subplot_filename_with_batch: '{list_name}_{measure_key}_{start_year}_{end_year}_part{batch}of{total_batches}.png'",
+            "  credit: 'Climate Data Analysis & Visualisation by Colin Osborne'",
+            "  single_plot_credit: 'Analysis & visualisation by Colin Osborne'",
+            "  data_source: 'Data from: ERA5 via CDS'",
             "plotting:",
             "  measure_labels:",
             "    daily_precipitation:",

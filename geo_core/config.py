@@ -13,20 +13,58 @@ logger = logging.getLogger("geo")
 VALID_COLOUR_MODES = ("y_value", "year")
 DEFAULT_COLOUR_MODE = VALID_COLOUR_MODES[0]
 DEFAULT_COLORMAP = "turbo"
+DEFAULT_RUNTIME_PATHS = {
+    "cache_dir": "era5_cache",
+    "data_cache_dir": "data_cache",
+    "out_dir": "output",
+    "settings_file": "geo_plot/settings.yaml",
+}
+DEFAULT_RETRIEVAL_SETTINGS = {
+    "half_box_deg": 0.25,
+    "max_nearest_time_delta_minutes": 30,
+    "month_fetch_day_span_threshold": 62,
+}
+REQUIRED_PLOT_TEXT_KEYS = (
+    'single_plot_title',
+    'subplot_title',
+    'subplot_title_with_batch',
+    'single_plot_filename',
+    'subplot_filename',
+    'subplot_filename_with_batch',
+    'credit',
+    'single_plot_credit',
+    'data_source',
+)
+REQUIRED_MEASURE_LABEL_KEYS = (
+    'label',
+    'unit',
+    'y_value_column',
+    'range_text',
+)
+DEFAULT_GRID_SETTINGS = {
+    'max_auto_rows': 4,
+    'max_auto_cols': 6,
+}
 
 
 def load_grid_settings(config_file: Path) -> tuple[int, int]:
     """Load grid maximum dimensions from config YAML file."""
-    try:
-        with open(config_file, 'r') as f:
-            config = yaml.safe_load(f) or {}
-            grid_config = config.get('grid', {})
-            max_rows = grid_config.get('max_auto_rows', 4)
-            max_cols = grid_config.get('max_auto_cols', 6)
-            return (max_rows, max_cols)
-    except Exception as exc:
-        logger.warning(f"Failed to load grid settings from {config_file}: {exc}. Using defaults (4x6).")
-        return (4, 6)
+    with open(config_file, 'r') as f:
+        config = yaml.safe_load(f) or {}
+
+    grid_config = config.get('grid', {})
+    if not isinstance(grid_config, dict):
+        raise ValueError(f"Invalid grid section in {config_file}; expected mapping.")
+
+    max_rows = grid_config.get('max_auto_rows', DEFAULT_GRID_SETTINGS['max_auto_rows'])
+    max_cols = grid_config.get('max_auto_cols', DEFAULT_GRID_SETTINGS['max_auto_cols'])
+
+    if not isinstance(max_rows, int) or max_rows <= 0:
+        raise ValueError("grid.max_auto_rows must be a positive integer")
+    if not isinstance(max_cols, int) or max_cols <= 0:
+        raise ValueError("grid.max_auto_cols must be a positive integer")
+
+    return (max_rows, max_cols)
 
 
 def load_colour_mode(config_file: Path, cli_colour_mode: str | None = None) -> str:
@@ -35,154 +73,194 @@ def load_colour_mode(config_file: Path, cli_colour_mode: str | None = None) -> s
         return cli_colour_mode
 
     default_mode = DEFAULT_COLOUR_MODE
-    try:
-        with open(config_file, 'r') as f:
-            config = yaml.safe_load(f) or {}
+    with open(config_file, 'r') as f:
+        config = yaml.safe_load(f) or {}
 
-        config_mode = config.get('plotting', {}).get('colour_mode', default_mode)
-        if config_mode not in VALID_COLOUR_MODES:
-            allowed = ', '.join(VALID_COLOUR_MODES)
-            raise ValueError(f"Invalid plotting.colour_mode '{config_mode}' in {config_file}. Use one of: {allowed}.")
+    plotting = config.get('plotting', {})
+    if not isinstance(plotting, dict):
+        raise ValueError(f"Invalid plotting section in {config_file}; expected mapping.")
 
-        return config_mode
-    except ValueError:
-        raise
-    except Exception as exc:
-        logger.warning(f"Failed to load colour mode from {config_file}: {exc}. Using default '{default_mode}'.")
-        return default_mode
+    config_mode = plotting.get('colour_mode', default_mode)
+    if config_mode not in VALID_COLOUR_MODES:
+        allowed = ', '.join(VALID_COLOUR_MODES)
+        raise ValueError(f"Invalid plotting.colour_mode '{config_mode}' in {config_file}. Use one of: {allowed}.")
+
+    return config_mode
 
 
 def load_colormap(config_file: Path) -> str:
     """Resolve plotting colormap from config YAML."""
-    try:
-        with open(config_file, 'r') as f:
-            config = yaml.safe_load(f) or {}
+    with open(config_file, 'r') as f:
+        config = yaml.safe_load(f) or {}
 
-        plotting_config = config.get('plotting', {})
+    plotting_config = config.get('plotting', {})
+    if not isinstance(plotting_config, dict):
+        raise ValueError(f"Invalid plotting section in {config_file}; expected mapping.")
 
-        configured_valid_colormaps = plotting_config.get('valid_colormaps')
-        valid_colormaps = None
-        if configured_valid_colormaps is not None:
-            parsed_colormaps = []
-            if isinstance(configured_valid_colormaps, (list, tuple)):
-                for cmap_name in configured_valid_colormaps:
-                    if isinstance(cmap_name, str):
-                        cmap_name = cmap_name.strip()
-                        if cmap_name and cmap_name in mpl_colormaps:
-                            parsed_colormaps.append(cmap_name)
+    configured_valid_colormaps = plotting_config.get('valid_colormaps')
+    valid_colormaps: list[str] | None = None
+    if configured_valid_colormaps is not None:
+        if not isinstance(configured_valid_colormaps, (list, tuple)) or not configured_valid_colormaps:
+            raise ValueError("plotting.valid_colormaps must be a non-empty list of valid colormap names")
 
-            if parsed_colormaps:
-                valid_colormaps = parsed_colormaps
-            else:
-                logger.warning(
-                    f"Invalid plotting.valid_colormaps in {config_file}. "
-                    "Ignoring this setting and using matplotlib colormap validation."
-                )
+        parsed_colormaps: list[str] = []
+        for cmap_name in configured_valid_colormaps:
+            if not isinstance(cmap_name, str) or not cmap_name.strip():
+                raise ValueError("plotting.valid_colormaps entries must be non-empty strings")
+            stripped_name = cmap_name.strip()
+            if stripped_name not in mpl_colormaps:
+                raise ValueError(f"Unknown colormap '{stripped_name}' in plotting.valid_colormaps")
+            parsed_colormaps.append(stripped_name)
 
-        default_colormap = valid_colormaps[0] if valid_colormaps else DEFAULT_COLORMAP
+        valid_colormaps = parsed_colormaps
 
-        colormap = plotting_config.get('colormap', default_colormap)
-        if not isinstance(colormap, str) or not colormap.strip():
-            logger.warning(
-                f"Invalid plotting.colormap '{colormap}' in {config_file}. "
-                f"Using default '{default_colormap}'."
-            )
-            return default_colormap
+    default_colormap = valid_colormaps[0] if valid_colormaps else DEFAULT_COLORMAP
+    colormap = plotting_config.get('colormap', default_colormap)
+    if not isinstance(colormap, str) or not colormap.strip():
+        raise ValueError("plotting.colormap must be a non-empty string")
 
-        colormap = colormap.strip()
-        if valid_colormaps and colormap not in valid_colormaps:
-            logger.warning(
-                f"Unknown plotting.colormap '{colormap}' in {config_file}. "
-                f"Allowed values: {', '.join(valid_colormaps)}. Using default '{default_colormap}'."
-            )
-            return default_colormap
+    colormap = colormap.strip()
+    if colormap not in mpl_colormaps:
+        raise ValueError(f"Unknown plotting.colormap '{colormap}'")
+    if valid_colormaps and colormap not in valid_colormaps:
+        raise ValueError(
+            f"plotting.colormap '{colormap}' is not in plotting.valid_colormaps: {', '.join(valid_colormaps)}"
+        )
 
-        return colormap
-    except Exception as exc:
-        logger.warning(f"Failed to load colormap from {config_file}: {exc}. Using default '{DEFAULT_COLORMAP}'.")
-        return DEFAULT_COLORMAP
+    return colormap
 
 
 def load_plot_text_config(config_path: Path = Path("config.yaml")) -> dict:
-    """Load plot text configuration from config file."""
-    try:
-        with open(config_path, 'r') as f:
-            config = yaml.safe_load(f) or {}
-            return config.get('plot_text', {})
-    except Exception:
-        return {}
+    """Load and validate required plot text templates from config file."""
+    with open(config_path, 'r') as f:
+        config = yaml.safe_load(f) or {}
+
+    plot_text = config.get('plot_text')
+    if not isinstance(plot_text, dict):
+        raise ValueError(f"Invalid plot_text section in {config_path}; expected mapping.")
+
+    missing_keys = [key for key in REQUIRED_PLOT_TEXT_KEYS if key not in plot_text]
+    if missing_keys:
+        missing = ', '.join(missing_keys)
+        raise ValueError(f"Missing required plot_text keys in {config_path}: {missing}")
+
+    for key in REQUIRED_PLOT_TEXT_KEYS:
+        value = plot_text[key]
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"plot_text.{key} must be a non-empty string")
+
+    return {key: plot_text[key] for key in REQUIRED_PLOT_TEXT_KEYS}
+
+
+def load_runtime_paths(config_file: Path = Path("config.yaml")) -> dict[str, str]:
+    """Load runtime path defaults from config YAML.
+
+    Paths are read from top-level ``runtime_paths`` and merged with minimal
+    defaults when keys are missing.
+    """
+    paths = DEFAULT_RUNTIME_PATHS.copy()
+
+    with open(config_file, 'r') as f:
+        config = yaml.safe_load(f) or {}
+
+    runtime_paths = config.get('runtime_paths', {})
+    if not isinstance(runtime_paths, dict):
+        raise ValueError(f"Invalid runtime_paths section in {config_file}; expected mapping.")
+
+    for key in DEFAULT_RUNTIME_PATHS:
+        if key in runtime_paths:
+            value = runtime_paths[key]
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"runtime_paths.{key} must be a non-empty string")
+            paths[key] = value.strip()
+
+    return paths
+
+
+def load_retrieval_settings(config_file: Path = Path("config.yaml")) -> dict[str, float | int]:
+    """Load retrieval tuning settings from config YAML.
+
+    Settings are expected in the top-level ``retrieval`` section.
+    Minimal defaults are applied when the section or keys are missing.
+    """
+    settings = DEFAULT_RETRIEVAL_SETTINGS.copy()
+
+    with open(config_file, 'r') as f:
+        config = yaml.safe_load(f) or {}
+
+    retrieval = config.get('retrieval', {})
+    if not isinstance(retrieval, dict):
+        raise ValueError(f"Invalid retrieval section in {config_file}; expected mapping.")
+
+    if 'half_box_deg' in retrieval:
+        settings['half_box_deg'] = float(retrieval['half_box_deg'])
+    if settings['half_box_deg'] <= 0:
+        raise ValueError("retrieval.half_box_deg must be > 0")
+
+    if 'max_nearest_time_delta_minutes' in retrieval:
+        settings['max_nearest_time_delta_minutes'] = int(retrieval['max_nearest_time_delta_minutes'])
+    if settings['max_nearest_time_delta_minutes'] <= 0:
+        raise ValueError("retrieval.max_nearest_time_delta_minutes must be > 0")
+
+    if 'month_fetch_day_span_threshold' in retrieval:
+        settings['month_fetch_day_span_threshold'] = int(retrieval['month_fetch_day_span_threshold'])
+    if settings['month_fetch_day_span_threshold'] <= 0:
+        raise ValueError("retrieval.month_fetch_day_span_threshold must be > 0")
+
+    return settings
 
 
 def load_measure_labels_config(config_path: Path = Path("config.yaml")) -> dict[str, dict[str, str]]:
-    """Load measure label/unit mappings from config."""
-    defaults = {
-        "noon_temperature": {
-            "label": "Mid-Day Temperature",
-            "unit": "°C",
-            "y_value_column": "temp_C",
-            "range_text": "{min_temp_c:.1f}°C to {max_temp_c:.1f}°C; ({min_temp_f:.1f}°F to {max_temp_f:.1f}°F)",
-        },
-        "daily_precipitation": {
-            "label": "Daily Precipitation",
-            "unit": "mm",
-            "y_value_column": "precip_mm",
-            "range_text": "{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}",
-        },
-    }
+    """Load and validate measure label/unit mappings from config."""
+    with open(config_path, 'r') as f:
+        config = yaml.safe_load(f) or {}
 
-    try:
-        with open(config_path, 'r') as f:
-            config = yaml.safe_load(f) or {}
+    plotting = config.get('plotting')
+    if not isinstance(plotting, dict):
+        raise ValueError(f"Invalid plotting section in {config_path}; expected mapping.")
 
-        configured = config.get('plotting', {}).get('measure_labels', {})
-        if not isinstance(configured, dict):
-            return defaults
+    configured = plotting.get('measure_labels')
+    if not isinstance(configured, dict) or not configured:
+        raise ValueError(f"Invalid plotting.measure_labels section in {config_path}; expected non-empty mapping.")
 
-        merged = {key: value.copy() for key, value in defaults.items()}
-        for measure_key, metadata in configured.items():
-            if not isinstance(metadata, dict):
-                continue
-            label = metadata.get('label')
-            unit = metadata.get('unit')
-            y_value_column = metadata.get('y_value_column')
-            range_text = metadata.get('range_text')
-            merged_label = label if isinstance(label, str) else measure_key.replace('_', ' ').title()
-            merged_unit = unit if isinstance(unit, str) else ''
-            merged[measure_key] = {
-                'label': merged_label,
-                'unit': merged_unit,
-                'y_value_column': y_value_column if isinstance(y_value_column, str) else 'temp_C',
-                'range_text': range_text if isinstance(range_text, str) else '',
-            }
-        return merged
-    except Exception:
-        return defaults
+    validated: dict[str, dict[str, str]] = {}
+    for measure_key, metadata in configured.items():
+        if not isinstance(measure_key, str) or not measure_key.strip():
+            raise ValueError("plotting.measure_labels keys must be non-empty strings")
+        if not isinstance(metadata, dict):
+            raise ValueError(f"plotting.measure_labels.{measure_key} must be a mapping")
+
+        entry: dict[str, str] = {}
+        for field_name in REQUIRED_MEASURE_LABEL_KEYS:
+            value = metadata.get(field_name)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(
+                    f"plotting.measure_labels.{measure_key}.{field_name} must be a non-empty string"
+                )
+            entry[field_name] = value
+
+        validated[measure_key] = entry
+
+    return validated
 
 
 def get_plot_text(config: dict, key: str, **kwargs) -> str:
     """Get formatted plot text from configuration."""
-    defaults = {
-        'single_plot_title': "{location} {measure_label} ({start_year}-{end_year})",
-        'subplot_title': "{measure_label} ({start_year}-{end_year})",
-        'subplot_title_with_batch': "{measure_label} ({start_year}-{end_year}) - Part {batch}/{total_batches}",
-        'range_text': "{min_temp_c:.1f}°C to {max_temp_c:.1f}°C; ({min_temp_f:.1f}°F to {max_temp_f:.1f}°F)",
-        'single_plot_filename': "{location}_{measure_key}_{start_year}_{end_year}.png",
-        'subplot_filename': "{list_name}_{measure_key}_{start_year}_{end_year}.png",
-        'subplot_filename_with_batch': "{list_name}_{measure_key}_{start_year}_{end_year}_part{batch}of{total_batches}.png",
-        'credit': "Climate Data Analysis & Visualisation by Colin Osborne",
-        'data_source': "Data from: ERA5 via CDS",
-        'single_plot_credit': "Analysis & visualisation by Colin Osborne",
-    }
+    if key not in config:
+        raise KeyError(f"Missing plot_text key '{key}'")
 
-    pattern = config.get(key, defaults.get(key, ""))
+    pattern = config[key]
+    if not isinstance(pattern, str) or not pattern.strip():
+        raise ValueError(f"plot_text.{key} must be a non-empty string")
 
     if 'location' in kwargs and ('filename' in key):
         kwargs['location'] = kwargs['location'].replace(' ', '_').replace(',', '')
 
     try:
         return pattern.format(**kwargs)
-    except KeyError:
-        return pattern
+    except KeyError as exc:
+        missing = exc.args[0]
+        raise ValueError(f"Missing format placeholder '{missing}' for plot_text.{key}") from exc
 
 
 def extract_places_config(config: dict) -> tuple[list[dict], str, dict]:

@@ -157,28 +157,6 @@ def _schema_legacy_data_paths(schema_def: dict) -> list[str]:
     return candidates
 
 
-def _get_legacy_schema_keys() -> list[str]:
-    """Collect root-level legacy temperature keys from prior schema versions."""
-    collected: list[str] = []
-    versions = _SCHEMA_REGISTRY.get('versions', {})
-    for version_str, schema_def in versions.items():
-        try:
-            version = int(version_str)
-        except ValueError:
-            continue
-        if version >= SCHEMA_VERSION:
-            continue
-
-        for key in _schema_legacy_data_paths(schema_def):
-            if key not in collected:
-                collected.append(key)
-
-    return collected
-
-
-LEGACY_TEMPERATURE_KEYS = _get_legacy_schema_keys()
-
-
 def _get_by_path(data: dict, path: str):
     """Get a nested value from dict using dot-separated path."""
     node = data
@@ -297,13 +275,11 @@ def _extract_legacy_noon_temps(data: dict) -> dict:
         return mapped
 
     schema_version = data.get('schema_version')
-    if schema_version is not None:
-        schema_def = _SCHEMA_REGISTRY['versions'].get(str(schema_version), {})
-        for legacy_key in _schema_legacy_data_paths(schema_def):
-            if legacy_key in data:
-                return data[legacy_key]
+    if schema_version is None:
+        return {}
 
-    for legacy_key in LEGACY_TEMPERATURE_KEYS:
+    schema_def = _SCHEMA_REGISTRY['versions'].get(str(schema_version), {})
+    for legacy_key in _schema_legacy_data_paths(schema_def):
         if legacy_key in data:
             return data[legacy_key]
     return {}
@@ -425,15 +401,20 @@ def migrate_cache_file_to_v2(yaml_file: Path) -> bool:
         return False
 
     schema_version = _detect_schema_version(data)
+    if schema_version is None:
+        raise ValueError(
+            f"Cannot migrate {yaml_file}: unversioned cache documents are no longer supported"
+        )
     if schema_version is not None and schema_version > SCHEMA_VERSION:
         raise ValueError(
             f"Cannot migrate {yaml_file}: schema_version {schema_version} is newer than supported {SCHEMA_VERSION}"
         )
 
-    if schema_version is not None:
-        schema_def = _SCHEMA_REGISTRY['versions'].get(str(schema_version), {})
-        if isinstance(schema_def, dict):
-            _validate_required_schema_fields(data, schema_def, yaml_file)
+    schema_def = _SCHEMA_REGISTRY['versions'].get(str(schema_version))
+    if not isinstance(schema_def, dict):
+        raise ValueError(f"Cannot migrate {yaml_file}: unsupported schema_version {schema_version}")
+
+    _validate_required_schema_fields(data, schema_def, yaml_file)
 
     legacy_temps = _extract_legacy_noon_temps(data)
     if not legacy_temps or 'place' not in data:
@@ -462,13 +443,17 @@ def _load_cache_data_v2(yaml_file: Path, auto_migrate: bool = True) -> dict:
         return data
 
     schema_version = _detect_schema_version(data)
+    if schema_version is None:
+        raise ValueError(
+            f"Cannot migrate {yaml_file}: unversioned cache documents are no longer supported"
+        )
     if schema_version is not None and schema_version > SCHEMA_VERSION:
         raise ValueError(
             f"Cache file '{yaml_file}' uses newer schema_version {schema_version}; "
             f"max supported is {SCHEMA_VERSION}."
         )
 
-    should_migrate = auto_migrate and (schema_version is None or schema_version < SCHEMA_VERSION)
+    should_migrate = auto_migrate and (schema_version is not None and schema_version < SCHEMA_VERSION)
     if should_migrate:
         migrated = migrate_cache_file_to_v2(yaml_file)
         if migrated:
@@ -534,6 +519,7 @@ def retrieve_and_concat_data(
     end_year: int,
     cache_dir: Path = Path("era5_cache"),
     data_cache_dir: Path = Path("data_cache"),
+    config_path: Path = Path("config.yaml"),
     measure: str = 'noon_temperature',
     status_reporter: Callable[[str], None] | None = print,
 ) -> pd.DataFrame:
@@ -546,6 +532,7 @@ def retrieve_and_concat_data(
         end_year: End year for data retrieval.
         cache_dir: Directory for caching NetCDF files.
         data_cache_dir: Directory for caching YAML data files.
+        config_path: Path to runtime configuration YAML file.
         status_reporter: Optional callback that receives formatted status text.
             Pass None to suppress user-facing status output.
 
@@ -608,7 +595,7 @@ def retrieve_and_concat_data(
             # Notify progress manager of location start with total years to fetch
             progress_mgr.notify_location_start(loc.name, cds_place_num, total_cds_places, len(missing_years))
 
-            cds = CDS(cache_dir=cache_dir, progress_manager=progress_mgr)
+            cds = CDS(cache_dir=cache_dir, progress_manager=progress_mgr, config_path=config_path)
             if not hasattr(cds, cds_method_name):
                 raise NotImplementedError(
                     f"Measure '{measure}' is not implemented by CDS client "

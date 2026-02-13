@@ -12,6 +12,9 @@ class DummyCDS(CDS):
         self.client = None
         self.cache_dir = cache_dir
         self.progress_manager = None
+        self.default_half_box_deg = 0.25
+        self.max_nearest_time_delta = pd.Timedelta("30min")
+        self.month_fetch_day_span_threshold = 62
         self.year_calls = 0
         self.month_calls = 0
 

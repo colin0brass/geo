@@ -9,8 +9,11 @@ from __future__ import annotations
 import argparse
 import difflib
 import logging
+import sys
 from datetime import datetime
 from pathlib import Path
+
+import yaml
 
 from geo_data.cds import Location
 from config_manager import load_places
@@ -19,6 +22,7 @@ from geo_core.config import (
     load_colormap as core_load_colormap,
     load_colour_mode as core_load_colour_mode,
     load_grid_settings as core_load_grid_settings,
+    load_runtime_paths as core_load_runtime_paths,
 )
 from geo_core.formatting import condense_year_ranges
 from geo_core.grid import calculate_grid_layout as core_calculate_grid_layout
@@ -30,6 +34,32 @@ VALID_MEASURES = ("noon_temperature", "daily_precipitation")
 DEFAULT_COLOUR_MODE = VALID_COLOUR_MODES[0]
 DEFAULT_MEASURE = VALID_MEASURES[0]
 DEFAULT_COLORMAP = "turbo"
+
+
+def _resolve_runtime_path_defaults() -> tuple[Path, dict[str, str]]:
+    """Resolve config path and runtime path defaults from CLI pre-parse."""
+    config_probe = argparse.ArgumentParser(add_help=False)
+    config_probe.add_argument("--config", type=Path, default=Path("config.yaml"))
+    probe_args, _ = config_probe.parse_known_args()
+    config_path = probe_args.config
+
+    if "--help" in sys.argv or "-h" in sys.argv:
+        return config_path, {
+            "cache_dir": "era5_cache",
+            "data_cache_dir": "data_cache",
+            "out_dir": "output",
+            "settings_file": "geo_plot/settings.yaml",
+        }
+
+    try:
+        runtime_paths = core_load_runtime_paths(config_path)
+    except Exception as exc:
+        raise CLIError(
+            f"Failed to load runtime_paths from {config_path}: {exc}",
+            "Fix config.yaml runtime_paths values or provide a valid --config path.",
+        )
+
+    return config_path, runtime_paths
 
 
 class CLIError(ValueError):
@@ -75,6 +105,8 @@ def parse_args() -> argparse.Namespace:
     Returns:
         argparse.Namespace: Parsed command-line arguments.
     """
+    config_path_default, runtime_paths = _resolve_runtime_path_defaults()
+
     parser = FriendlyArgumentParser(
         description="Generate geographic temperature plots from ERA5 data.",
         epilog="""
@@ -155,32 +187,32 @@ Examples:
     output_group.add_argument(
         "--cache-dir",
         type=Path,
-        default=Path("era5_cache"),
-        help="Cache directory for NetCDF files (default: era5_cache)"
+        default=Path(runtime_paths["cache_dir"]),
+        help=f"Cache directory for NetCDF files (default: {runtime_paths['cache_dir']})"
     )
     output_group.add_argument(
         "--data-cache-dir",
         type=Path,
-        default=Path("data_cache"),
-        help="Cache directory for CSV data files (default: data_cache)"
+        default=Path(runtime_paths["data_cache_dir"]),
+        help=f"Cache directory for CSV data files (default: {runtime_paths['data_cache_dir']})"
     )
     output_group.add_argument(
         "--out-dir",
         type=Path,
-        default=Path("output"),
-        help="Output directory for plots (default: output)"
+        default=Path(runtime_paths["out_dir"]),
+        help=f"Output directory for plots (default: {runtime_paths['out_dir']})"
     )
     output_group.add_argument(
         "--config",
         type=Path,
-        default=Path("config.yaml"),
-        help="Path to config YAML file (default: config.yaml)"
+        default=config_path_default,
+        help=f"Path to config YAML file (default: {config_path_default})"
     )
     output_group.add_argument(
         "--settings",
         type=Path,
-        default=Path("geo_plot/settings.yaml"),
-        help="Path to plot settings YAML file (default: geo_plot/settings.yaml)"
+        default=Path(runtime_paths["settings_file"]),
+        help=f"Path to plot settings YAML file (default: {runtime_paths['settings_file']})"
     )
     output_group.add_argument(
         "--measure",
@@ -396,7 +428,10 @@ def load_grid_settings(config_file: Path) -> tuple[int, int]:
     Returns:
         tuple[int, int]: (max_rows, max_cols) from config, or defaults (4, 6).
     """
-    return core_load_grid_settings(config_file)
+    try:
+        return core_load_grid_settings(config_file)
+    except (ValueError, OSError, yaml.YAMLError) as exc:
+        raise CLIError(str(exc)) from exc
 
 
 def load_colour_mode(config_file: Path, cli_colour_mode: str | None = None) -> str:
@@ -420,7 +455,7 @@ def load_colour_mode(config_file: Path, cli_colour_mode: str | None = None) -> s
     """
     try:
         return core_load_colour_mode(config_file, cli_colour_mode)
-    except ValueError as exc:
+    except (ValueError, OSError, yaml.YAMLError) as exc:
         raise CLIError(str(exc)) from exc
 
 
@@ -434,7 +469,10 @@ def load_colormap(config_file: Path) -> str:
     Returns:
         str: Valid configured colormap name.
     """
-    return core_load_colormap(config_file)
+    try:
+        return core_load_colormap(config_file)
+    except (ValueError, OSError, yaml.YAMLError) as exc:
+        raise CLIError(str(exc)) from exc
 
 
 def validate_measure_support(measure: str) -> None:

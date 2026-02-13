@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import cdsapi
+from geo_core.config import load_retrieval_settings
 
 logger = logging.getLogger("geo")
 
@@ -66,7 +67,12 @@ class CDS:
     Client for downloading and processing ERA5 reanalysis data from the CDS API.
     Handles data retrieval, caching, and conversion to pandas/xarray objects.
     """
-    def __init__(self, cache_dir: Path = Path("era5_cache"), progress_manager=None) -> None:
+    def __init__(
+        self,
+        cache_dir: Path = Path("era5_cache"),
+        progress_manager=None,
+        config_path: Path = Path("config.yaml"),
+    ) -> None:
         """
         Initialize the CDS client and set the cache directory.
 
@@ -78,11 +84,22 @@ class CDS:
         self.cache_dir = cache_dir
         self.progress_manager = progress_manager
 
+        retrieval_settings = load_retrieval_settings(config_path)
+        self.default_half_box_deg = float(retrieval_settings["half_box_deg"])
+        self.max_nearest_time_delta = pd.Timedelta(
+            minutes=int(retrieval_settings["max_nearest_time_delta_minutes"])
+        )
+        self.month_fetch_day_span_threshold = int(retrieval_settings["month_fetch_day_span_threshold"])
+
         # Suppress verbose cdsapi logging after client initialization
         cdsapi_logger = logging.getLogger('cdsapi')
         cdsapi_logger.handlers.clear()
         cdsapi_logger.setLevel(logging.WARNING)
         cdsapi_logger.propagate = False
+
+    def _resolve_half_box_deg(self, half_box_deg: float | None) -> float:
+        """Resolve retrieval box size from explicit arg or configured default."""
+        return self.default_half_box_deg if half_box_deg is None else float(half_box_deg)
 
     def _cds_retrieve_era5_month(
         self,
@@ -93,7 +110,7 @@ class CDS:
         day: int = None,
         hour: int = None,
         variable: str = "2m_temperature",
-        half_box_deg: float = 0.25
+        half_box_deg: float | None = None
     ) -> Path:
         """
         Download ERA5 data for a specific month and location, or use cached file if available.
@@ -104,16 +121,17 @@ class CDS:
             loc (Location): Location object.
             day (int, optional): Specific day. Defaults to None (all days).
             hour (int, optional): Specific hour. Defaults to None (all hours).
-            half_box_deg (float, optional): Half-size of the grid box in degrees. Defaults to 0.25.
+            half_box_deg (float, optional): Half-size of the grid box in degrees. Defaults to retrieval.half_box_deg from config.
         Returns:
             Path: Path to the downloaded or cached NetCDF file.
         """
         out_nc.parent.mkdir(parents=True, exist_ok=True)
 
-        north = loc.lat + half_box_deg
-        south = loc.lat - half_box_deg
-        west = loc.lon - half_box_deg
-        east = loc.lon + half_box_deg
+        resolved_half_box_deg = self._resolve_half_box_deg(half_box_deg)
+        north = loc.lat + resolved_half_box_deg
+        south = loc.lat - resolved_half_box_deg
+        west = loc.lon - resolved_half_box_deg
+        east = loc.lon + resolved_half_box_deg
 
         day_range = [f"{d:02d}" for d in range(1, 32)] if day is None else [f"{day:02d}"]
         time_range = [f"{h:02d}:00" for h in range(0, 24)] if hour is None else [f"{hour:02d}:00"]
@@ -142,7 +160,7 @@ class CDS:
         loc: Location,
         dates_utc: pd.DatetimeIndex,
         variable: str = "2m_temperature",
-        half_box_deg: float = 0.25
+        half_box_deg: float | None = None
     ) -> Path:
         """
         Download ERA5 data for a series of UTC dates for a location, or use cached file if available.
@@ -150,16 +168,17 @@ class CDS:
             out_nc (Path): Output NetCDF file path.
             loc (Location): Location object.
             dates_utc (pd.DatetimeIndex): UTC datetime index for retrieval.
-            half_box_deg (float, optional): Half-size of the grid box in degrees. Defaults to 0.25.
+            half_box_deg (float, optional): Half-size of the grid box in degrees. Defaults to retrieval.half_box_deg from config.
         Returns:
             Path: Path to the downloaded or cached NetCDF file.
         """
         out_nc.parent.mkdir(parents=True, exist_ok=True)
 
-        north = loc.lat + half_box_deg
-        south = loc.lat - half_box_deg
-        west = loc.lon - half_box_deg
-        east = loc.lon + half_box_deg
+        resolved_half_box_deg = self._resolve_half_box_deg(half_box_deg)
+        north = loc.lat + resolved_half_box_deg
+        south = loc.lat - resolved_half_box_deg
+        west = loc.lon - resolved_half_box_deg
+        east = loc.lon + resolved_half_box_deg
 
         years = sorted(set(d.year for d in dates_utc))
         months = sorted(set(f"{d.month:02d}" for d in dates_utc))
@@ -220,7 +239,7 @@ class CDS:
         month: int,
         day: int = None,
         hour: int = None,
-        half_box_deg: float = 0.25
+        half_box_deg: float | None = None
     ) -> xr.Dataset:
         """
         Retrieve and return an xarray Dataset of ERA5 data for a given month and location.
@@ -230,7 +249,7 @@ class CDS:
             month (int): Month.
             day (int, optional): Specific day. Defaults to None.
             hour (int, optional): Specific hour. Defaults to None.
-            half_box_deg (float, optional): Half-size of the grid box in degrees. Defaults to 0.25.
+            half_box_deg (float, optional): Half-size of the grid box in degrees. Defaults to retrieval.half_box_deg from config.
         Returns:
             xr.Dataset: ERA5 data for the specified month and location.
         """
@@ -245,7 +264,7 @@ class CDS:
         self,
         location: Location,
         year: int,
-        half_box_deg: float = 0.25
+        half_box_deg: float | None = None
     ) -> pd.DataFrame:
         """
         Retrieve and return a DataFrame of daily local noon temperatures for an entire year.
@@ -254,7 +273,7 @@ class CDS:
         Args:
             location (Location): Location object.
             year (int): Year.
-            half_box_deg (float, optional): Half-size of the grid box in degrees. Defaults to 0.25.
+            half_box_deg (float, optional): Half-size of the grid box in degrees. Defaults to retrieval.half_box_deg from config.
         Returns:
             pd.DataFrame: DataFrame with daily local noon temperatures for the entire year.
         Raises:
@@ -292,10 +311,10 @@ class CDS:
         selected = da.sel(time=noon_utc.tz_convert(None), method="nearest")
         selected_times = pd.to_datetime(selected["time"].values).tz_localize("UTC")
         delta = np.abs(selected_times - noon_utc)
-        if (delta > pd.Timedelta("30min")).any():
-            bad = delta[delta > pd.Timedelta("30min")]
+        if (delta > self.max_nearest_time_delta).any():
+            bad = delta[delta > self.max_nearest_time_delta]
             raise RuntimeError(
-                "Some noon selections were more than 30 minutes away from requested local noon UTC.\n"
+                f"Some noon selections were more than {self.max_nearest_time_delta} away from requested local noon UTC.\n"
                 f"Examples:\n{bad[:5]}"
             )
         temp_k = selected.values.astype(np.float64)
@@ -320,7 +339,7 @@ class CDS:
         location: Location,
         year: int,
         month: int,
-        half_box_deg: float = 0.25
+        half_box_deg: float | None = None
     ) -> pd.DataFrame:
         """
         Retrieve and return a DataFrame of daily local noon temperatures for a given month and location.
@@ -328,7 +347,7 @@ class CDS:
             location (Location): Location object.
             year (int): Year.
             month (int): Month.
-            half_box_deg (float, optional): Half-size of the grid box in degrees. Defaults to 0.25.
+            half_box_deg (float, optional): Half-size of the grid box in degrees. Defaults to retrieval.half_box_deg from config.
         Returns:
             pd.DataFrame: DataFrame with daily local noon temperatures.
         Raises:
@@ -371,10 +390,10 @@ class CDS:
         selected = da.sel(time=noon_utc.tz_convert(None), method="nearest")  # xarray expects naive UTC-like
         selected_times = pd.to_datetime(selected["time"].values).tz_localize("UTC")
         delta = np.abs(selected_times - noon_utc)
-        if (delta > pd.Timedelta("30min")).any():
-            bad = delta[delta > pd.Timedelta("30min")]
+        if (delta > self.max_nearest_time_delta).any():
+            bad = delta[delta > self.max_nearest_time_delta]
             raise RuntimeError(
-                "Some noon selections were more than 30 minutes away from requested local noon UTC.\n"
+                f"Some noon selections were more than {self.max_nearest_time_delta} away from requested local noon UTC.\n"
                 f"Examples:\n{bad[:5]}"
             )
         temp_k = selected.values.astype(np.float64)
@@ -416,7 +435,7 @@ class CDS:
         location: Location,
         start_d: date,
         end_d: date,
-        half_box_deg: float = 0.25,
+        half_box_deg: float | None = None,
         notify_progress: bool = True
     ) -> pd.DataFrame:
         """
@@ -428,7 +447,7 @@ class CDS:
             location (Location): Location object.
             start_d (date): Start date.
             end_d (date): End date.
-            half_box_deg (float, optional): Half-size of the grid box in degrees. Defaults to 0.25.
+            half_box_deg (float, optional): Half-size of the grid box in degrees. Defaults to retrieval.half_box_deg from config.
             notify_progress (bool, optional): Whether to notify progress manager. Defaults to True.
         Returns:
             pd.DataFrame: DataFrame with daily local noon temperatures for the date range.
@@ -447,7 +466,7 @@ class CDS:
 
         day_span = (end_d - start_d).days + 1
 
-        if day_span <= 62:
+        if day_span <= self.month_fetch_day_span_threshold:
             all_dfs = []
             month_pairs = list(self._month_range(start_d, end_d))
             total_months = len(month_pairs)
@@ -508,7 +527,7 @@ class CDS:
         location: Location,
         start_d: date,
         end_d: date,
-        half_box_deg: float = 0.25,
+        half_box_deg: float | None = None,
         notify_progress: bool = True,
     ) -> pd.DataFrame:
         """
@@ -518,7 +537,7 @@ class CDS:
             location (Location): Location object.
             start_d (date): Start date.
             end_d (date): End date.
-            half_box_deg (float, optional): Half-size of the grid box in degrees. Defaults to 0.25.
+            half_box_deg (float, optional): Half-size of the grid box in degrees. Defaults to retrieval.half_box_deg from config.
             notify_progress (bool, optional): Whether to notify progress manager. Defaults to True.
 
         Returns:

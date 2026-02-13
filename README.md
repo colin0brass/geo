@@ -305,6 +305,9 @@ python geo.py -p "MyCity" --lat 40.7 --lon -74.0 -y 2024
 | `--data-cache-dir DIR` | data_cache | Cache directory for YAML data files |
 | `--settings FILE` | geo_plot/settings.yaml | Plot settings YAML file |
 
+**Cache schema note:** YAML cache files in `data_cache/` must include a supported `schema_version`.
+Unversioned legacy cache documents are no longer auto-migrated; regenerate them by rerunning retrieval, or convert them to a supported versioned schema before use.
+
 ### Advanced Options
 
 | Option | Short | Description |
@@ -321,13 +324,17 @@ python geo.py -p "MyCity" --lat 40.7 --lon -74.0 -y 2024
 
 ### config.yaml
 
-Stores application configuration with five main sections:
+Stores application configuration with seven main sections:
 
 #### 1. Logging
 ```yaml
 logging:
   log_file: geo.log
   console_level: WARNING  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  file_mode: w            # w=overwrite each run, a=append
+  suppress_cdsapi: true
+  suppress_root_logger: true
+  third_party_log_level: WARNING
 ```
 
 #### 2. Grid Layout
@@ -341,7 +348,35 @@ These settings determine the maximum grid size (default 4×6 = 24 places) when t
 
 **Note:** The `--grid` command-line option always overrides these configuration settings.
 
-#### 3. Plotting
+#### 3. Retrieval Tuning
+
+```yaml
+retrieval:
+  half_box_deg: 0.25
+  max_nearest_time_delta_minutes: 30
+  month_fetch_day_span_threshold: 62
+```
+
+- `half_box_deg`: geographic half-width (degrees) for ERA5 retrieval around each location.
+- `max_nearest_time_delta_minutes`: maximum tolerated offset between requested local noon and selected ERA5 time.
+- `month_fetch_day_span_threshold`: day-range threshold for monthly fetch strategy before switching to full-year fetch.
+
+#### 4. Runtime Paths
+
+```yaml
+runtime_paths:
+  cache_dir: era5_cache
+  data_cache_dir: data_cache
+  out_dir: output
+  settings_file: geo_plot/settings.yaml
+```
+
+- `cache_dir`: default NetCDF cache directory for ERA5 files.
+- `data_cache_dir`: default YAML cache directory.
+- `out_dir`: default plot output directory.
+- `settings_file`: default plot settings YAML file.
+
+#### 5. Plotting
 
 ```yaml
 plotting:
@@ -357,7 +392,7 @@ plotting:
 
 **Note:** The `--colour-mode` command-line option overrides this setting for a run.
 
-#### 4. Plot Text (Titles and Filenames)
+#### 6. Plot Text (Titles and Filenames)
 
 Customize plot titles, filenames, and attribution text using format placeholders:
 
@@ -403,7 +438,7 @@ credit: "Analyse et visualisation par Colin Osborne"
 data_source: "Données de: ERA5 via CDS"
 ```
 
-#### 5. Places
+#### 7. Places
 
 **default_place:** Used when no location is specified
 ```yaml

@@ -165,12 +165,18 @@ def test_visualizer_range_text_template_formatting():
     assert text == "Daily Precipitation: 1.2-4.8 mm"
 
 
-def test_visualizer_range_text_template_fallback():
+def test_visualizer_range_text_template_missing_context_raises():
     df = pd.DataFrame({'date': ['2025-01-01'], 'temp_C': [10]})
     vis = Visualizer(
         df,
         range_text_template="{missing_key}",
         range_text_context={'measure_label': 'Any Value', 'measure_unit': 'u'},
     )
-    text = vis._format_range_text(1.0, 2.0)
-    assert text == "Any Value: 1.0 to 2.0 u"
+    with pytest.raises(ValueError):
+        vis._format_range_text(1.0, 2.0)
+
+
+def test_visualizer_requires_range_text_template():
+    df = pd.DataFrame({'date': ['2025-01-01'], 'temp_C': [10]})
+    with pytest.raises(ValueError):
+        Visualizer(df, range_text_template="")

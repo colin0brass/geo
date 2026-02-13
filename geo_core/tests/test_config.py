@@ -2,11 +2,18 @@ import pytest
 
 from geo_core.config import (
     DEFAULT_COLORMAP,
+    DEFAULT_RETRIEVAL_SETTINGS,
+    DEFAULT_RUNTIME_PATHS,
     extract_places_config,
     find_place_by_name,
+    get_plot_text,
     load_colormap,
     load_colour_mode,
     load_grid_settings,
+    load_measure_labels_config,
+    load_plot_text_config,
+    load_retrieval_settings,
+    load_runtime_paths,
     render_config_yaml,
 )
 
@@ -64,25 +71,29 @@ def test_load_colormap_from_config(tmp_path):
 def test_load_colormap_invalid_value(tmp_path):
     config_file = tmp_path / "config.yaml"
     config_file.write_text("plotting:\n  valid_colormaps: [viridis, plasma]\n  colormap: not_a_cmap\n")
-    assert load_colormap(config_file) == 'viridis'
+    with pytest.raises(ValueError):
+        load_colormap(config_file)
 
 
 def test_load_colormap_blank_value(tmp_path):
     config_file = tmp_path / "config.yaml"
     config_file.write_text("plotting:\n  valid_colormaps: [viridis, plasma]\n  colormap: \"\"\n")
-    assert load_colormap(config_file) == 'viridis'
+    with pytest.raises(ValueError):
+        load_colormap(config_file)
 
 
 def test_load_colormap_non_string_value(tmp_path):
     config_file = tmp_path / "config.yaml"
     config_file.write_text("plotting:\n  valid_colormaps: [viridis, plasma]\n  colormap: 123\n")
-    assert load_colormap(config_file) == 'viridis'
+    with pytest.raises(ValueError):
+        load_colormap(config_file)
 
 
-def test_load_colormap_invalid_valid_colormap_list_falls_back(tmp_path):
+def test_load_colormap_invalid_valid_colormap_list_raises(tmp_path):
     config_file = tmp_path / "config.yaml"
     config_file.write_text("plotting:\n  valid_colormaps: [not_a_map, also_bad]\n")
-    assert load_colormap(config_file) == DEFAULT_COLORMAP
+    with pytest.raises(ValueError):
+        load_colormap(config_file)
 
 
 def test_load_grid_settings_valid(tmp_path):
@@ -115,9 +126,16 @@ def test_load_grid_settings_partial(tmp_path):
 def test_load_grid_settings_missing_file(tmp_path):
     config_file = tmp_path / "nonexistent.yaml"
 
-    max_rows, max_cols = load_grid_settings(config_file)
-    assert max_rows == 4
-    assert max_cols == 6
+    with pytest.raises(FileNotFoundError):
+        load_grid_settings(config_file)
+
+
+def test_load_grid_settings_invalid_value_raises(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("grid:\n  max_auto_rows: 0\n  max_auto_cols: 6\n")
+
+    with pytest.raises(ValueError):
+        load_grid_settings(config_file)
 
 
 def test_extract_places_config_basic_payload():
@@ -194,3 +212,118 @@ def test_find_place_by_name_returns_match_or_none():
 
     missing = find_place_by_name(all_places, 'Not Found')
     assert missing is None
+
+
+def test_load_retrieval_settings_defaults_when_section_missing(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("logging:\n  console_level: WARNING\n")
+
+    settings = load_retrieval_settings(config_file)
+    assert settings == DEFAULT_RETRIEVAL_SETTINGS
+
+
+def test_load_retrieval_settings_from_config(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "retrieval:\n"
+        "  half_box_deg: 0.1\n"
+        "  max_nearest_time_delta_minutes: 20\n"
+        "  month_fetch_day_span_threshold: 40\n"
+    )
+
+    settings = load_retrieval_settings(config_file)
+    assert settings["half_box_deg"] == 0.1
+    assert settings["max_nearest_time_delta_minutes"] == 20
+    assert settings["month_fetch_day_span_threshold"] == 40
+
+
+def test_load_retrieval_settings_invalid_value_raises(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("retrieval:\n  month_fetch_day_span_threshold: 0\n")
+
+    with pytest.raises(ValueError):
+        load_retrieval_settings(config_file)
+
+
+def test_load_runtime_paths_defaults_when_section_missing(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("logging:\n  console_level: WARNING\n")
+
+    paths = load_runtime_paths(config_file)
+    assert paths == DEFAULT_RUNTIME_PATHS
+
+
+def test_load_runtime_paths_from_config(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "runtime_paths:\n"
+        "  cache_dir: custom_cache\n"
+        "  data_cache_dir: custom_data\n"
+        "  out_dir: custom_out\n"
+        "  settings_file: custom/settings.yaml\n"
+    )
+
+    paths = load_runtime_paths(config_file)
+    assert paths["cache_dir"] == "custom_cache"
+    assert paths["data_cache_dir"] == "custom_data"
+    assert paths["out_dir"] == "custom_out"
+    assert paths["settings_file"] == "custom/settings.yaml"
+
+
+def test_load_runtime_paths_invalid_value_raises(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("runtime_paths:\n  cache_dir: 123\n")
+
+    with pytest.raises(ValueError):
+        load_runtime_paths(config_file)
+
+
+def test_load_plot_text_config_valid(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "plot_text:\n"
+        "  single_plot_title: '{location} {measure_label} ({start_year}-{end_year})'\n"
+        "  subplot_title: '{measure_label} ({start_year}-{end_year})'\n"
+        "  subplot_title_with_batch: '{measure_label} ({start_year}-{end_year}) - Part {batch}/{total_batches}'\n"
+        "  single_plot_filename: '{location}_{measure_key}_{start_year}_{end_year}.png'\n"
+        "  subplot_filename: '{list_name}_{measure_key}_{start_year}_{end_year}.png'\n"
+        "  subplot_filename_with_batch: '{list_name}_{measure_key}_{start_year}_{end_year}_part{batch}of{total_batches}.png'\n"
+        "  credit: 'Climate Data Analysis & Visualisation by Colin Osborne'\n"
+        "  single_plot_credit: 'Analysis & visualisation by Colin Osborne'\n"
+        "  data_source: 'Data from: ERA5 via CDS'\n"
+    )
+
+    plot_text = load_plot_text_config(config_file)
+    assert plot_text["subplot_title"] == "{measure_label} ({start_year}-{end_year})"
+
+
+def test_load_plot_text_config_missing_required_key_raises(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("plot_text:\n  subplot_title: '{measure_label}'\n")
+
+    with pytest.raises(ValueError):
+        load_plot_text_config(config_file)
+
+
+def test_load_measure_labels_config_missing_required_field_raises(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "plotting:\n"
+        "  measure_labels:\n"
+        "    noon_temperature:\n"
+        "      label: Mid-Day Temperature\n"
+        "      unit: °C\n"
+        "      y_value_column: temp_C\n"
+    )
+
+    with pytest.raises(ValueError):
+        load_measure_labels_config(config_file)
+
+
+def test_get_plot_text_missing_placeholder_raises():
+    config = {
+        "subplot_title": "{measure_label} ({start_year}-{end_year})",
+    }
+
+    with pytest.raises(ValueError):
+        get_plot_text(config, "subplot_title", measure_label="Temp", start_year=2020)

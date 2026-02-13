@@ -59,11 +59,12 @@ class Visualizer:
         self.df = df
         self.out_dir = out_dir
         self.y_value_column = y_value_column
-        self.range_text_template = (
-            range_text_template
-            if isinstance(range_text_template, str) and range_text_template.strip()
-            else "{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}"
-        )
+        if range_text_template is None:
+            self.range_text_template = "{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}"
+        elif not isinstance(range_text_template, str) or not range_text_template.strip():
+            raise ValueError("range_text_template must be a non-empty string")
+        else:
+            self.range_text_template = range_text_template
         self.range_text_context = range_text_context or {}
 
         self.settings_file = settings_file
@@ -100,8 +101,10 @@ class Visualizer:
         self.year_cmap = self.cmap
 
     def _get_range_bounds(self, df: pd.DataFrame) -> tuple[float, float]:
-        """Return min/max values for configured y-value column with safe fallback."""
-        range_column = self.y_value_column if self.y_value_column in df.columns else 'temp_C'
+        """Return min/max values for configured y-value column."""
+        if self.y_value_column not in df.columns:
+            raise KeyError(f"Missing y_value_column '{self.y_value_column}' in DataFrame")
+        range_column = self.y_value_column
         min_value = float(df[range_column].min())
         max_value = float(df[range_column].max())
         return min_value, max_value
@@ -126,9 +129,8 @@ class Visualizer:
         }
         try:
             return self.range_text_template.format(**context)
-        except Exception:
-            measure_label = self.range_text_context.get('measure_label', 'Value')
-            return f"{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}".strip()
+        except KeyError as exc:
+            raise ValueError(f"Missing placeholder context for range_text_template: {exc}") from exc
 
     @classmethod
     def load_settings_from_yaml(cls, yaml_path: str) -> dict:

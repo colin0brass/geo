@@ -105,6 +105,7 @@ def main() -> int:
         end_year,
         args.cache_dir,
         args.data_cache_dir,
+        config_path=args.config,
         measure=args.measure,
     )
     plot_all(

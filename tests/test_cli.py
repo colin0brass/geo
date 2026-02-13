@@ -118,6 +118,24 @@ def test_parse_args_with_measure():
         assert args.measure == 'daily_precipitation'
 
 
+def test_parse_args_runtime_paths_from_custom_config(tmp_path):
+    config_file = tmp_path / "custom.yaml"
+    config_file.write_text(
+        "runtime_paths:\n"
+        "  cache_dir: alt_cache\n"
+        "  data_cache_dir: alt_data\n"
+        "  out_dir: alt_out\n"
+        "  settings_file: alt/settings.yaml\n"
+    )
+
+    with patch('sys.argv', ['geo.py', '--config', str(config_file)]):
+        args = parse_args()
+        assert str(args.cache_dir) == 'alt_cache'
+        assert str(args.data_cache_dir) == 'alt_data'
+        assert str(args.out_dir) == 'alt_out'
+        assert str(args.settings) == 'alt/settings.yaml'
+
+
 def test_validate_measure_support_default_ok():
     validate_measure_support('noon_temperature')
 

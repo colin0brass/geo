@@ -227,3 +227,85 @@ def test_setup_logging_missing_file(tmp_path):
 
     with pytest.raises(FileNotFoundError):
         setup_logging(missing_file)
+
+
+def test_setup_logging_append_mode_preserves_existing_file(tmp_path):
+    """Test that file_mode=append keeps existing log content."""
+    config_content = """
+logging:
+  log_file: append.log
+  console_level: WARNING
+  file_mode: a
+places:
+  default_place: Test City
+  all_places: []
+"""
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(config_content)
+
+    log_file = tmp_path / "append.log"
+    log_file.write_text("existing line\n")
+
+    import os
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        logger = logging.getLogger("geo")
+        logger.handlers.clear()
+        setup_logging(config_file)
+        logger.info("new line")
+
+        content = log_file.read_text()
+        assert "existing line" in content
+        assert "new line" in content
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_setup_logging_no_third_party_suppression(tmp_path):
+    """Test disabling cdsapi/root suppression toggles."""
+    config_content = """
+logging:
+  log_file: test.log
+  console_level: WARNING
+  suppress_cdsapi: false
+  suppress_root_logger: false
+places:
+  default_place: Test City
+  all_places: []
+"""
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(config_content)
+
+    geo_logger = logging.getLogger("geo")
+    geo_logger.handlers.clear()
+    root_logger = logging.getLogger()
+    original_root_level = root_logger.level
+    cdsapi_logger = logging.getLogger("cdsapi")
+    original_cdsapi_level = cdsapi_logger.level
+
+    try:
+        setup_logging(config_file)
+        assert root_logger.level == original_root_level
+        assert cdsapi_logger.level == original_cdsapi_level
+    finally:
+        root_logger.setLevel(original_root_level)
+        cdsapi_logger.setLevel(original_cdsapi_level)
+
+
+def test_setup_logging_invalid_file_mode_raises(tmp_path):
+    """Test invalid logging.file_mode fails fast."""
+    config_content = """
+logging:
+  log_file: test.log
+  console_level: WARNING
+  file_mode: invalid
+"""
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(config_content)
+
+    logger = logging.getLogger("geo")
+    logger.handlers.clear()
+
+    with pytest.raises(ValueError):
+        setup_logging(config_file)
