@@ -336,7 +336,7 @@ def plot_all(
     # For single place: create individual plot only (combined would be redundant)
     # For multiple places: create combined plot only (too many individual files)
     if num_places == 1:
-        logger.info(f"Creating individual plot for single location")
+        logger.info("Creating individual plot for single location")
         loc = place_list[0]
         df = df_overall[df_overall['place_name'] == loc.name]
         plot_file = create_individual_plot(

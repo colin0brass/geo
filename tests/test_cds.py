@@ -59,5 +59,5 @@ def test_cds_empty_date_range():
 
 def test_cds_missing_cache_dir(tmp_path):
     cache_dir = tmp_path / "nonexistent"
-    cds = CDS(cache_dir=cache_dir)
+    _ = CDS(cache_dir=cache_dir)
     assert cache_dir.exists() or not cache_dir.exists()

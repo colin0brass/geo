@@ -5,7 +5,20 @@ import subprocess
 import sys
 from pathlib import Path
 from unittest.mock import patch
-from cli import parse_args, parse_years, get_place_list, calculate_grid_layout, parse_grid, load_places, load_grid_settings, load_colour_mode, load_colormap, validate_measure_support, DEFAULT_COLORMAP, CLIError
+from cli import (
+    CLIError,
+    DEFAULT_COLORMAP,
+    calculate_grid_layout,
+    get_place_list,
+    load_colormap,
+    load_colour_mode,
+    load_grid_settings,
+    load_places,
+    parse_args,
+    parse_grid,
+    parse_years,
+    validate_measure_support,
+)
 from cds import Location
 
 

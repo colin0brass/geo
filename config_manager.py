@@ -148,7 +148,7 @@ def save_config(config: dict, config_path: Path = Path("config.yaml")) -> None:
         
         # Default place
         if 'default_place' in places_config:
-            lines.append(f"  # Default place used when no location is specified")
+            lines.append("  # Default place used when no location is specified")
             lines.append(f"  default_place: {places_config['default_place']}")
             lines.append("")  # Blank line before all_places
         

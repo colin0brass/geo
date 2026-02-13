@@ -517,6 +517,32 @@ pytest -v                 # Verbose output
 pytest -k "timezone"      # Run tests matching pattern
 ```
 
+Pytest includes flake8 lint checks by default (`--flake8` is enabled in `pytest.ini`).
+Use `pytest --no-flake8` to skip lint checks for a run.
+
+Run lint checks with flake8:
+
+```bash
+python -m flake8 .
+```
+
+Lint settings are defined in `.flake8`.
+
+### CI Commands
+
+Use these commands in CI pipelines:
+
+```bash
+# Combined test + lint (default)
+python -m pytest
+
+# Lint only
+python -m flake8 .
+
+# Tests only (skip lint plugin)
+python -m pytest --no-flake8
+```
+
 Tests are organized across dedicated modules:
 
 | Module | Focus |

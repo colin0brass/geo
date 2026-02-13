@@ -500,7 +500,7 @@ def retrieve_and_concat_data(
         print(f"{'='*60}\n")
     else:
         print(f"\n{'='*60}")
-        print(f"All data already cached - no CDS retrieval needed")
+        print("All data already cached - no CDS retrieval needed")
         print(f"{'='*60}\n")
     
     # Second pass: process each location

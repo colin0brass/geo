@@ -5,8 +5,10 @@ pandas
 pyyaml
 pytest
 pytest-cov
+pytest-flake8
 xarray
 netcdf4
 dask
 timezonefinder
 geopy
+flake8

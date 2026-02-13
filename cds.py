@@ -438,19 +438,19 @@ class CDS:
             pd.DataFrame: DataFrame with daily local noon temperatures for the date range.
         """
         all_dfs = []
-        
+
         # Get list of years to process
         years = list(range(start_d.year, end_d.year + 1))
         total_years = len(years)
-        
+
         for year_idx, year in enumerate(years, 1):
             if self.progress_manager and notify_progress:
                 self.progress_manager.notify_year_start(location.name, year, year_idx, total_years)
-            
+
             # Download entire year at once
             df_year = self.get_year_daily_noon_data(location, year, half_box_deg)
             all_dfs.append(df_year)
-            
+
             if self.progress_manager and notify_progress:
                 self.progress_manager.notify_year_complete(location.name, year, year_idx, total_years)
 
@@ -462,4 +462,3 @@ class CDS:
         df_filtered = df_all.loc[mask].reset_index(drop=True)
 
         return df_filtered
-    

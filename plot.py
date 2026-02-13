@@ -145,7 +145,7 @@ class Visualizer:
         if len(plot_files) > 1:
             logger.info(f"Opening {len(plot_files)} plots...")
         else:
-            logger.info(f"Opening plot...")
+            logger.info("Opening plot...")
         
         for plot_file in plot_files:
             try:
