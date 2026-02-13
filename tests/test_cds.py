@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 import xarray as xr
 from pathlib import Path
-from cds import Location, CDS
+from geo_data.cds import CDS, Location
 
 
 class DummyCDS(CDS):

@@ -13,7 +13,7 @@ import yaml
 from geopy.geocoders import Nominatim
 from timezonefinder import TimezoneFinder
 
-from cds import Location
+from geo_data.cds import Location
 
 
 def load_plot_text_config(config_path: Path = Path("config.yaml")) -> dict:

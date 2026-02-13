@@ -7,7 +7,7 @@ Tests configuration file management, place loading, and config saving.
 import yaml
 
 from config_manager import load_places, save_config
-from cds import Location
+from geo_data.cds import Location
 
 
 def test_load_places_basic(tmp_path):

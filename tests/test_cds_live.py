@@ -1,23 +1,27 @@
 """Live CDS integration tests.
 
-These tests are included in normal pytest runs and skip automatically when
-CDS credentials are not configured (typically ~/.cdsapirc).
+These tests are opt-in and skip by default. To run them, set:
+    GEO_RUN_LIVE_CDS=1
+and ensure CDS credentials are configured (typically ~/.cdsapirc).
 """
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
 
-from cds import CDS, Location
+from geo_data.cds import CDS, Location
 
 
+RUN_LIVE_CDS = os.environ.get("GEO_RUN_LIVE_CDS", "").strip() == "1"
 HAS_CDS_CONFIG = (Path.home() / ".cdsapirc").exists()
 
 
 @pytest.mark.slow
 @pytest.mark.integration
+@pytest.mark.skipif(not RUN_LIVE_CDS, reason="Set GEO_RUN_LIVE_CDS=1 to run live CDS tests")
 @pytest.mark.skipif(not HAS_CDS_CONFIG, reason="Missing CDS credentials file ~/.cdsapirc")
 def test_live_cds_month_data_minimal_request(tmp_path):
     """Fetch a minimal real CDS sample (single day/hour) and validate structure."""

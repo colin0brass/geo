@@ -10,7 +10,7 @@ import sys
 
 from cli import parse_args, parse_grid, parse_years, get_place_list, list_places_and_exit, list_years_and_exit, load_colour_mode, load_colormap, validate_measure_support, CLIError
 from config_manager import load_places, add_place_to_config
-from data import retrieve_and_concat_data
+from geo_data.data import retrieve_and_concat_data
 from orchestrator import plot_all
 from logging_config import setup_logging, get_logger
 from progress import get_progress_manager, ConsoleProgressHandler

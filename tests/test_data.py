@@ -5,7 +5,7 @@ import pytest
 import pandas as pd
 from unittest.mock import MagicMock
 import yaml
-from data import (
+from geo_data.data import (
     DATA_KEY,
     NOON_TEMP_VAR,
     SCHEMA_VERSION,
@@ -15,7 +15,7 @@ from data import (
     retrieve_and_concat_data,
     save_data_file,
 )
-from cds import Location
+from geo_data.cds import Location
 
 
 def test_read_and_save_data_file(tmp_path):
@@ -111,7 +111,7 @@ def test_retrieve_and_concat_data_single_location(tmp_path, monkeypatch):
     def mock_cds_init(cache_dir, progress_manager=None):
         return mock_cds
 
-    monkeypatch.setattr('data.CDS', mock_cds_init)
+    monkeypatch.setattr('geo_data.data.CDS', mock_cds_init)
 
     result = retrieve_and_concat_data([loc], 2024, 2024, tmp_path, tmp_path)
 
@@ -137,7 +137,7 @@ def test_retrieve_and_concat_data_precipitation_measure(tmp_path, monkeypatch):
     def mock_cds_init(cache_dir, progress_manager=None):
         return mock_cds
 
-    monkeypatch.setattr('data.CDS', mock_cds_init)
+    monkeypatch.setattr('geo_data.data.CDS', mock_cds_init)
 
     result = retrieve_and_concat_data(
         [loc],
@@ -196,7 +196,7 @@ def test_retrieve_and_concat_data_multiple_locations(tmp_path, monkeypatch):
     def mock_cds_init(cache_dir, progress_manager=None):
         return mock_cds
 
-    monkeypatch.setattr('data.CDS', mock_cds_init)
+    monkeypatch.setattr('geo_data.data.CDS', mock_cds_init)
 
     result = retrieve_and_concat_data([loc1, loc2], 2024, 2024, tmp_path, tmp_path)
 
@@ -222,7 +222,7 @@ def test_retrieve_and_concat_data_caches_to_yaml(tmp_path, monkeypatch):
     })
     mock_cds.get_noon_series.return_value = mock_df
 
-    monkeypatch.setattr('data.CDS', lambda cache_dir, progress_manager=None: mock_cds)
+    monkeypatch.setattr('geo_data.data.CDS', lambda cache_dir, progress_manager=None: mock_cds)
 
     data_cache_dir = tmp_path / "data_cache"
     retrieve_and_concat_data([loc], 2024, 2024, tmp_path, data_cache_dir)
@@ -419,7 +419,7 @@ def test_retrieve_and_concat_data_uses_cached_years(tmp_path, monkeypatch):
         'grid_lon': [-73.0],
     })
     mock_cds.get_noon_series.return_value = df_2025
-    monkeypatch.setattr('data.CDS', lambda cache_dir, progress_manager=None: mock_cds)
+    monkeypatch.setattr('geo_data.data.CDS', lambda cache_dir, progress_manager=None: mock_cds)
 
     # Request 2024-2025, should only fetch 2025
     result = retrieve_and_concat_data([loc], 2024, 2025, tmp_path, data_cache_dir)
@@ -450,7 +450,7 @@ def test_retrieve_and_concat_data_all_cached(tmp_path, monkeypatch):
 
     # Mock CDS to detect if it's called
     mock_cds = MagicMock()
-    monkeypatch.setattr('data.CDS', lambda cache_dir, progress_manager=None: mock_cds)
+    monkeypatch.setattr('geo_data.data.CDS', lambda cache_dir, progress_manager=None: mock_cds)
 
     # Request cached years only
     result = retrieve_and_concat_data([loc], 2024, 2025, tmp_path, data_cache_dir)
@@ -679,7 +679,7 @@ def test_retrieve_and_concat_data_prints_cds_summary(tmp_path, monkeypatch, caps
     def mock_cds_init(cache_dir, progress_manager=None):
         return mock_cds
 
-    monkeypatch.setattr('data.CDS', mock_cds_init)
+    monkeypatch.setattr('geo_data.data.CDS', mock_cds_init)
 
     # Call with fresh locations (no cache)
     retrieve_and_concat_data([loc1, loc2], 2024, 2024, tmp_path, tmp_path)
@@ -710,7 +710,7 @@ def test_retrieve_and_concat_data_prints_all_cached_message(tmp_path, monkeypatc
     save_data_file(df, yaml_file, loc)
 
     mock_cds = MagicMock()
-    monkeypatch.setattr('data.CDS', lambda cache_dir, progress_manager=None: mock_cds)
+    monkeypatch.setattr('geo_data.data.CDS', lambda cache_dir, progress_manager=None: mock_cds)
 
     # Call with cached data
     retrieve_and_concat_data([loc], 2024, 2024, tmp_path, data_cache_dir)

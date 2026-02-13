@@ -16,7 +16,7 @@ from pathlib import Path
 import yaml
 from matplotlib import colormaps as mpl_colormaps
 
-from cds import Location
+from geo_data.cds import Location
 from config_manager import load_places
 
 logger = logging.getLogger("geo")
@@ -621,7 +621,7 @@ def list_years_and_exit(data_cache_dir: Path = Path("data_cache")) -> None:
     Args:
         data_cache_dir: Directory containing cached YAML data files.
     """
-    from data import cache_yaml_path_for_place, get_cached_years
+    from geo_data.data import cache_yaml_path_for_place, get_cached_years
 
     def condense_year_ranges(years: list[int]) -> str:
         """
