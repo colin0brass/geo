@@ -354,99 +354,6 @@ class CDS:
 
         return ds
 
-    def get_year_daily_noon_data(
-        self,
-        location: Location,
-        year: int,
-        half_box_deg: float | None = None
-    ) -> pd.DataFrame:
-        """
-        Retrieve and return a DataFrame of daily local noon temperatures for an entire year.
-        This is much more efficient than calling get_month_daily_noon_data 12 times.
-
-        Args:
-            location (Location): Location object.
-            year (int): Year.
-            half_box_deg (float, optional): Half-size of the grid box in degrees. Defaults to retrieval.half_box_deg from config.
-        Returns:
-            pd.DataFrame: DataFrame with daily local noon temperatures for the entire year.
-        Raises:
-            RuntimeError: If selected times are too far from requested local noon.
-        """
-        tz_local = ZoneInfo(location.tz)
-
-        # Get all days in the year
-        start_d = date(year, 1, 1)
-        end_d = date(year, 12, 31)
-
-        local_noons, noon_utc = self._build_local_noon_timestamps(start_d, end_d, tz_local)
-
-        # Cache entire year in one file
-        safe_name = self._safe_location_name(location)
-        cache_file = self.cache_dir / f"era5_t2m_{safe_name}_{year:04d}_noons.nc"
-        nc_file = self._cds_retrieve_era5_date_series(cache_file, location, noon_utc, half_box_deg=half_box_deg)
-        ds = self._open_and_concat_for_var([nc_file], "t2m")
-
-        ds_point = self._select_location_point(ds, location)
-        return self._build_noon_temperature_dataframe(
-            ds_point["t2m"],
-            noon_utc,
-            local_noons,
-            self.max_nearest_time_delta,
-            float(ds_point["latitude"].values),
-            float(ds_point["longitude"].values),
-            location.name,
-        )
-
-    def get_month_daily_noon_data(
-        self,
-        location: Location,
-        year: int,
-        month: int,
-        half_box_deg: float | None = None
-    ) -> pd.DataFrame:
-        """
-        Retrieve and return a DataFrame of daily local noon temperatures for a given month and location.
-        Args:
-            location (Location): Location object.
-            year (int): Year.
-            month (int): Month.
-            half_box_deg (float, optional): Half-size of the grid box in degrees. Defaults to retrieval.half_box_deg from config.
-        Returns:
-            pd.DataFrame: DataFrame with daily local noon temperatures.
-        Raises:
-            RuntimeError: If selected times are too far from requested local noon.
-        """
-        # ds = self.get_month_data(
-        #     location, year, month, half_box_deg=half_box_deg)
-
-        tz_local = ZoneInfo(location.tz)
-
-        # Get the first and last day of the month
-        start_d = date(year, month, 1)
-        if month == 12:
-            end_d = date(year + 1, 1, 1) - timedelta(days=1)
-        else:
-            end_d = date(year, month + 1, 1) - timedelta(days=1)
-
-        local_noons, noon_utc = self._build_local_noon_timestamps(start_d, end_d, tz_local)
-
-        safe_name = self._safe_location_name(location)
-        cache_file = self.cache_dir / f"era5_t2m_{safe_name}_{year:04d}_{month:02d}_noons.nc"
-        nc_file = self._cds_retrieve_era5_date_series(cache_file, location, noon_utc, half_box_deg=half_box_deg)
-        ds = self._open_and_concat_for_var([nc_file], "t2m")
-
-        ds_point = self._select_location_point(ds, location)
-        return self._build_noon_temperature_dataframe(
-            ds_point["t2m"],
-            noon_utc,
-            local_noons,
-            self.max_nearest_time_delta,
-            float(ds_point["latitude"].values),
-            float(ds_point["longitude"].values),
-            location.name,
-        )
-
     def _month_range(self, start_d: date, end_d: date):
         """
         Yield (year, month) pairs covering [start_d, end_d].
@@ -522,28 +429,88 @@ class CDS:
 
         return df_filtered.reset_index(drop=True)
 
+
+class TemperatureCDS(CDS):
+    """CDS client specialized for daily local-noon temperature retrieval."""
+
+    def get_series(
+        self,
+        location: Location,
+        start_d: date,
+        end_d: date,
+        notify_progress: bool = True,
+    ) -> pd.DataFrame:
+        return self.get_noon_series(location, start_d, end_d, notify_progress=notify_progress)
+
+    def get_year_daily_noon_data(
+        self,
+        location: Location,
+        year: int,
+        half_box_deg: float | None = None,
+    ) -> pd.DataFrame:
+        tz_local = ZoneInfo(location.tz)
+
+        start_d = date(year, 1, 1)
+        end_d = date(year, 12, 31)
+        local_noons, noon_utc = self._build_local_noon_timestamps(start_d, end_d, tz_local)
+
+        safe_name = self._safe_location_name(location)
+        cache_file = self.cache_dir / f"era5_t2m_{safe_name}_{year:04d}_noons.nc"
+        nc_file = self._cds_retrieve_era5_date_series(cache_file, location, noon_utc, half_box_deg=half_box_deg)
+        ds = self._open_and_concat_for_var([nc_file], "t2m")
+
+        ds_point = self._select_location_point(ds, location)
+        return self._build_noon_temperature_dataframe(
+            ds_point["t2m"],
+            noon_utc,
+            local_noons,
+            self.max_nearest_time_delta,
+            float(ds_point["latitude"].values),
+            float(ds_point["longitude"].values),
+            location.name,
+        )
+
+    def get_month_daily_noon_data(
+        self,
+        location: Location,
+        year: int,
+        month: int,
+        half_box_deg: float | None = None,
+    ) -> pd.DataFrame:
+        tz_local = ZoneInfo(location.tz)
+
+        start_d = date(year, month, 1)
+        if month == 12:
+            end_d = date(year + 1, 1, 1) - timedelta(days=1)
+        else:
+            end_d = date(year, month + 1, 1) - timedelta(days=1)
+
+        local_noons, noon_utc = self._build_local_noon_timestamps(start_d, end_d, tz_local)
+
+        safe_name = self._safe_location_name(location)
+        cache_file = self.cache_dir / f"era5_t2m_{safe_name}_{year:04d}_{month:02d}_noons.nc"
+        nc_file = self._cds_retrieve_era5_date_series(cache_file, location, noon_utc, half_box_deg=half_box_deg)
+        ds = self._open_and_concat_for_var([nc_file], "t2m")
+
+        ds_point = self._select_location_point(ds, location)
+        return self._build_noon_temperature_dataframe(
+            ds_point["t2m"],
+            noon_utc,
+            local_noons,
+            self.max_nearest_time_delta,
+            float(ds_point["latitude"].values),
+            float(ds_point["longitude"].values),
+            location.name,
+        )
+
     def get_noon_series(
         self,
         location: Location,
         start_d: date,
         end_d: date,
         half_box_deg: float | None = None,
-        notify_progress: bool = True
+        notify_progress: bool = True,
     ) -> pd.DataFrame:
-        """
-        Retrieve and return a DataFrame of daily local noon temperatures for the given location and date range.
-
-        Optimized to download entire years at once rather than month-by-month, reducing API calls by 12x.
-
-        Args:
-            location (Location): Location object.
-            start_d (date): Start date.
-            end_d (date): End date.
-            half_box_deg (float, optional): Half-size of the grid box in degrees. Defaults to retrieval.half_box_deg from config.
-            notify_progress (bool, optional): Whether to notify progress manager. Defaults to True.
-        Returns:
-            pd.DataFrame: DataFrame with daily local noon temperatures for the date range.
-        """
         empty_columns = [
             "date",
             "local_noon",
@@ -589,6 +556,19 @@ class CDS:
             empty_columns,
         )
 
+
+class PrecipitationCDS(CDS):
+    """CDS client specialized for daily precipitation retrieval."""
+
+    def get_series(
+        self,
+        location: Location,
+        start_d: date,
+        end_d: date,
+        notify_progress: bool = True,
+    ) -> pd.DataFrame:
+        return self.get_daily_precipitation_series(location, start_d, end_d, notify_progress=notify_progress)
+
     def get_daily_precipitation_series(
         self,
         location: Location,
@@ -597,19 +577,6 @@ class CDS:
         half_box_deg: float | None = None,
         notify_progress: bool = True,
     ) -> pd.DataFrame:
-        """
-        Retrieve daily total precipitation (mm) for the given location and date range.
-
-        Args:
-            location (Location): Location object.
-            start_d (date): Start date.
-            end_d (date): End date.
-            half_box_deg (float, optional): Half-size of the grid box in degrees. Defaults to retrieval.half_box_deg from config.
-            notify_progress (bool, optional): Whether to notify progress manager. Defaults to True.
-
-        Returns:
-            pd.DataFrame: DataFrame with columns date, precip_mm, grid_lat, grid_lon, place_name.
-        """
         empty_columns = [
             "date",
             "precip_mm",
@@ -657,7 +624,6 @@ class CDS:
         month: int,
         half_box_deg: float | None = None,
     ) -> pd.DataFrame:
-        """Retrieve daily total precipitation (mm) for a single month."""
         tz_local = ZoneInfo(location.tz)
         safe_name = self._safe_location_name(location)
 
@@ -687,7 +653,6 @@ class CDS:
         year: int,
         half_box_deg: float | None = None,
     ) -> pd.DataFrame:
-        """Retrieve daily total precipitation (mm) for an entire year in one fetch."""
         tz_local = ZoneInfo(location.tz)
         safe_name = self._safe_location_name(location)
 

@@ -7,7 +7,6 @@ Handles data retrieval, caching, and I/O operations for temperature data.
 from __future__ import annotations
 
 import logging
-import inspect
 from copy import deepcopy
 from datetime import date, datetime
 from pathlib import Path
@@ -16,7 +15,12 @@ from collections.abc import Callable
 import pandas as pd
 import yaml
 
-from .cds import CDS, Location
+from .cds import (
+    CDS,
+    Location,
+    PrecipitationCDS,
+    TemperatureCDS,
+)
 from geo_core.progress import get_progress_manager
 
 logger = logging.getLogger("geo")
@@ -106,6 +110,11 @@ MEASURE_TO_VALUE_COLUMN = {
     'daily_precipitation': 'precip_mm',
 }
 
+MEASURE_TO_CDS_CLIENT = {
+    'noon_temperature': lambda: TemperatureCDS,
+    'daily_precipitation': lambda: PrecipitationCDS,
+}
+
 MEASURE_TO_CDS_METHOD = {
     'noon_temperature': 'get_noon_series',
     'daily_precipitation': 'get_daily_precipitation_series',
@@ -130,6 +139,15 @@ def _get_measure_value_column(measure: str) -> str:
         raise ValueError(f"Unsupported measure '{measure}'. Allowed: {allowed}") from exc
 
 
+def _get_measure_cds_client_class(measure: str) -> type[CDS]:
+    """Resolve measure-specific CDS client class for a logical measure name."""
+    try:
+        return MEASURE_TO_CDS_CLIENT[measure]()
+    except KeyError as exc:
+        allowed = ', '.join(sorted(MEASURE_TO_CDS_CLIENT.keys()))
+        raise ValueError(f"Unsupported measure '{measure}'. Allowed: {allowed}") from exc
+
+
 def _get_measure_cds_method(measure: str) -> str:
     """Resolve CDS client method name for a logical measure name."""
     try:
@@ -137,6 +155,17 @@ def _get_measure_cds_method(measure: str) -> str:
     except KeyError as exc:
         allowed = ', '.join(sorted(MEASURE_TO_CDS_METHOD.keys()))
         raise ValueError(f"Unsupported measure '{measure}'. Allowed: {allowed}") from exc
+
+
+def _create_measure_cds_client(
+    measure: str,
+    cache_dir: Path,
+    progress_mgr,
+    config_path: Path,
+) -> CDS:
+    """Create a measure-specific CDS client backed by the shared CDS implementation."""
+    measure_client_class = _get_measure_cds_client_class(measure)
+    return measure_client_class(cache_dir=cache_dir, progress_manager=progress_mgr, config_path=config_path)
 
 
 def _schema_legacy_data_paths(schema_def: dict) -> list[str]:
@@ -539,7 +568,6 @@ def retrieve_and_concat_data(
     Returns:
         pd.DataFrame: Concatenated DataFrame with selected measure data for all places.
     """
-    cds_method_name = _get_measure_cds_method(measure)
     df_overall = pd.DataFrame()
     progress_mgr = get_progress_manager()
     requested_years = set(range(start_year, end_year + 1))
@@ -595,14 +623,14 @@ def retrieve_and_concat_data(
             # Notify progress manager of location start with total years to fetch
             progress_mgr.notify_location_start(loc.name, cds_place_num, total_cds_places, len(missing_years))
 
-            cds = CDS(cache_dir=cache_dir, progress_manager=progress_mgr, config_path=config_path)
-            if not hasattr(cds, cds_method_name):
+            cds_method_name = _get_measure_cds_method(measure)
+            measure_cds_client = _create_measure_cds_client(measure, cache_dir, progress_mgr, config_path)
+            if not hasattr(measure_cds_client, cds_method_name):
                 raise NotImplementedError(
                     f"Measure '{measure}' is not implemented by CDS client "
                     f"(missing method '{cds_method_name}')."
                 )
-            cds_method = getattr(cds, cds_method_name)
-            cds_signature = inspect.signature(cds_method)
+            cds_method = getattr(measure_cds_client, cds_method_name)
 
             for year_idx, year in enumerate(missing_years, 1):
                 start_d = date(year, 1, 1)
@@ -612,10 +640,7 @@ def retrieve_and_concat_data(
                 progress_mgr.notify_year_start(loc.name, year, year_idx, len(missing_years))
 
                 logger.info(f"  Retrieving {year} for {loc.name}...")
-                if 'notify_progress' in cds_signature.parameters:
-                    df_year = cds_method(loc, start_d, end_d, notify_progress=False)
-                else:
-                    df_year = cds_method(loc, start_d, end_d)
+                df_year = cds_method(loc, start_d, end_d, notify_progress=False)
 
                 # Append to cache file (merges with existing data)
                 save_data_file(df_year, yaml_file, loc, append=True, measure=measure)

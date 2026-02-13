@@ -122,13 +122,13 @@ python geo.py -a -y 2024 -q
 ```python
 from datetime import date
 from geo import read_data_file, save_data_file
-from geo_data.cds import CDS, Location
+from geo_data.cds import Location, TemperatureCDS
 from geo_plot.plot import Visualizer
 
 # Timezone is auto-detected from coordinates
 loc = Location(name="Austin, TX", lat=30.2672, lon=-97.7431)
 # Or explicitly specify: loc = Location(name="Austin, TX", lat=30.2672, lon=-97.7431, tz="America/Chicago")
-cds = CDS()
+cds = TemperatureCDS()
 df = cds.get_noon_series(loc, start_d=date(2020,1,1), end_d=date(2020,12,31))
 vis = Visualizer(df)
 vis.plot_polar(title="Austin 2020 Noon Temps", save_file="output/austin_2020.png")

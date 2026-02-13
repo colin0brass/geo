@@ -4,10 +4,10 @@ import pandas as pd
 import numpy as np
 import xarray as xr
 from pathlib import Path
-from geo_data.cds import CDS, Location
+from geo_data.cds import Location, PrecipitationCDS, TemperatureCDS
 
 
-class DummyCDS(CDS):
+class DummyCDS(TemperatureCDS):
     def __init__(self, cache_dir: Path):
         self.client = None
         self.cache_dir = cache_dir
@@ -90,7 +90,15 @@ def test_cds_get_noon_series_long_range_uses_year_fetch(tmp_path):
 
 
 def test_cds_get_daily_precipitation_series(tmp_path):
-    class DummyPrecipCDS(DummyCDS):
+    class DummyPrecipCDS(PrecipitationCDS):
+        def __init__(self, cache_dir: Path):
+            self.client = None
+            self.cache_dir = cache_dir
+            self.progress_manager = None
+            self.default_half_box_deg = 0.25
+            self.max_nearest_time_delta = pd.Timedelta("30min")
+            self.month_fetch_day_span_threshold = 62
+
         def _cds_retrieve_era5_month(
             self,
             out_nc,
@@ -133,9 +141,14 @@ def test_cds_get_daily_precipitation_series(tmp_path):
 
 
 def test_cds_get_daily_precipitation_series_long_range_uses_year_fetch(tmp_path):
-    class DummyPrecipCDS(DummyCDS):
+    class DummyPrecipCDS(PrecipitationCDS):
         def __init__(self, cache_dir: Path):
-            super().__init__(cache_dir)
+            self.client = None
+            self.cache_dir = cache_dir
+            self.progress_manager = None
+            self.default_half_box_deg = 0.25
+            self.max_nearest_time_delta = pd.Timedelta("30min")
+            self.month_fetch_day_span_threshold = 62
             self.precip_month_calls = 0
             self.precip_year_calls = 0
 
