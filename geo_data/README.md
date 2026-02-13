@@ -5,10 +5,10 @@
 ## Responsibilities
 
 - CDS/ERA5 retrieval clients (`cds_base.py`, `cds_temperature.py`, `cds_precipitation.py`)
-- Measure-aware data retrieval orchestration (`data.py` / `RetrievalCoordinator`)
-- Cache path/read/write helpers (`data_store.py` / `CacheStore`)
+- Measure-aware data retrieval orchestration (`data_retrieval.py` / `RetrievalCoordinator`)
+- Cache path/read/write helpers (`cache_store.py` / `CacheStore`)
 - Schema model and registry (`schema.py` / `Schema`)
-- Schema support modules (`measure_mapping.py`, `migration.py`, `yaml_codec.py`)
+- Schema support modules (`measure_mapping.py`, `cache_migration.py`, `cache_codec.py`)
 - Cache schema registry (`schema.yaml`)
 - Data-layer tests (`tests/`)
 
@@ -27,18 +27,18 @@ Plot rendering and plot orchestration live in `geo_plot` (`geo_plot/plot.py`, `g
   - `TemperatureCDS` (daily local-noon temperature)
 - `cds_precipitation.py`
   - `PrecipitationCDS` (daily precipitation)
-- `data.py`
+- `data_retrieval.py`
   - retrieval orchestration class (`RetrievalCoordinator`)
-- `data_store.py`
+- `cache_store.py`
   - cache path/read/write class (`CacheStore`)
 - `schema.py`
   - schema model (`Schema`) and default loaded schema (`DEFAULT_SCHEMA`)
   - schema registry loading and core schema constants
 - `measure_mapping.py`
   - measure-to-cache and measure-to-dataframe mapping helpers
-- `migration.py`
+- `cache_migration.py`
   - schema-version detection and migration helpers
-- `yaml_codec.py`
+- `cache_codec.py`
   - YAML read/write and migration codec helpers
 - `schema.yaml`
   - schema registry and migration metadata for cached YAML files
@@ -49,7 +49,7 @@ Plot rendering and plot orchestration live in `geo_plot` (`geo_plot/plot.py`, `g
 - Package-level import also exposes `Schema` via `from geo_data import Schema`.
 - Primary loader entry points are `Schema.load()` and `Schema.load_registry(...)`.
 - Current schema supports `measure_cache_vars` and `measure_value_columns` mappings.
-- Supporting modules: `geo_data.measure_mapping`, `geo_data.migration`, and `geo_data.yaml_codec`.
+- Supporting modules: `geo_data.measure_mapping`, `geo_data.cache_migration`, and `geo_data.cache_codec`.
 
 ## Tests
 

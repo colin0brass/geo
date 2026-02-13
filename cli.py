@@ -552,7 +552,7 @@ def list_places_and_exit() -> None:
 
 def build_cached_years_report(data_cache_dir: Path = Path("data_cache")) -> str:
     """Build a formatted report of cached years by place."""
-    from geo_data.data_store import CacheStore
+    from geo_data.cache_store import CacheStore
 
     places, _default_place, _place_lists = load_places()
     cache_store = CacheStore()

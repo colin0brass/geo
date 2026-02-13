@@ -123,7 +123,7 @@ python geo.py -a -y 2024 -q
 from datetime import date
 from geo_data.cds_base import Location
 from geo_data.cds_temperature import TemperatureCDS
-from geo_data.data import RetrievalCoordinator
+from geo_data.data_retrieval import RetrievalCoordinator
 from geo_plot.plot import Visualizer
 
 # Timezone is auto-detected from coordinates
@@ -156,12 +156,12 @@ df_all = coordinator.retrieve([loc], 2020, 2020, measure="noon_temperature")
   - `geo_data/cds_base.py`: Shared ERA5 retrieval primitives + `Location`
   - `geo_data/cds_temperature.py`: Temperature retrieval client (`TemperatureCDS`)
   - `geo_data/cds_precipitation.py`: Precipitation retrieval client (`PrecipitationCDS`)
-  - `geo_data/data.py`: Retrieval orchestration façade (`RetrievalCoordinator`)
-  - `geo_data/data_store.py`: Cache path/read/write helpers (`CacheStore`)
+  - `geo_data/data_retrieval.py`: Retrieval orchestration (`RetrievalCoordinator`)
+  - `geo_data/cache_store.py`: Cache path/read/write helpers (`CacheStore`)
   - `geo_data/schema.py`: Schema model + registry constants (`Schema`, `DEFAULT_SCHEMA`)
   - `geo_data/measure_mapping.py`: Measure-to-cache and measure-to-dataframe mappings
-  - `geo_data/migration.py`: Schema-version detection and migration helpers
-  - `geo_data/yaml_codec.py`: YAML read/write and migration codec helpers
+  - `geo_data/cache_migration.py`: Schema-version detection and migration helpers
+  - `geo_data/cache_codec.py`: Cache read/write and migration codec helpers
   - `geo_data/schema.yaml`: Cache schema registry and migration metadata
   - `geo_data/tests/`: Data-layer tests
 - `geo_plot/`: Plot-layer package (visualization, orchestration, and plot tests)
@@ -601,7 +601,7 @@ Run tests with pytest:
 pytest                    # All tests
 pytest tests/test_cli.py  # Specific application-layer module
 pytest geo_core/tests/test_config.py  # Specific core-layer module
-pytest geo_data/tests/test_data.py  # Specific data-layer module
+pytest geo_data/tests/test_data.py  # Specific retrieval/cache module
 pytest -v                 # Verbose output
 pytest -k "timezone"      # Run tests matching pattern
 ```
@@ -678,7 +678,7 @@ Data-layer test modules are under `geo_data/tests/`:
 
 | Module | Focus |
 |--------|-------|
-| test_data.py | Data I/O, retrieval, YAML caching, schema migration |
+| test_data.py | Cache I/O, retrieval orchestration, YAML caching, schema migration |
 | test_cds.py | CDS API, Location, timezone auto-detection |
 | test_cds_live.py | Opt-in live CDS integration |
 

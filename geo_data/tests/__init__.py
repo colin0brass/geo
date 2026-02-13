@@ -1,1 +1,1 @@
-"""Test package for geo_data module tests."""
+"""Test package for geo_data data-layer tests."""
