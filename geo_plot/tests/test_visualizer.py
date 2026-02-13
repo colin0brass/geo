@@ -3,7 +3,7 @@ import pytest
 import pandas as pd
 import matplotlib
 matplotlib.use('Agg')  # Use non-interactive backend for tests
-from plot import Visualizer  # noqa: E402
+from geo_plot.plot import Visualizer  # noqa: E402
 
 
 def test_temp_c_to_f():

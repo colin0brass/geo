@@ -22,6 +22,10 @@
 
 ## Quickstart
 
+Package docs:
+- Data layer: [geo_data/README.md](geo_data/README.md)
+- Plot layer: [geo_plot/README.md](geo_plot/README.md)
+
 
 ### 1. Register for CDS API and install API key
 
@@ -118,7 +122,7 @@ python geo.py -a -y 2024 -q
 from datetime import date
 from geo import read_data_file, save_data_file
 from geo_data.cds import CDS, Location
-from plot import Visualizer
+from geo_plot.plot import Visualizer
 
 # Timezone is auto-detected from coordinates
 loc = Location(name="Austin, TX", lat=30.2672, lon=-97.7431)
@@ -135,8 +139,6 @@ vis.plot_polar(title="Austin 2020 Noon Temps", save_file="output/austin_2020.png
 - `geo.py`: Main entry point and orchestration
 - `cli.py`: Command-line argument parsing, configuration loading, and validation
 - `config_manager.py`: Configuration file management and place geocoding
-- `plot.py`: Polar plotting and visualization (Visualizer class)
-- `orchestrator.py`: Plot coordination and batching
 - `progress.py`: Progress reporting system with callback handlers
 - `logging_config.py`: Centralized logging configuration
 - `geo_data/`: Data-layer package (CDS client, cache pipeline, schema, and data tests)
@@ -144,12 +146,20 @@ vis.plot_polar(title="Austin 2020 Noon Temps", save_file="output/austin_2020.png
   - `geo_data/data.py`: Measure-aware data retrieval and cache I/O
   - `geo_data/schema.yaml`: Cache schema registry and migration metadata
   - `geo_data/tests/`: Data-layer tests
+- `geo_plot/`: Plot-layer package (visualization, orchestration, and plot tests)
+  - `geo_plot/plot.py`: Polar plotting (`Visualizer`)
+  - `geo_plot/orchestrator.py`: Plot coordination and batching
+  - `geo_plot/tests/`: Plot-layer tests
 - `config.yaml`: Application configuration (places, logging)
 - `settings.yaml`: Plot styling configuration
 - `era5_cache/`: Cached NetCDF files (auto-created)
 - `data_cache/`: Cached YAML data files (auto-created)
 - `output/`: Generated plots (auto-created)
-- `tests/`: Application-layer tests (CLI, plotting, orchestrator, config, progress, logging)
+- `tests/`: Application-layer tests (CLI, config, progress, logging)
+
+Package docs:
+- `geo_data/README.md`
+- `geo_plot/README.md`
 
 ---
 
@@ -571,11 +581,16 @@ Tests are organized across dedicated modules:
 | Module | Focus |
 |--------|-------|
 | test_cli.py | Argument parsing, grid layout, validation, year condensing, grid settings |
-| test_orchestrator.py | Plot coordination, batching, integration |
 | test_config_manager.py | Config loading, saving, place management |
-| test_visualizer.py | Polar plots, single/multi-subplot layouts |
 | test_progress.py | Progress handlers, place/year numbering |
 | test_logging_config.py | Logging setup and configuration |
+
+Plot-layer test modules are under `geo_plot/tests/`:
+
+| Module | Focus |
+|--------|-------|
+| test_visualizer.py | Polar plots, colour modes, subplot layouts |
+| test_orchestrator.py | Plot coordination, batching, integration |
 
 Data-layer test modules are under `geo_data/tests/`:
 

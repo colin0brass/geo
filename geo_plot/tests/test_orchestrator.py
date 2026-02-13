@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 import pandas as pd
 
-from orchestrator import (
+from geo_plot.orchestrator import (
     calculate_grid_dimensions,
     create_batch_subplot,
     create_individual_plot,
@@ -64,7 +64,7 @@ def test_calculate_grid_dimensions_zero_places(tmp_path):
     assert rows == 1 and cols == 1 and max_capacity == 24
 
 
-@patch('orchestrator.Visualizer')
+@patch('geo_plot.orchestrator.Visualizer')
 def test_create_batch_subplot_single_batch(mock_visualizer_class, tmp_path):
     """Test creating a single batch subplot."""
     # Setup
@@ -113,7 +113,7 @@ def test_create_batch_subplot_single_batch(mock_visualizer_class, tmp_path):
     assert call_kwargs['num_cols'] == 2
 
 
-@patch('orchestrator.Visualizer')
+@patch('geo_plot.orchestrator.Visualizer')
 def test_create_batch_subplot_multiple_batches(mock_visualizer_class, tmp_path):
     """Test creating a batch subplot when there are multiple batches."""
     df_batch = pd.DataFrame({'place_name': ['City A'], 'temp_C': [10.0]})
@@ -144,7 +144,7 @@ def test_create_batch_subplot_multiple_batches(mock_visualizer_class, tmp_path):
     assert "Part 2/3" in call_kwargs['title']
 
 
-@patch('orchestrator.Visualizer')
+@patch('geo_plot.orchestrator.Visualizer')
 def test_create_batch_subplot_uses_measure_labels_from_config(mock_visualizer_class, tmp_path):
     """Test measure label text is loaded from plotting.measure_labels config."""
     config_file = tmp_path / "config.yaml"
@@ -190,7 +190,7 @@ def test_create_batch_subplot_uses_measure_labels_from_config(mock_visualizer_cl
     assert vis_kwargs['range_text_template'] == '{measure_label}: {min_value:.1f}-{max_value:.1f} {measure_unit}'
 
 
-@patch('orchestrator.Visualizer')
+@patch('geo_plot.orchestrator.Visualizer')
 def test_create_individual_plot(mock_visualizer_class, tmp_path):
     """Test creating an individual location plot."""
     df = pd.DataFrame({
@@ -232,8 +232,8 @@ def test_create_individual_plot(mock_visualizer_class, tmp_path):
     assert call_kwargs['show_plot'] is False
 
 
-@patch('orchestrator.create_batch_subplot')
-@patch('orchestrator.calculate_grid_layout')
+@patch('geo_plot.orchestrator.create_batch_subplot')
+@patch('geo_plot.orchestrator.calculate_grid_layout')
 def test_create_main_plots_single_batch(mock_grid_layout, mock_create_batch, tmp_path):
     """Test creating main plots with a single batch."""
     mock_grid_layout.return_value = (2, 2)
@@ -267,7 +267,7 @@ def test_create_main_plots_single_batch(mock_grid_layout, mock_create_batch, tmp
     mock_create_batch.assert_called_once()
 
 
-@patch('orchestrator.create_batch_subplot')
+@patch('geo_plot.orchestrator.create_batch_subplot')
 def test_create_main_plots_multiple_batches(mock_create_batch, tmp_path):
     """Test creating main plots split into multiple batches."""
     mock_create_batch.side_effect = [
@@ -309,9 +309,9 @@ def test_create_main_plots_multiple_batches(mock_create_batch, tmp_path):
     assert mock_create_batch.call_count == 2
 
 
-@patch('orchestrator.Visualizer')
-@patch('orchestrator.create_individual_plot')
-@patch('orchestrator.create_main_plots')
+@patch('geo_plot.orchestrator.Visualizer')
+@patch('geo_plot.orchestrator.create_individual_plot')
+@patch('geo_plot.orchestrator.create_main_plots')
 def test_plot_all_no_show(mock_create_main, mock_create_individual, mock_visualizer_class, tmp_path):
     """Test plot_all without showing plots."""
     mock_create_main.return_value = [str(tmp_path / "main.png")]
@@ -347,9 +347,9 @@ def test_plot_all_no_show(mock_create_main, mock_create_individual, mock_visuali
     mock_visualizer_class.show_saved_plots.assert_not_called()
 
 
-@patch('orchestrator.Visualizer')
-@patch('orchestrator.create_individual_plot')
-@patch('orchestrator.create_main_plots')
+@patch('geo_plot.orchestrator.Visualizer')
+@patch('geo_plot.orchestrator.create_individual_plot')
+@patch('geo_plot.orchestrator.create_main_plots')
 def test_plot_all_show_main(mock_create_main, mock_create_individual, mock_visualizer_class, tmp_path):
     """Test plot_all with showing main plot."""
     main_plot = str(tmp_path / "main.png")
@@ -385,9 +385,9 @@ def test_plot_all_show_main(mock_create_main, mock_create_individual, mock_visua
     mock_visualizer_class.show_saved_plots.assert_called_once_with([individual_plot])
 
 
-@patch('orchestrator.Visualizer')
-@patch('orchestrator.create_individual_plot')
-@patch('orchestrator.create_main_plots')
+@patch('geo_plot.orchestrator.Visualizer')
+@patch('geo_plot.orchestrator.create_individual_plot')
+@patch('geo_plot.orchestrator.create_main_plots')
 def test_plot_all_show_all(mock_create_main, mock_create_individual, mock_visualizer_class, tmp_path):
     """Test plot_all with showing all plots."""
     main_plot = str(tmp_path / "main.png")
@@ -423,9 +423,9 @@ def test_plot_all_show_all(mock_create_main, mock_create_individual, mock_visual
     mock_visualizer_class.show_saved_plots.assert_called_once_with([individual_plot])
 
 
-@patch('orchestrator.Visualizer')
-@patch('orchestrator.create_individual_plot')
-@patch('orchestrator.create_main_plots')
+@patch('geo_plot.orchestrator.Visualizer')
+@patch('geo_plot.orchestrator.create_individual_plot')
+@patch('geo_plot.orchestrator.create_main_plots')
 def test_plot_all_multiple_locations(mock_create_main, mock_create_individual, mock_visualizer_class, tmp_path):
     """Test plot_all with multiple locations."""
     mock_create_main.return_value = [str(tmp_path / "main.png")]
