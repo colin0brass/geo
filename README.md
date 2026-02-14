@@ -47,7 +47,7 @@ pip install -r requirements.txt
 python geo.py -y 2024 -s
 
 # List available places
-python geo.py -l
+python geo.py -L
 
 # List places with their cached years
 python geo.py -ly
@@ -65,13 +65,13 @@ python geo.py -p "Austin, TX" -y 2020-2025 -s
 **Predefined place list:**
 ```bash
 # Use default list
-python geo.py -L -y 2024 -s
+python geo.py -l -y 2024 -s
 
 # Use specific list
-python geo.py -L extreme_range -y 2024 -s
+python geo.py -l extreme_range -y 2024 -s
 
 # Alias for --all
-python geo.py -L all -y 2024 -s
+python geo.py -l all -y 2024 -s
 ```
 
 **All locations:**
@@ -87,7 +87,7 @@ python geo.py -p "Custom Location" --lat 40.7128 --lon -74.0060 -y 2024
 **Specify grid layout:**
 ```bash
 # 4 columns by 3 rows = 12 places max per image
-python geo.py -L -y 2024 --grid 4x3
+python geo.py -l -y 2024 --grid 4x3
 
 # If places exceed grid capacity, multiple images are generated
 python geo.py -a -y 2024 --grid 4x4
@@ -111,7 +111,7 @@ python geo.py -p "Austin, TX" -y 2024 --download-by month
 python geo.py -p "Austin, TX" -y 2024 --download-by year
 
 # Benchmark month vs year chunking (single year only)
-python geo.py -L preferred -y 2024 --measure daily_precipitation --download-by compare
+python geo.py -l preferred -y 2024 --measure daily_precipitation --download-by compare
 
 # Dry-run mode (preview without executing)
 python geo.py -a -y 2024 --dry-run
@@ -234,10 +234,10 @@ pip install -r requirements.txt
 python geo.py --add-place "Seattle, WA"
 
 # List all available places and place lists
-python geo.py -l
+python geo.py -L
 
 # Alias for --all (all configured places)
-python geo.py -L all -y 2024
+python geo.py -l all -y 2024
 
 # List places with their cached years (from data cache)
 python geo.py -ly
@@ -254,14 +254,14 @@ python geo.py --help
 | Option | Short | Description |
 |--------|-------|-------------|
 | `--place NAME` | `-p` | Single configured or custom place |
-| `--list [NAME]` | `-L` | Predefined place list. Use `-L` for 'default', `-L NAME` for specific list, or `-L all` as an alias for `--all` |
+| `--list [NAME]` | `-l` | Predefined place list. Use `-l` for 'default', `-l NAME` for specific list, or `-l all` as an alias for `--all` |
 | `--all` | `-a` | All configured places |
 
 ### Information Options
 
 | Option | Short | Description |
 |--------|-------|-------------|
-| `--list-places` | `-l` | List all available places and place lists, then exit |
+| `--list-places` | `-L` | List all available places and place lists, then exit |
 | `--list-years` | `-ly` | List all places with their cached years (condensed ranges), then exit |
 | `--add-place NAME` | | Add a new place to config (looks up coordinates online) |
 
@@ -377,11 +377,16 @@ retrieval:
   half_box_deg: 0.25
   max_nearest_time_delta_minutes: 30
   month_fetch_day_span_threshold: 62
+  daily_source:
+    noon_temperature: hourly
+    daily_precipitation: daily_statistics
+    daily_solar_radiation_energy: hourly
 ```
 
 - `half_box_deg`: geographic half-width (degrees) for ERA5 retrieval around each location.
 - `max_nearest_time_delta_minutes`: maximum tolerated offset between requested local noon and selected ERA5 time.
 - `month_fetch_day_span_threshold`: day-range threshold for monthly fetch strategy before switching to full-year fetch.
+- `daily_source.daily_precipitation`: `daily_statistics` (default, CDS derived daily-statistics product) or `hourly` (in-app aggregation).
 
 #### 4. Runtime Paths
 
@@ -499,7 +504,7 @@ places:
 ```yaml
 places:
   place_lists:
-    default:  # Used when calling -L without argument
+    default:  # Used when calling -l without argument
       - Austin, TX
       - Cambridge, UK
       - San Jose, CA
@@ -518,7 +523,7 @@ places:
 ```
 
 **Available place lists:**
-- `default`: Curated selection (used by `-L` without argument)
+- `default`: Curated selection (used by `-l` without argument)
 - `us_cities`, `international`: Regional selections
 - `extreme_range`, `minimal_range`: Temperature variation comparison
 - `arctic_circle`, `tropical`, `desert`, `mediterranean`: Climate zones

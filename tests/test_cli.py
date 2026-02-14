@@ -77,11 +77,25 @@ def test_parse_args_with_place_list():
         assert args.all is False
 
 
+def test_parse_args_with_place_list_short_option():
+    with patch('sys.argv', ['geo.py', '-l', 'preferred']):
+        args = parse_args()
+        assert args.place_list == 'preferred'
+        assert args.place is None
+        assert args.all is False
+
+
 def test_parse_args_with_list_all_alias():
     with patch('sys.argv', ['geo.py', '--list', 'all']):
         args = parse_args()
         assert args.place_list == 'all'
         assert args.all is False
+
+
+def test_parse_args_with_list_places_short_option():
+    with patch('sys.argv', ['geo.py', '-L']):
+        args = parse_args()
+        assert args.list_places is True
 
 
 def test_parse_args_with_all():

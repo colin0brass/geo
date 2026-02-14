@@ -147,7 +147,7 @@ Examples:
         help="Name of a configured place, or custom place name with --lat/--lon"
     )
     location_exclusive.add_argument(
-        "-L", "--list",
+        "-l", "--list",
         dest="place_list",
         type=str,
         nargs='?',
@@ -170,7 +170,7 @@ Examples:
     # Information
     info_group = parser.add_argument_group("information")
     info_group.add_argument(
-        "-l", "--list-places",
+        "-L", "--list-places",
         action="store_true",
         help="List all available places and place lists, then exit"
     )
