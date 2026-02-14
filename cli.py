@@ -38,7 +38,8 @@ MEASURE_ALIASES = {
     "precipitation": "daily_precipitation",
     "solar": "daily_solar_radiation_energy",
 }
-MEASURE_CHOICES = tuple(VALID_MEASURES) + tuple(MEASURE_ALIASES.keys())
+ALL_MEASURES_TOKEN = "all"
+MEASURE_CHOICES = tuple(VALID_MEASURES) + tuple(MEASURE_ALIASES.keys()) + (ALL_MEASURES_TOKEN,)
 DEFAULT_COLOUR_MODE = VALID_COLOUR_MODES[0]
 DEFAULT_MEASURE = VALID_MEASURES[0]
 DEFAULT_COLORMAP = "turbo"
@@ -110,6 +111,44 @@ def _suggest_values(value: str, options: list[str], max_suggestions: int = 5) ->
 def normalize_measure(measure: str) -> str:
     """Normalize CLI measure aliases to canonical internal measure keys."""
     return MEASURE_ALIASES.get(measure, measure)
+
+
+def parse_measure_selection(measure_arg: str) -> list[str]:
+    """Parse comma-separated CLI measure selection into canonical measure keys."""
+    if not isinstance(measure_arg, str) or not measure_arg.strip():
+        raise CLIError(
+            "Measure value cannot be empty.",
+            "Use --measure noon_temperature, --measure daily_precipitation, or --measure all.",
+        )
+
+    raw_items = [item.strip().lower() for item in measure_arg.split(",") if item.strip()]
+    if not raw_items:
+        raise CLIError(
+            "Measure value cannot be empty.",
+            "Use --measure noon_temperature, --measure daily_precipitation, or --measure all.",
+        )
+
+    if ALL_MEASURES_TOKEN in raw_items:
+        if len(raw_items) > 1:
+            raise CLIError(
+                "'all' cannot be combined with other measure values.",
+                "Use either --measure all, or provide a comma-separated list without 'all'.",
+            )
+        return list(VALID_MEASURES)
+
+    resolved: list[str] = []
+    for item in raw_items:
+        canonical = normalize_measure(item)
+        if canonical not in VALID_MEASURES:
+            allowed = ", ".join(MEASURE_CHOICES)
+            raise CLIError(
+                f"Unknown measure '{item}'.",
+                f"Allowed values: {allowed}. You can also use comma-separated values.",
+            )
+        if canonical not in resolved:
+            resolved.append(canonical)
+
+    return resolved
 
 
 def parse_args() -> argparse.Namespace:
@@ -230,12 +269,13 @@ Examples:
     )
     output_group.add_argument(
         "-m", "--measure",
-        choices=MEASURE_CHOICES,
+        type=str,
         default=DEFAULT_MEASURE,
         help=(
             "Data measure to use: 'noon_temperature', "
             "'daily_precipitation', 'daily_solar_radiation_energy' "
-            "(aliases: 'temp', 'precipitation', 'solar')"
+            "(aliases: 'temp', 'precipitation', 'solar'). "
+            "Use comma-separated values to run multiple measures, or 'all'."
         )
     )
 
@@ -297,7 +337,8 @@ Examples:
     )
 
     args = parser.parse_args()
-    args.measure = normalize_measure(args.measure)
+    args.measures = parse_measure_selection(args.measure)
+    args.measure = args.measures[0]
     return args
 
 
@@ -522,6 +563,14 @@ def validate_measure_support(measure: str) -> None:
         f"Unknown measure '{measure}'.",
         f"Allowed values: {', '.join(VALID_MEASURES)}"
     )
+
+
+def validate_measures_support(measures: list[str]) -> None:
+    """Validate that all selected measures are currently implemented."""
+    if not measures:
+        raise CLIError("At least one measure must be selected.")
+    for measure in measures:
+        validate_measure_support(measure)
 
 
 def calculate_grid_layout(num_places: int, max_rows: int = 4, max_cols: int = 6) -> tuple[int, int]:

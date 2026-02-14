@@ -7,8 +7,10 @@ from cli import (
     CLIError,
     get_place_list,
     parse_args,
+    parse_measure_selection,
     parse_grid,
     parse_years,
+    validate_measures_support,
     validate_measure_support,
 )
 from geo_data.cds_base import Location
@@ -164,6 +166,29 @@ def test_parse_args_with_solar_alias():
         assert args.measure == 'daily_solar_radiation_energy'
 
 
+def test_parse_args_with_measure_all():
+    with patch('sys.argv', ['geo.py', '-m', 'all']):
+        args = parse_args()
+        assert args.measures == [
+            'noon_temperature',
+            'daily_precipitation',
+            'daily_solar_radiation_energy',
+        ]
+        assert args.measure == 'noon_temperature'
+
+
+def test_parse_args_with_multiple_measures_csv():
+    with patch('sys.argv', ['geo.py', '-m', 'temp,solar']):
+        args = parse_args()
+        assert args.measures == ['noon_temperature', 'daily_solar_radiation_energy']
+
+
+def test_parse_args_with_measure_all_mixed_raises():
+    with patch('sys.argv', ['geo.py', '-m', 'all,temp']):
+        with pytest.raises(CLIError):
+            parse_args()
+
+
 def test_parse_args_with_download_by_month():
     with patch('sys.argv', ['geo.py', '--download-by', 'month']):
         args = parse_args()
@@ -216,6 +241,20 @@ def test_validate_measure_support_precipitation_ok():
 
 def test_validate_measure_support_solar_ok():
     validate_measure_support('daily_solar_radiation_energy')
+
+
+def test_parse_measure_selection_deduplicates():
+    measures = parse_measure_selection('temp,noon_temperature,solar,solar')
+    assert measures == ['noon_temperature', 'daily_solar_radiation_energy']
+
+
+def test_validate_measures_support_ok():
+    validate_measures_support(['noon_temperature', 'daily_precipitation'])
+
+
+def test_validate_measures_support_invalid_raises():
+    with pytest.raises(CLIError):
+        validate_measures_support(['noon_temperature', 'invalid_measure'])
 
 
 def test_parse_args_with_colour_mode():

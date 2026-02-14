@@ -106,6 +106,12 @@ python geo.py -p "Austin, TX" -y 1990-2025 --colour-mode year
 # Choose data measure
 python geo.py -p "Austin, TX" -y 2024 --measure noon_temperature
 
+# Run multiple measures in one command
+python geo.py -p "Austin, TX" -y 2024 -m temp,precipitation
+
+# Run all supported measures
+python geo.py -p "Austin, TX" -y 2024 -m all
+
 # Note: noon_temperature, daily_precipitation, and daily_solar_radiation_energy are configured to use timeseries retrieval in the bundled config.
 
 # Force monthly or yearly download chunking for this run
@@ -304,7 +310,7 @@ python geo.py -p "MyCity" --lat 40.7 --lon -74.0 -y 2024
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `--measure {noon_temperature,daily_precipitation,daily_solar_radiation_energy,temp,precipitation,solar}` | Select which data measure to process (short aliases are normalized automatically). | `noon_temperature` |
+| `--measure VALUE` | Select one or more measures. Use canonical values (`noon_temperature`, `daily_precipitation`, `daily_solar_radiation_energy`), aliases (`temp`, `precipitation`, `solar`), comma-separated values (`temp,solar`), or `all`. | `noon_temperature` |
 
 ### Display Options
 
