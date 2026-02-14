@@ -306,6 +306,7 @@ def load_measure_labels_config(config_path: Path = Path("config.yaml")) -> dict[
         raise ValueError(f"Invalid plotting.measure_labels section in {config_path}; expected non-empty mapping.")
 
     validated: dict[str, dict[str, object]] = {}
+    valid_plot_formats = {'points', 'radial_bars', 'radial_wedges'}
     for measure_key, metadata in configured.items():
         if not isinstance(measure_key, str) or not measure_key.strip():
             raise ValueError("plotting.measure_labels keys must be non-empty strings")
@@ -321,7 +322,7 @@ def load_measure_labels_config(config_path: Path = Path("config.yaml")) -> dict[
                 )
             entry[field_name] = value
 
-        for numeric_field in ('y_min', 'y_max', 'y_step'):
+        for numeric_field in ('y_min', 'y_max', 'y_step', 'wedge_width_scale'):
             if numeric_field in metadata and metadata[numeric_field] is not None:
                 try:
                     entry[numeric_field] = float(metadata[numeric_field])
@@ -330,11 +331,26 @@ def load_measure_labels_config(config_path: Path = Path("config.yaml")) -> dict[
                         f"plotting.measure_labels.{measure_key}.{numeric_field} must be numeric"
                     ) from exc
 
+        if 'plot_format' in metadata and metadata['plot_format'] is not None:
+            plot_format = metadata['plot_format']
+            if not isinstance(plot_format, str) or not plot_format.strip():
+                raise ValueError(f"plotting.measure_labels.{measure_key}.plot_format must be a non-empty string")
+            normalized_plot_format = plot_format.strip().lower()
+            if normalized_plot_format not in valid_plot_formats:
+                allowed = ', '.join(sorted(valid_plot_formats))
+                raise ValueError(
+                    f"plotting.measure_labels.{measure_key}.plot_format must be one of: {allowed}"
+                )
+            entry['plot_format'] = normalized_plot_format
+
         y_min = entry.get('y_min')
         y_max = entry.get('y_max')
         y_step = entry.get('y_step')
+        wedge_width_scale = entry.get('wedge_width_scale')
         if y_step is not None and y_step <= 0:
             raise ValueError(f"plotting.measure_labels.{measure_key}.y_step must be > 0")
+        if wedge_width_scale is not None and wedge_width_scale <= 0:
+            raise ValueError(f"plotting.measure_labels.{measure_key}.wedge_width_scale must be > 0")
         if y_min is not None and y_max is not None and y_min >= y_max:
             raise ValueError(f"plotting.measure_labels.{measure_key}.y_min must be < y_max")
 

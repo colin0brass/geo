@@ -65,6 +65,8 @@ plotting:
     daily_precipitation:
       label: "Daily Precipitation"
       unit: "mm"
+      plot_format: radial_wedges
+      wedge_width_scale: 1.35
       y_value_column: "precip_mm"
       y_min: 0
       y_step: 20

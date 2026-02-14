@@ -253,6 +253,64 @@ def test_create_batch_subplot_uses_measure_labels_from_config(mock_visualizer_cl
 
 
 @patch('geo_plot.orchestrator.Visualizer')
+def test_orchestrator_passes_plot_format_to_visualizer(mock_visualizer_class, tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "\n".join([
+            "plot_text:",
+            "  single_plot_title: '{location} {measure_label} ({start_year}-{end_year})'",
+            "  subplot_title: '{measure_label} ({start_year}-{end_year})'",
+            "  subplot_title_with_batch: '{measure_label} ({start_year}-{end_year}) - Part {batch}/{total_batches}'",
+            "  single_plot_filename: '{location}_{measure_key}_{start_year}_{end_year}.png'",
+            "  subplot_filename: '{list_name}_{measure_key}_{start_year}_{end_year}.png'",
+            "  subplot_filename_with_batch: '{list_name}_{measure_key}_{start_year}_{end_year}_part{batch}of{total_batches}.png'",
+            "  credit: 'Climate Data Analysis & Visualisation by Colin Osborne'",
+            "  single_plot_credit: 'Analysis & visualisation by Colin Osborne'",
+            "  data_source: 'Data from: ERA5 via CDS'",
+            "plotting:",
+            "  measure_labels:",
+            "    daily_precipitation:",
+            "      label: Rainfall",
+            "      unit: mm/day",
+            "      plot_format: radial_wedges",
+            "      wedge_width_scale: 1.5",
+            "      y_value_column: precip_mm",
+            "      range_text: '{measure_label}: {min_value:.1f}-{max_value:.1f} {measure_unit}'",
+        ])
+    )
+
+    df_batch = pd.DataFrame({'place_name': ['City A'], 'precip_mm': [5.0]})
+    loc = Location(name="City A", lat=40.0, lon=-73.0, tz="America/New_York")
+    mock_visualizer_class.return_value = MagicMock()
+    orchestrator = PlotOrchestrator(
+        config=config_file,
+        settings=Path("geo_plot/settings.yaml"),
+        measure='daily_precipitation',
+    )
+    run_ctx = PlotRunContext(
+        start_year=2024,
+        end_year=2024,
+        out_dir=tmp_path,
+        t_min_c=0.0,
+        t_max_c=20.0,
+    )
+
+    orchestrator.create_batch_subplot(
+        df_batch=df_batch,
+        batch_places=[loc],
+        batch_idx=0,
+        num_batches=1,
+        batch_rows=1,
+        batch_cols=1,
+        run_ctx=run_ctx,
+    )
+
+    vis_kwargs = mock_visualizer_class.call_args[1]
+    assert vis_kwargs['plot_format'] == 'radial_wedges'
+    assert vis_kwargs['wedge_width_scale'] == 1.5
+
+
+@patch('geo_plot.orchestrator.Visualizer')
 def test_create_individual_plot(mock_visualizer_class, tmp_path):
     """Test creating an individual location plot."""
     df = pd.DataFrame({

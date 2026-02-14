@@ -145,6 +145,12 @@ def test_visualizer_invalid_colormap_name():
         Visualizer(df, colormap_name='not_a_cmap')
 
 
+def test_visualizer_invalid_plot_format():
+    df = pd.DataFrame({'date': ['2025-01-01'], 'temp_C': [10]})
+    with pytest.raises(ValueError):
+        Visualizer(df, plot_format='invalid')
+
+
 def test_visualizer_range_text_template_formatting():
     df = pd.DataFrame({
         'date': ['2025-01-01', '2025-01-02'],
@@ -200,6 +206,81 @@ def test_plot_polar_precipitation_without_temp_column(tmp_path):
     vis.plot_polar(title="Precipitation Test", save_file=str(output_file), show_plot=False)
 
     assert output_file.exists()
+
+
+def test_create_polar_plot_radial_wedges_uses_bar(tmp_path):
+    df = pd.DataFrame({
+        'date': pd.date_range('2025-01-01', periods=30),
+        'precip_mm': [float(i % 7) for i in range(30)],
+    })
+    vis = Visualizer(
+        df,
+        y_value_column='precip_mm',
+        plot_format='radial_wedges',
+        range_text_template="{measure_label}: {min_value:.1f}-{max_value:.1f} {measure_unit}",
+        range_text_context={'measure_label': 'Daily Precipitation', 'measure_unit': 'mm'},
+    )
+
+    fig = matplotlib.pyplot.figure()
+    ax = fig.add_subplot(111, polar=True)
+    vis.create_polar_plot(ax, vis.df)
+
+    assert len(ax.patches) > 0
+    matplotlib.pyplot.close(fig)
+
+
+def test_create_polar_plot_wedge_width_scale_changes_patch_width(tmp_path):
+    df = pd.DataFrame({
+        'date': pd.date_range('2025-01-01', periods=30),
+        'precip_mm': [float(i % 7) for i in range(30)],
+    })
+
+    vis_default = Visualizer(
+        df,
+        y_value_column='precip_mm',
+        plot_format='radial_wedges',
+        wedge_width_scale=1.0,
+        range_text_template="{measure_label}: {min_value:.1f}-{max_value:.1f} {measure_unit}",
+        range_text_context={'measure_label': 'Daily Precipitation', 'measure_unit': 'mm'},
+    )
+    vis_wide = Visualizer(
+        df,
+        y_value_column='precip_mm',
+        plot_format='radial_wedges',
+        wedge_width_scale=1.5,
+        range_text_template="{measure_label}: {min_value:.1f}-{max_value:.1f} {measure_unit}",
+        range_text_context={'measure_label': 'Daily Precipitation', 'measure_unit': 'mm'},
+    )
+
+    fig_default = matplotlib.pyplot.figure()
+    ax_default = fig_default.add_subplot(111, polar=True)
+    vis_default.create_polar_plot(ax_default, vis_default.df)
+    default_width = ax_default.patches[0].get_width()
+
+    fig_wide = matplotlib.pyplot.figure()
+    ax_wide = fig_wide.add_subplot(111, polar=True)
+    vis_wide.create_polar_plot(ax_wide, vis_wide.df)
+    wide_width = ax_wide.patches[0].get_width()
+
+    assert wide_width > default_width
+    matplotlib.pyplot.close(fig_default)
+    matplotlib.pyplot.close(fig_wide)
+
+
+def test_visualizer_rejects_non_positive_wedge_width_scale():
+    df = pd.DataFrame({
+        'date': pd.date_range('2025-01-01', periods=2),
+        'precip_mm': [0.0, 1.0],
+    })
+    with pytest.raises(ValueError):
+        Visualizer(
+            df,
+            y_value_column='precip_mm',
+            plot_format='radial_wedges',
+            wedge_width_scale=0,
+            range_text_template="{measure_label}: {min_value:.1f}-{max_value:.1f} {measure_unit}",
+            range_text_context={'measure_label': 'Daily Precipitation', 'measure_unit': 'mm'},
+        )
 
 
 def test_visualizer_accepts_custom_y_step():

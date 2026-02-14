@@ -35,7 +35,9 @@ class Visualizer:
         range_text_template: str | None = None,
         range_text_context: dict[str, str] | None = None,
         colour_mode: str = 'y_value',
-        colormap_name: str = 'turbo'
+        colormap_name: str = 'turbo',
+        plot_format: str = 'points',
+        wedge_width_scale: float = 1.0,
     ) -> None:
         """
         Initialize the Visualizer with data and plotting settings.
@@ -91,6 +93,17 @@ class Visualizer:
         if colour_mode not in valid_modes:
             raise ValueError(f"Invalid colour_mode '{colour_mode}'. Expected one of {sorted(valid_modes)}")
         self.colour_mode = colour_mode
+
+        valid_plot_formats = {"points", "radial_bars", "radial_wedges"}
+        if plot_format not in valid_plot_formats:
+            raise ValueError(
+                f"Invalid plot_format '{plot_format}'. Expected one of {sorted(valid_plot_formats)}"
+            )
+        self.plot_format = plot_format
+
+        self.wedge_width_scale = float(wedge_width_scale)
+        if self.wedge_width_scale <= 0:
+            raise ValueError("wedge_width_scale must be > 0")
 
         self.first_year = pd.to_datetime(self.df['date'].min()).year
         self.last_year = pd.to_datetime(self.df['date'].max()).year
@@ -344,7 +357,24 @@ class Visualizer:
         marker_size = settings.get('figure.marker_size')
         xtick_fontsize = settings.get('figure.xtick_fontsize')
 
-        ax.scatter(df['angle'], df[self.y_value_column], c=point_colours, s=marker_size)
+        radial_base = self.tmin_c
+        if self.plot_format in {'radial_bars', 'radial_wedges'}:
+            bar_width = (2 * np.pi / 365.0) * self.wedge_width_scale
+            values = df[self.y_value_column].to_numpy(dtype=float)
+            radial_base = min(0.0, float(np.nanmin(values)))
+            heights = np.maximum(values - radial_base, 0.0)
+            theta_left = df['angle'].to_numpy(dtype=float) - (bar_width / 2.0)
+            ax.bar(
+                theta_left,
+                heights,
+                width=bar_width,
+                bottom=radial_base,
+                color=point_colours,
+                linewidth=0,
+                align='edge',
+            )
+        else:
+            ax.scatter(df['angle'], df[self.y_value_column], c=point_colours, s=marker_size)
         self.draw_temp_circles(ax, num_rows)
         ax.set_theta_offset(np.pi/2)
         ax.set_theta_direction(-1)
@@ -353,12 +383,13 @@ class Visualizer:
         ax.set_yticks([])
 
         # Set y-axis limits, handling case where min == max
-        if self.tmin_c < self.tmax_c:
-            ax.set_ylim(self.tmin_c, self.tmax_c)
+        y_min = min(self.tmin_c, radial_base)
+        if y_min < self.tmax_c:
+            ax.set_ylim(y_min, self.tmax_c)
         else:
             # Add a small margin when all temps are the same
-            margin = 1.0 if self.tmin_c != 0 else 1.0
-            ax.set_ylim(self.tmin_c - margin, self.tmax_c + margin)
+            margin = 1.0
+            ax.set_ylim(y_min - margin, self.tmax_c + margin)
 
     def plot_polar(
         self,

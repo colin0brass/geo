@@ -490,6 +490,42 @@ def test_load_measure_labels_config_optional_range_controls(tmp_path):
     assert labels["daily_precipitation"]["y_step"] == 5.0
 
 
+def test_load_measure_labels_config_plot_format(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "plotting:\n"
+        "  measure_labels:\n"
+        "    daily_precipitation:\n"
+        "      label: Daily Precipitation\n"
+        "      unit: mm\n"
+        "      y_value_column: precip_mm\n"
+        "      plot_format: radial_wedges\n"
+        "      wedge_width_scale: 1.4\n"
+        "      range_text: '{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}'\n"
+    )
+
+    labels = load_measure_labels_config(config_file)
+    assert labels["daily_precipitation"]["plot_format"] == "radial_wedges"
+    assert labels["daily_precipitation"]["wedge_width_scale"] == 1.4
+
+
+def test_load_measure_labels_config_invalid_plot_format_raises(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "plotting:\n"
+        "  measure_labels:\n"
+        "    daily_precipitation:\n"
+        "      label: Daily Precipitation\n"
+        "      unit: mm\n"
+        "      y_value_column: precip_mm\n"
+        "      plot_format: invalid\n"
+        "      range_text: '{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}'\n"
+    )
+
+    with pytest.raises(ValueError):
+        load_measure_labels_config(config_file)
+
+
 def test_load_measure_labels_config_invalid_y_step_raises(tmp_path):
     config_file = tmp_path / "config.yaml"
     config_file.write_text(
@@ -518,6 +554,24 @@ def test_load_measure_labels_config_invalid_y_min_max_raises(tmp_path):
         "      y_value_column: precip_mm\n"
         "      y_min: 10\n"
         "      y_max: 5\n"
+        "      range_text: '{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}'\n"
+    )
+
+    with pytest.raises(ValueError):
+        load_measure_labels_config(config_file)
+
+
+def test_load_measure_labels_config_invalid_wedge_width_scale_raises(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "plotting:\n"
+        "  measure_labels:\n"
+        "    daily_precipitation:\n"
+        "      label: Daily Precipitation\n"
+        "      unit: mm\n"
+        "      y_value_column: precip_mm\n"
+        "      plot_format: radial_wedges\n"
+        "      wedge_width_scale: 0\n"
         "      range_text: '{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}'\n"
     )
 

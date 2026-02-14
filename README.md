@@ -436,6 +436,8 @@ plotting:
       y_min: 0           # optional fixed lower bound
       y_max: 50          # optional fixed upper bound
       y_step: 5          # optional ring/colorbar interval step
+      plot_format: radial_wedges
+      wedge_width_scale: 1.35  # optional wedge-width multiplier (>1 makes wedges wider)
       range_text: "{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}"
   valid_colormaps: [turbo, viridis, plasma, inferno, magma, cividis]  # first item is default fallback
   colormap: turbo           # must be one of valid_colormaps
@@ -445,6 +447,8 @@ plotting:
 - `year`: colours points by year progression to make long-term trend shifts easier to spot
 - `measure_labels.*.y_min` / `y_max`: optional fixed y-axis bounds per measure (if omitted, bounds are derived from data)
 - `measure_labels.*.y_step`: optional per-measure radial ring interval; if omitted, an internal default is used
+- `measure_labels.*.plot_format`: `points` (default scatter) or wedge formats `radial_wedges` / `radial_bars` (alias); bundled config uses `radial_wedges` for precipitation
+- `measure_labels.*.wedge_width_scale`: optional wedge-width multiplier (`> 0`); use values above `1.0` for wider wedges
 - `valid_colormaps`: controls which colormaps are allowed and sets default fallback by first item
 - `colormap`: controls the active colour palette used by both modes
 

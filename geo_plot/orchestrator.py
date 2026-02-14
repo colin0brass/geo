@@ -136,6 +136,8 @@ class PlotOrchestrator:
             range_text_context=self.measure_ctx,
             colour_mode=self.colour_mode,
             colormap_name=self.colormap_name,
+            plot_format=str(self.measure_meta.get('plot_format', 'points')),
+            wedge_width_scale=float(self.measure_meta.get('wedge_width_scale', 1.0)),
         )
 
     def create_batch_subplot(
