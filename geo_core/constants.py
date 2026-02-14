@@ -19,9 +19,9 @@ DEFAULT_RETRIEVAL_SETTINGS = {
         "daily_solar_radiation_energy": "monthly",
     },
     "daily_source": {
-        "noon_temperature": "hourly",
-        "daily_precipitation": "hourly",
-        "daily_solar_radiation_energy": "hourly",
+        "noon_temperature": "timeseries",
+        "daily_precipitation": "timeseries",
+        "daily_solar_radiation_energy": "timeseries",
     },
 }
 REQUIRED_PLOT_TEXT_KEYS = (

@@ -312,7 +312,43 @@ def test_load_retrieval_settings_daily_source_from_config(tmp_path):
 
     settings = load_retrieval_settings(config_file)
     assert settings["daily_source"]["daily_precipitation"] == "daily_statistics"
-    assert settings["daily_source"]["noon_temperature"] == "hourly"
+    assert settings["daily_source"]["noon_temperature"] == "timeseries"
+
+
+def test_load_retrieval_settings_timeseries_daily_source_from_config(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "retrieval:\n"
+        "  daily_source:\n"
+        "    daily_precipitation: timeseries\n"
+    )
+
+    settings = load_retrieval_settings(config_file)
+    assert settings["daily_source"]["daily_precipitation"] == "timeseries"
+
+
+def test_load_retrieval_settings_timeseries_temperature_daily_source_from_config(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "retrieval:\n"
+        "  daily_source:\n"
+        "    noon_temperature: timeseries\n"
+    )
+
+    settings = load_retrieval_settings(config_file)
+    assert settings["daily_source"]["noon_temperature"] == "timeseries"
+
+
+def test_load_retrieval_settings_timeseries_solar_daily_source_from_config(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "retrieval:\n"
+        "  daily_source:\n"
+        "    daily_solar_radiation_energy: timeseries\n"
+    )
+
+    settings = load_retrieval_settings(config_file)
+    assert settings["daily_source"]["daily_solar_radiation_energy"] == "timeseries"
 
 
 def test_load_retrieval_settings_invalid_daily_source_raises(tmp_path):

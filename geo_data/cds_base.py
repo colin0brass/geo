@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 import logging
+import zipfile
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -12,6 +13,7 @@ import pandas as pd
 import xarray as xr
 
 from geo_core.config import load_retrieval_settings
+from logging_config import should_show_cds_warnings
 
 logger = logging.getLogger("geo")
 
@@ -83,7 +85,12 @@ class CDS:
             cache_dir: Directory to cache downloaded NetCDF files.
             progress_manager: Optional ProgressManager for progress reporting.
         """
-        self.client = cdsapi.Client(quiet=True, debug=False)
+        warning_callback = None if should_show_cds_warnings() else (lambda *args, **kwargs: None)
+        self.client = cdsapi.Client(
+            quiet=True,
+            debug=False,
+            warning_callback=warning_callback,
+        )
         self.cache_dir = cache_dir
         self.progress_manager = progress_manager
 
@@ -103,10 +110,17 @@ class CDS:
         self.precipitation_daily_source = str(daily_source.get("daily_precipitation", "hourly"))
         self.solar_daily_source = str(daily_source.get("daily_solar_radiation_energy", "hourly"))
 
-        cdsapi_logger = logging.getLogger('cdsapi')
-        cdsapi_logger.handlers.clear()
-        cdsapi_logger.setLevel(logging.WARNING)
-        cdsapi_logger.propagate = False
+        for logger_name in (
+            'cdsapi',
+            'ecmwf',
+            'ecmwf.datastores',
+            'ecmwf.datastores.client',
+            'ecmwf.datastores.processing',
+        ):
+            ext_logger = logging.getLogger(logger_name)
+            ext_logger.handlers.clear()
+            ext_logger.setLevel(logging.ERROR)
+            ext_logger.propagate = False
 
     def _resolve_half_box_deg(self, half_box_deg: float | None) -> float:
         """Resolve retrieval box size from explicit arg or configured default."""
@@ -356,6 +370,53 @@ class CDS:
             out_nc,
         )
         self.client.retrieve("derived-era5-single-levels-daily-statistics", request, str(out_nc))
+        return out_nc
+
+    def _cds_retrieve_era5_timeseries(
+        self,
+        out_nc: Path,
+        loc: Location,
+        start_d: date,
+        end_d: date,
+        variable: str = "2m_temperature",
+        data_format: str = "netcdf",
+    ) -> Path:
+        """Download ERA5 single-level time-series data for one location and date range."""
+        out_nc.parent.mkdir(parents=True, exist_ok=True)
+
+        request = {
+            "variable": [variable],
+            "location": {
+                "latitude": float(loc.lat),
+                "longitude": float(loc.lon),
+            },
+            "date": [f"{start_d.isoformat()}/{end_d.isoformat()}"],
+            "data_format": data_format,
+        }
+
+        if out_nc.exists() and out_nc.stat().st_size > 0:
+            return out_nc
+
+        logger.info(
+            "Downloading ERA5 timeseries for %s %s..%s to %s ...",
+            variable,
+            start_d.isoformat(),
+            end_d.isoformat(),
+            out_nc,
+        )
+        self.client.retrieve("reanalysis-era5-single-levels-timeseries", request, str(out_nc))
+
+        if out_nc.exists() and zipfile.is_zipfile(out_nc):
+            with zipfile.ZipFile(out_nc, "r") as zf:
+                nc_members = [name for name in zf.namelist() if name.lower().endswith(".nc")]
+                if not nc_members:
+                    raise RuntimeError(
+                        "Timeseries download returned ZIP without a NetCDF file; "
+                        f"members: {zf.namelist()}"
+                    )
+                with zf.open(nc_members[0], "r") as src:
+                    out_nc.write_bytes(src.read())
+
         return out_nc
 
     def _open_and_concat_for_var(self, nc_files: list[Path], expected_var: str) -> xr.Dataset:

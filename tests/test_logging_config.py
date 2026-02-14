@@ -3,7 +3,7 @@ Tests for logging_config module (logging configuration).
 """
 import pytest
 import logging
-from logging_config import setup_logging, get_logger
+from logging_config import setup_logging, get_logger, sync_cds_warning_visibility
 
 
 def test_setup_logging_default(tmp_path):
@@ -291,6 +291,52 @@ places:
     finally:
         root_logger.setLevel(original_root_level)
         cdsapi_logger.setLevel(original_cdsapi_level)
+
+
+def test_setup_logging_invalid_cds_warnings_in_verbose_raises(tmp_path):
+    """Test invalid logging.cds_warnings_in_verbose fails fast."""
+    config_content = """
+logging:
+  log_file: test.log
+  console_level: WARNING
+  cds_warnings_in_verbose: invalid
+"""
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(config_content)
+
+    logger = logging.getLogger("geo")
+    logger.handlers.clear()
+
+    with pytest.raises(ValueError):
+        setup_logging(config_file)
+
+
+def test_sync_cds_warning_visibility_in_verbose_mode(tmp_path):
+    """CDS warnings are shown only when console debug mode is active."""
+    config_content = """
+logging:
+  log_file: test.log
+  console_level: WARNING
+  suppress_cdsapi: true
+  cds_warnings_in_verbose: true
+places:
+  default_place: Test City
+  all_places: []
+"""
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(config_content)
+
+    geo_logger = logging.getLogger("geo")
+    geo_logger.handlers.clear()
+
+    setup_logging(config_file)
+    cdsapi_logger = logging.getLogger("cdsapi")
+
+    assert cdsapi_logger.level == logging.ERROR
+    sync_cds_warning_visibility(console_is_debug=True)
+    assert cdsapi_logger.level == logging.WARNING
+    sync_cds_warning_visibility(console_is_debug=False)
+    assert cdsapi_logger.level == logging.ERROR
 
 
 def test_setup_logging_invalid_file_mode_raises(tmp_path):

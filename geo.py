@@ -16,7 +16,7 @@ from config_manager import load_places, add_place_to_config
 from geo_data.data_retrieval import RetrievalCoordinator
 from geo_core.progress import get_progress_manager
 from geo_plot.orchestrator import plot_all
-from logging_config import setup_logging, get_logger
+from logging_config import setup_logging, get_logger, sync_cds_warning_visibility
 from progress import ConsoleProgressHandler
 
 
@@ -28,16 +28,21 @@ def _configure_console_logging(args, logger) -> None:
             if isinstance(handler, logging.StreamHandler) and not isinstance(handler, logging.FileHandler):
                 handler.setLevel(logging.DEBUG)
         logger.debug("Verbose mode enabled (console output at DEBUG level)")
+        sync_cds_warning_visibility(console_is_debug=True)
     elif args.quiet:
         for handler in geo_logger.handlers:
             if isinstance(handler, logging.StreamHandler) and not isinstance(handler, logging.FileHandler):
                 handler.setLevel(logging.ERROR)
+            sync_cds_warning_visibility(console_is_debug=False)
     elif args.dry_run:
         for handler in geo_logger.handlers:
             if isinstance(handler, logging.StreamHandler) and not isinstance(handler, logging.FileHandler):
                 current_level = handler.level
                 if current_level > logging.INFO:
                     handler.setLevel(logging.INFO)
+        sync_cds_warning_visibility(console_is_debug=False)
+    else:
+        sync_cds_warning_visibility(console_is_debug=False)
 
 
 def _resolve_run_context(args):

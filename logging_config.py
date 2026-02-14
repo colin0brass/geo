@@ -15,9 +15,49 @@ DEFAULT_LOGGING_SETTINGS = {
     'console_level': 'WARNING',
     'file_mode': 'w',
     'suppress_cdsapi': True,
+    'cds_warnings_in_verbose': True,
     'suppress_root_logger': True,
     'third_party_log_level': 'WARNING',
 }
+
+_CDS_LOGGER_NAMES = (
+    'cdsapi',
+    'ecmwf',
+    'ecmwf.datastores',
+    'ecmwf.datastores.client',
+    'ecmwf.datastores.processing',
+)
+
+_cds_suppression_enabled = False
+_cds_warnings_in_verbose_enabled = True
+_cds_show_warnings = False
+
+
+def _set_cds_external_logger_levels(show_warnings: bool) -> None:
+    """Apply logger levels for CDS/ECMWF stack based on warning visibility."""
+    target_level = logging.WARNING if show_warnings else logging.ERROR
+    for logger_name in _CDS_LOGGER_NAMES:
+        ext_logger = logging.getLogger(logger_name)
+        ext_logger.handlers.clear()
+        ext_logger.setLevel(target_level)
+        ext_logger.propagate = False
+
+
+def sync_cds_warning_visibility(console_is_debug: bool) -> None:
+    """Synchronize CDS warning visibility with current console verbosity mode."""
+    global _cds_show_warnings
+
+    if not _cds_suppression_enabled:
+        _cds_show_warnings = True
+        return
+    show_warnings = bool(_cds_warnings_in_verbose_enabled and console_is_debug)
+    _set_cds_external_logger_levels(show_warnings)
+    _cds_show_warnings = show_warnings
+
+
+def should_show_cds_warnings() -> bool:
+    """Return whether CDS/ECMWF warning messages should be surfaced to console."""
+    return _cds_show_warnings
 
 
 def _load_logging_settings(config_path: Path) -> dict:
@@ -46,6 +86,8 @@ def _load_logging_settings(config_path: Path) -> dict:
         raise ValueError("logging.file_mode must be 'w' or 'a'")
     if not isinstance(settings['suppress_cdsapi'], bool):
         raise ValueError("logging.suppress_cdsapi must be boolean")
+    if not isinstance(settings['cds_warnings_in_verbose'], bool):
+        raise ValueError("logging.cds_warnings_in_verbose must be boolean")
     if not isinstance(settings['suppress_root_logger'], bool):
         raise ValueError("logging.suppress_root_logger must be boolean")
     if not isinstance(settings['log_file'], str) or not settings['log_file'].strip():
@@ -64,6 +106,8 @@ def setup_logging(config_path: Path = Path("config.yaml")) -> logging.Logger:
     Returns:
         Configured logger instance.
     """
+    global _cds_suppression_enabled, _cds_warnings_in_verbose_enabled, _cds_show_warnings
+
     settings = _load_logging_settings(config_path)
     log_file = settings['log_file']
     console_level = settings['console_level']
@@ -98,11 +142,13 @@ def setup_logging(config_path: Path = Path("config.yaml")) -> logging.Logger:
     logger.addHandler(console_handler)
 
     third_party_level = getattr(logging, settings['third_party_log_level'])
+    _cds_suppression_enabled = bool(settings['suppress_cdsapi'])
+    _cds_warnings_in_verbose_enabled = bool(settings['cds_warnings_in_verbose'])
+
     if settings['suppress_cdsapi']:
-        cdsapi_logger = logging.getLogger('cdsapi')
-        cdsapi_logger.handlers.clear()
-        cdsapi_logger.setLevel(third_party_level)
-        cdsapi_logger.propagate = False
+        sync_cds_warning_visibility(console_is_debug=(console_level == 'DEBUG'))
+    else:
+        _cds_show_warnings = True
 
     if settings['suppress_root_logger']:
         root_logger = logging.getLogger()

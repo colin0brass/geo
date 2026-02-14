@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import calendar
 from datetime import date, datetime, timezone
 
 import pandas as pd
@@ -125,14 +126,19 @@ class PrecipitationCDS(CDS):
         month: int,
         half_box_deg: float | None = None,
     ) -> pd.DataFrame:
+        if not 1 <= month <= 12:
+            raise ValueError(f"Invalid month '{month}'; expected 1..12")
+
         source_mode = getattr(self, "precipitation_daily_source", "hourly")
         if source_mode == "daily_statistics":
             return self._get_month_daily_precipitation_data_from_daily_stats(location, year, month, half_box_deg)
+        if source_mode == "timeseries":
+            return self._get_month_daily_precipitation_data_from_timeseries(location, year, month)
 
         if source_mode != "hourly":
             raise ValueError(
                 f"Unsupported precipitation daily source '{source_mode}'. "
-                "Expected one of: hourly, daily_statistics"
+                "Expected one of: hourly, daily_statistics, timeseries"
             )
 
         tz_local = ZoneInfo(location.tz)
@@ -193,6 +199,76 @@ class PrecipitationCDS(CDS):
             "place_name": location.name,
         })
 
+    def _get_month_daily_precipitation_data_from_timeseries(
+        self,
+        location: Location,
+        year: int,
+        month: int,
+    ) -> pd.DataFrame:
+        tz_local = ZoneInfo(location.tz)
+        safe_name = self._safe_location_name(location)
+        cache_file = self.cache_dir / f"era5_tp_timeseries_{safe_name}_{year:04d}_{month:02d}.nc"
+
+        start_d = date(year, month, 1)
+        end_d = date(year, month, calendar.monthrange(year, month)[1])
+        nc_file = self._cds_retrieve_era5_timeseries(
+            cache_file,
+            location,
+            start_d=start_d,
+            end_d=end_d,
+            variable="total_precipitation",
+        )
+        ds = self._open_and_concat_for_var([nc_file], "tp")
+
+        ds_point, grid_lat, grid_lon = self._resolve_timeseries_point_dataset(ds, location)
+
+        da = ds_point["tp"]
+        if "time" not in da.coords:
+            if "valid_time" in da.coords:
+                da = da.rename({"valid_time": "time"})
+            elif "date" in da.coords:
+                da = da.rename({"date": "time"})
+            else:
+                raise KeyError("Timeseries precipitation data is missing a time coordinate")
+
+        return self._build_daily_precipitation_dataframe(
+            da,
+            tz_local,
+            grid_lat,
+            grid_lon,
+            location.name,
+        )
+
+    @staticmethod
+    def _resolve_timeseries_point_dataset(
+        ds: pd.DataFrame | object,
+        location: Location,
+    ) -> tuple[object, float, float]:
+        """Resolve point dataset and grid coordinates for timeseries responses.
+
+        Handles both gridded lat/lon dimensions and scalar point lat/lon coordinates.
+        """
+        if "latitude" in ds.coords and "longitude" in ds.coords:
+            lat_coord = ds["latitude"]
+            lon_coord = ds["longitude"]
+            if getattr(lat_coord, "ndim", 0) > 0 and getattr(lon_coord, "ndim", 0) > 0:
+                ds_point = ds.sel(
+                    latitude=location.lat,
+                    longitude=location.lon,
+                    method="nearest",
+                )
+                grid_lat = float(ds_point["latitude"].values)
+                grid_lon = float(ds_point["longitude"].values)
+                return ds_point, grid_lat, grid_lon
+
+            ds_point = ds
+            grid_lat = float(lat_coord.values)
+            grid_lon = float(lon_coord.values)
+            return ds_point, grid_lat, grid_lon
+
+        ds_point = ds
+        return ds_point, float(location.lat), float(location.lon)
+
     def get_year_daily_precipitation_data(
         self,
         location: Location,
@@ -202,11 +278,13 @@ class PrecipitationCDS(CDS):
         source_mode = getattr(self, "precipitation_daily_source", "hourly")
         if source_mode == "daily_statistics":
             return self._get_year_daily_precipitation_data_from_daily_stats(location, year, half_box_deg)
+        if source_mode == "timeseries":
+            return self._get_year_daily_precipitation_data_from_timeseries(location, year)
 
         if source_mode != "hourly":
             raise ValueError(
                 f"Unsupported precipitation daily source '{source_mode}'. "
-                "Expected one of: hourly, daily_statistics"
+                "Expected one of: hourly, daily_statistics, timeseries"
             )
 
         tz_local = ZoneInfo(location.tz)
@@ -268,3 +346,40 @@ class PrecipitationCDS(CDS):
             "grid_lon": float(ds_point["longitude"].values),
             "place_name": location.name,
         })
+
+    def _get_year_daily_precipitation_data_from_timeseries(
+        self,
+        location: Location,
+        year: int,
+    ) -> pd.DataFrame:
+        tz_local = ZoneInfo(location.tz)
+        safe_name = self._safe_location_name(location)
+        cache_file = self.cache_dir / f"era5_tp_timeseries_{safe_name}_{year:04d}_daily.nc"
+
+        nc_file = self._cds_retrieve_era5_timeseries(
+            cache_file,
+            location,
+            start_d=date(year, 1, 1),
+            end_d=date(year, 12, 31),
+            variable="total_precipitation",
+        )
+        ds = self._open_and_concat_for_var([nc_file], "tp")
+
+        ds_point, grid_lat, grid_lon = self._resolve_timeseries_point_dataset(ds, location)
+
+        da = ds_point["tp"]
+        if "time" not in da.coords:
+            if "valid_time" in da.coords:
+                da = da.rename({"valid_time": "time"})
+            elif "date" in da.coords:
+                da = da.rename({"date": "time"})
+            else:
+                raise KeyError("Timeseries precipitation data is missing a time coordinate")
+
+        return self._build_daily_precipitation_dataframe(
+            da,
+            tz_local,
+            grid_lat,
+            grid_lon,
+            location.name,
+        )

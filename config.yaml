@@ -7,6 +7,7 @@ logging:
   console_level: WARNING
   file_mode: w
   suppress_cdsapi: true
+  cds_warnings_in_verbose: true
   suppress_root_logger: true
   third_party_log_level: WARNING
 
@@ -29,15 +30,16 @@ retrieval:
   # Per-measure fetch chunking strategy: monthly, yearly, or auto
   fetch_mode:
     noon_temperature: auto
-    daily_precipitation: monthly
-    daily_solar_radiation_energy: monthly
+    daily_precipitation: auto
+    daily_solar_radiation_energy: auto
   # Data source strategy for daily outputs
   # - hourly: retrieve ERA5 hourly and aggregate to daily in-app
   # - daily_statistics: use CDS derived daily-statistics product (currently supported for precipitation)
+  # - timeseries: use ERA5 timeseries dataset for point-location retrieval
   daily_source:
-    noon_temperature: hourly
-    daily_precipitation: hourly
-    daily_solar_radiation_energy: hourly
+    noon_temperature: timeseries
+    daily_precipitation: timeseries
+    daily_solar_radiation_energy: timeseries
 
 # Runtime path defaults
 runtime_paths:
@@ -72,7 +74,7 @@ plotting:
       unit: "MJ/m²"
       y_value_column: "solar_energy_MJ_m2"
       y_min: 0
-      y_step: 5
+      y_step: 10
       range_text: "{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}"
   # Allowed colormaps for plotting (first entry is used as default fallback)
   valid_colormaps: [turbo, viridis, plasma, inferno, magma, cividis]

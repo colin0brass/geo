@@ -106,7 +106,7 @@ python geo.py -p "Austin, TX" -y 1990-2025 --colour-mode year
 # Choose data measure
 python geo.py -p "Austin, TX" -y 2024 --measure noon_temperature
 
-# Note: daily_precipitation defaults to hourly retrieval/aggregation; daily_statistics remains optional but can be slower in some environments.
+# Note: noon_temperature, daily_precipitation, and daily_solar_radiation_energy are configured to use timeseries retrieval in the bundled config.
 
 # Force monthly or yearly download chunking for this run
 python geo.py -p "Austin, TX" -y 2024 --download-by month
@@ -361,6 +361,7 @@ logging:
   console_level: WARNING  # DEBUG, INFO, WARNING, ERROR, CRITICAL
   file_mode: w            # w=overwrite each run, a=append
   suppress_cdsapi: true
+  cds_warnings_in_verbose: true
   suppress_root_logger: true
   third_party_log_level: WARNING
 ```
@@ -384,16 +385,17 @@ retrieval:
   max_nearest_time_delta_minutes: 30
   month_fetch_day_span_threshold: 62
   daily_source:
-    noon_temperature: hourly
-    daily_precipitation: hourly
-    daily_solar_radiation_energy: hourly
+    noon_temperature: timeseries
+    daily_precipitation: timeseries
+    daily_solar_radiation_energy: timeseries
 ```
 
 - `half_box_deg`: geographic half-width (degrees) for ERA5 retrieval around each location.
 - `max_nearest_time_delta_minutes`: maximum tolerated offset between requested local noon and selected ERA5 time.
 - `month_fetch_day_span_threshold`: day-range threshold for monthly fetch strategy before switching to full-year fetch.
-- `daily_source.daily_precipitation`: `hourly` (default, in-app aggregation) or `daily_statistics` (CDS derived daily-statistics product).
-- `daily_source.daily_precipitation` default rationale: hourly is currently preferred because CDS daily-statistics requests may be throughput-limited compared with hourly ERA5 requests in some environments.
+- `daily_source.noon_temperature`: `timeseries` (configured in bundled config, ERA5 point-location product) or `hourly` (in-app local-noon selection).
+- `daily_source.daily_precipitation`: `timeseries` (configured in bundled config, ERA5 point-location product), `hourly` (in-app aggregation), or `daily_statistics` (CDS derived daily-statistics product).
+- `daily_source.daily_solar_radiation_energy`: `timeseries` (configured in bundled config, ERA5 point-location product) or `hourly` (in-app aggregation).
 
 #### 4. Runtime Paths
 

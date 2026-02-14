@@ -264,9 +264,9 @@ def load_retrieval_settings(config_file: Path = Path("config.yaml")) -> dict[str
             raise ValueError(f"retrieval.fetch_mode.{metric_name} must be one of: {allowed}")
 
     valid_daily_sources_by_measure = {
-        'noon_temperature': {'hourly'},
-        'daily_precipitation': {'hourly', 'daily_statistics'},
-        'daily_solar_radiation_energy': {'hourly'},
+        'noon_temperature': {'hourly', 'timeseries'},
+        'daily_precipitation': {'hourly', 'daily_statistics', 'timeseries'},
+        'daily_solar_radiation_energy': {'hourly', 'timeseries'},
     }
 
     configured_daily_source = retrieval.get('daily_source')

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import calendar
 from datetime import date, timedelta
 
 import pandas as pd
@@ -25,6 +26,16 @@ class TemperatureCDS(CDS):
         year: int,
         half_box_deg: float | None = None,
     ) -> pd.DataFrame:
+        source_mode = getattr(self, "temp_daily_source", "hourly")
+        if source_mode == "timeseries":
+            return self._get_year_daily_noon_data_from_timeseries(location, year)
+
+        if source_mode != "hourly":
+            raise ValueError(
+                f"Unsupported temperature daily source '{source_mode}'. "
+                "Expected one of: hourly, timeseries"
+            )
+
         tz_local = ZoneInfo(location.tz)
 
         start_d = date(year, 1, 1)
@@ -47,6 +58,48 @@ class TemperatureCDS(CDS):
             location.name,
         )
 
+    def _get_year_daily_noon_data_from_timeseries(
+        self,
+        location: Location,
+        year: int,
+    ) -> pd.DataFrame:
+        tz_local = ZoneInfo(location.tz)
+
+        start_d = date(year, 1, 1)
+        end_d = date(year, 12, 31)
+        local_noons, noon_utc = self._build_local_noon_timestamps(start_d, end_d, tz_local)
+
+        safe_name = self._safe_location_name(location)
+        cache_file = self.cache_dir / f"era5_t2m_timeseries_{safe_name}_{year:04d}_noons.nc"
+        nc_file = self._cds_retrieve_era5_timeseries(
+            cache_file,
+            location,
+            start_d=start_d,
+            end_d=end_d,
+            variable="2m_temperature",
+        )
+        ds = self._open_and_concat_for_var([nc_file], "t2m")
+
+        ds_point, grid_lat, grid_lon = self._resolve_timeseries_point_dataset(ds, location)
+        da = ds_point["t2m"]
+        if "time" not in da.coords:
+            if "valid_time" in da.coords:
+                da = da.rename({"valid_time": "time"})
+            elif "date" in da.coords:
+                da = da.rename({"date": "time"})
+            else:
+                raise KeyError("Timeseries temperature data is missing a time coordinate")
+
+        return self._build_noon_temperature_dataframe(
+            da,
+            noon_utc,
+            local_noons,
+            self.max_nearest_time_delta,
+            grid_lat,
+            grid_lon,
+            location.name,
+        )
+
     def get_month_daily_noon_data(
         self,
         location: Location,
@@ -54,6 +107,16 @@ class TemperatureCDS(CDS):
         month: int,
         half_box_deg: float | None = None,
     ) -> pd.DataFrame:
+        source_mode = getattr(self, "temp_daily_source", "hourly")
+        if source_mode == "timeseries":
+            return self._get_month_daily_noon_data_from_timeseries(location, year, month)
+
+        if source_mode != "hourly":
+            raise ValueError(
+                f"Unsupported temperature daily source '{source_mode}'. "
+                "Expected one of: hourly, timeseries"
+            )
+
         tz_local = ZoneInfo(location.tz)
 
         start_d = date(year, month, 1)
@@ -79,6 +142,76 @@ class TemperatureCDS(CDS):
             float(ds_point["longitude"].values),
             location.name,
         )
+
+    def _get_month_daily_noon_data_from_timeseries(
+        self,
+        location: Location,
+        year: int,
+        month: int,
+    ) -> pd.DataFrame:
+        tz_local = ZoneInfo(location.tz)
+
+        start_d = date(year, month, 1)
+        end_d = date(year, month, calendar.monthrange(year, month)[1])
+        local_noons, noon_utc = self._build_local_noon_timestamps(start_d, end_d, tz_local)
+
+        safe_name = self._safe_location_name(location)
+        cache_file = self.cache_dir / f"era5_t2m_timeseries_{safe_name}_{year:04d}_{month:02d}_noons.nc"
+        nc_file = self._cds_retrieve_era5_timeseries(
+            cache_file,
+            location,
+            start_d=start_d,
+            end_d=end_d,
+            variable="2m_temperature",
+        )
+        ds = self._open_and_concat_for_var([nc_file], "t2m")
+
+        ds_point, grid_lat, grid_lon = self._resolve_timeseries_point_dataset(ds, location)
+        da = ds_point["t2m"]
+        if "time" not in da.coords:
+            if "valid_time" in da.coords:
+                da = da.rename({"valid_time": "time"})
+            elif "date" in da.coords:
+                da = da.rename({"date": "time"})
+            else:
+                raise KeyError("Timeseries temperature data is missing a time coordinate")
+
+        return self._build_noon_temperature_dataframe(
+            da,
+            noon_utc,
+            local_noons,
+            self.max_nearest_time_delta,
+            grid_lat,
+            grid_lon,
+            location.name,
+        )
+
+    @staticmethod
+    def _resolve_timeseries_point_dataset(
+        ds: pd.DataFrame | object,
+        location: Location,
+    ) -> tuple[object, float, float]:
+        """Resolve point dataset and grid coordinates for timeseries responses."""
+        if "latitude" in ds.coords and "longitude" in ds.coords:
+            lat_coord = ds["latitude"]
+            lon_coord = ds["longitude"]
+            if getattr(lat_coord, "ndim", 0) > 0 and getattr(lon_coord, "ndim", 0) > 0:
+                ds_point = ds.sel(
+                    latitude=location.lat,
+                    longitude=location.lon,
+                    method="nearest",
+                )
+                grid_lat = float(ds_point["latitude"].values)
+                grid_lon = float(ds_point["longitude"].values)
+                return ds_point, grid_lat, grid_lon
+
+            ds_point = ds
+            grid_lat = float(lat_coord.values)
+            grid_lon = float(lon_coord.values)
+            return ds_point, grid_lat, grid_lon
+
+        ds_point = ds
+        return ds_point, float(location.lat), float(location.lon)
 
     def get_noon_series(
         self,

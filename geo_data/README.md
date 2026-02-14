@@ -27,9 +27,9 @@ Configuration parsing/validation and shared defaults live in `geo_core`.
 - `cds_temperature.py`
   - `TemperatureCDS` (daily local-noon temperature)
 - `cds_precipitation.py`
-  - `PrecipitationCDS` (daily precipitation)
+  - `PrecipitationCDS` (daily precipitation; supports `hourly`, `daily_statistics`, and `timeseries` daily-source modes)
 - `cds_solar_radiation.py`
-  - `SolarRadiationCDS` (daily solar radiation energy)
+  - `SolarRadiationCDS` (daily solar radiation energy; supports `hourly` and `timeseries` daily-source modes)
 - `data_retrieval.py`
   - retrieval orchestration class (`RetrievalCoordinator`)
 - `cache_store.py`
