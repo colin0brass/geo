@@ -114,6 +114,7 @@ def test_cds_get_daily_precipitation_series(tmp_path):
             self.default_half_box_deg = 0.25
             self.max_nearest_time_delta = pd.Timedelta("30min")
             self.month_fetch_day_span_threshold = 62
+            self.precipitation_daily_source = "hourly"
 
         def _cds_retrieve_era5_month(
             self,
@@ -245,6 +246,178 @@ def test_cds_get_daily_precipitation_series_long_range_yearly_override(tmp_path)
 
     assert cds.precip_year_calls == 1
     assert cds.precip_month_calls == 0
+
+
+def test_cds_get_daily_precipitation_series_daily_statistics_source(tmp_path):
+    class DummyPrecipDailyStatsCDS(PrecipitationCDS):
+        def __init__(self, cache_dir: Path):
+            self.client = None
+            self.cache_dir = cache_dir
+            self.progress_manager = None
+            self.default_half_box_deg = 0.25
+            self.max_nearest_time_delta = pd.Timedelta("30min")
+            self.month_fetch_day_span_threshold = 62
+            self.precipitation_daily_source = "daily_statistics"
+
+        def _cds_retrieve_era5_daily_statistics(
+            self,
+            out_nc,
+            year,
+            month,
+            loc,
+            variable,
+            daily_statistic="daily_sum",
+            frequency="1_hourly",
+            time_zone="utc+00:00",
+            half_box_deg=0.25,
+        ):
+            assert variable == "total_precipitation"
+            assert daily_statistic == "daily_sum"
+            assert frequency == "1_hourly"
+            assert time_zone == "utc+00:00"
+            return out_nc
+
+        def _open_and_concat_for_var(self, nc_files, expected_var):
+            assert expected_var == "tp"
+            times = pd.date_range("2025-01-01", periods=2, freq="D")
+            tp = np.array([[[0.001]], [[0.002]]], dtype=float)  # 1mm, 2mm daily sums
+            return xr.Dataset(
+                data_vars={"tp": (("time", "latitude", "longitude"), tp)},
+                coords={
+                    "time": times,
+                    "latitude": [52.21],
+                    "longitude": [0.12],
+                },
+            )
+
+    cds = DummyPrecipDailyStatsCDS(cache_dir=tmp_path)
+    loc = Location(name="Cambridge, UK", lat=52.21, lon=0.12, tz="UTC")
+
+    df = cds.get_daily_precipitation_series(
+        loc,
+        pd.Timestamp("2025-01-01").date(),
+        pd.Timestamp("2025-01-02").date(),
+    )
+
+    assert list(df["precip_mm"]) == pytest.approx([1.0, 2.0])
+    assert list(df["date"]) == ["2025-01-01", "2025-01-02"]
+
+
+def test_cds_get_year_daily_precipitation_data_daily_statistics_source(tmp_path):
+    class DummyPrecipDailyStatsCDS(PrecipitationCDS):
+        def __init__(self, cache_dir: Path):
+            self.client = None
+            self.cache_dir = cache_dir
+            self.progress_manager = None
+            self.default_half_box_deg = 0.25
+            self.max_nearest_time_delta = pd.Timedelta("30min")
+            self.month_fetch_day_span_threshold = 62
+            self.precipitation_daily_source = "daily_statistics"
+            self.retrieval_calls = []
+
+        def _cds_retrieve_era5_daily_statistics(
+            self,
+            out_nc,
+            year,
+            month,
+            loc,
+            variable,
+            daily_statistic="daily_sum",
+            frequency="1_hourly",
+            time_zone="utc+00:00",
+            half_box_deg=0.25,
+        ):
+            self.retrieval_calls.append((year, month, variable, daily_statistic, frequency, time_zone))
+            return out_nc
+
+        def _open_and_concat_for_var(self, nc_files, expected_var):
+            assert expected_var == "tp"
+            valid_times = pd.date_range("2025-01-01", periods=3, freq="D")
+            tp = np.array([[[0.001]], [[0.002]], [[0.003]]], dtype=float)
+            return xr.Dataset(
+                data_vars={"tp": (("valid_time", "latitude", "longitude"), tp)},
+                coords={
+                    "valid_time": valid_times,
+                    "latitude": [52.21],
+                    "longitude": [0.12],
+                },
+            )
+
+    cds = DummyPrecipDailyStatsCDS(cache_dir=tmp_path)
+    loc = Location(name="Cambridge, UK", lat=52.21, lon=0.12, tz="UTC")
+
+    df = cds.get_year_daily_precipitation_data(loc, 2025)
+
+    assert cds.retrieval_calls == [
+        (2025, None, "total_precipitation", "daily_sum", "1_hourly", "utc+00:00")
+    ]
+    assert list(df["date"]) == ["2025-01-01", "2025-01-02", "2025-01-03"]
+    assert list(df["precip_mm"]) == pytest.approx([1.0, 2.0, 3.0])
+
+
+def test_cds_get_month_daily_precipitation_data_invalid_source_raises(tmp_path):
+    class DummyPrecipInvalidSourceCDS(PrecipitationCDS):
+        def __init__(self, cache_dir: Path):
+            self.client = None
+            self.cache_dir = cache_dir
+            self.progress_manager = None
+            self.default_half_box_deg = 0.25
+            self.max_nearest_time_delta = pd.Timedelta("30min")
+            self.month_fetch_day_span_threshold = 62
+            self.precipitation_daily_source = "invalid_source"
+
+    cds = DummyPrecipInvalidSourceCDS(cache_dir=tmp_path)
+    loc = Location(name="Cambridge, UK", lat=52.21, lon=0.12, tz="UTC")
+
+    with pytest.raises(ValueError, match="Unsupported precipitation daily source"):
+        cds.get_month_daily_precipitation_data(loc, 2025, 1)
+
+
+def test_cds_daily_statistics_uses_location_utc_offset_time_zone(tmp_path):
+    class DummyPrecipDailyStatsCDS(PrecipitationCDS):
+        def __init__(self, cache_dir: Path):
+            self.client = None
+            self.cache_dir = cache_dir
+            self.progress_manager = None
+            self.default_half_box_deg = 0.25
+            self.max_nearest_time_delta = pd.Timedelta("30min")
+            self.month_fetch_day_span_threshold = 62
+            self.precipitation_daily_source = "daily_statistics"
+            self.seen_time_zone = None
+
+        def _cds_retrieve_era5_daily_statistics(
+            self,
+            out_nc,
+            year,
+            month,
+            loc,
+            variable,
+            daily_statistic="daily_sum",
+            frequency="1_hourly",
+            time_zone="utc+00:00",
+            half_box_deg=0.25,
+        ):
+            self.seen_time_zone = time_zone
+            return out_nc
+
+        def _open_and_concat_for_var(self, nc_files, expected_var):
+            assert expected_var == "tp"
+            times = pd.date_range("2025-01-01", periods=1, freq="D")
+            tp = np.array([[[0.001]]], dtype=float)
+            return xr.Dataset(
+                data_vars={"tp": (("time", "latitude", "longitude"), tp)},
+                coords={
+                    "time": times,
+                    "latitude": [12.97],
+                    "longitude": [77.59],
+                },
+            )
+
+    cds = DummyPrecipDailyStatsCDS(cache_dir=tmp_path)
+    loc = Location(name="Bangalore, India", lat=12.97, lon=77.59, tz="Asia/Kolkata")
+
+    _ = cds.get_month_daily_precipitation_data(loc, 2025, 1)
+    assert cds.seen_time_zone == "utc+05:30"
 
 
 def test_cds_get_daily_solar_radiation_energy_series(tmp_path):

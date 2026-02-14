@@ -79,6 +79,7 @@ class RetrievalCoordinator:
         config_path: Path = Path("config.yaml"),
         status_reporter: Callable[[str], None] | None = print,
         fetch_mode_override: str | None = None,
+        overwrite_existing_cache_values: bool = False,
     ) -> None:
         if fetch_mode_override not in (None, 'month', 'year'):
             raise ValueError("fetch_mode_override must be one of: None, 'month', 'year'")
@@ -88,6 +89,7 @@ class RetrievalCoordinator:
         self.config_path = config_path
         self.status_reporter = status_reporter
         self.fetch_mode_override = fetch_mode_override
+        self.overwrite_existing_cache_values = overwrite_existing_cache_values
         self.progress_mgr = get_progress_manager()
         self.cache_store = CacheStore()
 
@@ -122,7 +124,10 @@ class RetrievalCoordinator:
         cached_years = set()
         if yaml_file.exists():
             cached_years = self.cache_store.get_cached_years(yaml_file, measure=measure)
-        missing_years = sorted(requested_years - cached_years)
+        if self.overwrite_existing_cache_values:
+            missing_years = sorted(requested_years)
+        else:
+            missing_years = sorted(requested_years - cached_years)
         return yaml_file, cached_years, missing_years
 
     def _plan_places_needing_cds(
@@ -205,7 +210,14 @@ class RetrievalCoordinator:
                 cds_kwargs['notify_month_progress'] = True
             df_year = cds_method(loc, start_d, end_d, **cds_kwargs)
 
-            self.cache_store.save_data_file(df_year, yaml_file, loc, append=True, measure=measure)
+            self.cache_store.save_data_file(
+                df_year,
+                yaml_file,
+                loc,
+                append=True,
+                measure=measure,
+                overwrite_existing_values=self.overwrite_existing_cache_values,
+            )
             df_new = pd.concat([df_new, df_year], ignore_index=True)
 
             self.progress_mgr.notify_year_complete(loc.name, year, year_idx, len(missing_years))
@@ -240,15 +252,16 @@ class RetrievalCoordinator:
                 measure,
             )
 
-            df_overall = self._load_cached_location_data(
-                df_overall,
-                loc,
-                yaml_file,
-                cached_years,
-                start_year,
-                end_year,
-                measure,
-            )
+            if not (self.overwrite_existing_cache_values and missing_years):
+                df_overall = self._load_cached_location_data(
+                    df_overall,
+                    loc,
+                    yaml_file,
+                    cached_years,
+                    start_year,
+                    end_year,
+                    measure,
+                )
 
             if missing_years:
                 cds_place_num += 1

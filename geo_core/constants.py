@@ -18,6 +18,11 @@ DEFAULT_RETRIEVAL_SETTINGS = {
         "daily_precipitation": "monthly",
         "daily_solar_radiation_energy": "monthly",
     },
+    "daily_source": {
+        "noon_temperature": "hourly",
+        "daily_precipitation": "hourly",
+        "daily_solar_radiation_energy": "hourly",
+    },
 }
 REQUIRED_PLOT_TEXT_KEYS = (
     'single_plot_title',

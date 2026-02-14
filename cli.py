@@ -286,6 +286,15 @@ Examples:
             "or 'compare' (benchmark month vs year for one selected year)."
         ),
     )
+    advanced_group.add_argument(
+        "-u", "--update-cache",
+        dest="update_cache",
+        action="store_true",
+        help=(
+            "Overwrite existing values for matching dates when writing to data cache. "
+            "Default preserves existing cached values."
+        ),
+    )
 
     args = parser.parse_args()
     args.measure = normalize_measure(args.measure)

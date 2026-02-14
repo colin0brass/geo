@@ -106,12 +106,17 @@ python geo.py -p "Austin, TX" -y 1990-2025 --colour-mode year
 # Choose data measure
 python geo.py -p "Austin, TX" -y 2024 --measure noon_temperature
 
+# Note: daily_precipitation defaults to hourly retrieval/aggregation; daily_statistics remains optional but can be slower in some environments.
+
 # Force monthly or yearly download chunking for this run
 python geo.py -p "Austin, TX" -y 2024 --download-by month
 python geo.py -p "Austin, TX" -y 2024 --download-by year
 
 # Benchmark month vs year chunking (single year only)
 python geo.py -l preferred -y 2024 --measure daily_precipitation --download-by compare
+
+# Overwrite existing cached values for matching dates
+python geo.py -p "Austin, TX" -y 2024 --update-cache
 
 # Dry-run mode (preview without executing)
 python geo.py -a -y 2024 --dry-run
@@ -335,6 +340,7 @@ Unversioned legacy cache documents are no longer auto-migrated; regenerate them 
 |--------|-------|-------------|
 | `--dry-run` | | Preview without downloading/plotting |
 | `--download-by {config,month,year,compare}` | | Override retrieval chunking for this run, or benchmark month vs year for one year |
+| `--update-cache` | `-u` | Overwrite existing cached values when newly retrieved data has matching dates |
 | `--verbose` | `-v` | Show DEBUG messages on console (log file always at DEBUG) |
 | `--quiet` | `-q` | Show only errors on console (log file unaffected) |
 
@@ -379,14 +385,15 @@ retrieval:
   month_fetch_day_span_threshold: 62
   daily_source:
     noon_temperature: hourly
-    daily_precipitation: daily_statistics
+    daily_precipitation: hourly
     daily_solar_radiation_energy: hourly
 ```
 
 - `half_box_deg`: geographic half-width (degrees) for ERA5 retrieval around each location.
 - `max_nearest_time_delta_minutes`: maximum tolerated offset between requested local noon and selected ERA5 time.
 - `month_fetch_day_span_threshold`: day-range threshold for monthly fetch strategy before switching to full-year fetch.
-- `daily_source.daily_precipitation`: `daily_statistics` (default, CDS derived daily-statistics product) or `hourly` (in-app aggregation).
+- `daily_source.daily_precipitation`: `hourly` (default, in-app aggregation) or `daily_statistics` (CDS derived daily-statistics product).
+- `daily_source.daily_precipitation` default rationale: hourly is currently preferred because CDS daily-statistics requests may be throughput-limited compared with hourly ERA5 requests in some environments.
 
 #### 4. Runtime Paths
 

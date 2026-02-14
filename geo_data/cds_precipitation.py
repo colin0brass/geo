@@ -10,6 +10,30 @@ from .cds_base import CDS, Location, ZoneInfo
 class PrecipitationCDS(CDS):
     """CDS client specialized for daily precipitation retrieval."""
 
+    @staticmethod
+    def _daily_stats_time_zone_for_location(
+        location: Location,
+        year: int,
+        month: int | None,
+    ) -> str:
+        """Build CDS daily-statistics UTC offset string from a location timezone.
+
+        CDS daily-statistics expects `utc±HH:MM` rather than an IANA timezone name.
+        """
+        tz_local = ZoneInfo(location.tz)
+        sample_month = 1 if month is None else month
+        sample_dt = datetime(year, sample_month, 1, 12, 0, 0, tzinfo=tz_local)
+        offset = sample_dt.utcoffset()
+        if offset is None:
+            return "utc+00:00"
+
+        total_minutes = int(offset.total_seconds() // 60)
+        sign = "+" if total_minutes >= 0 else "-"
+        absolute_minutes = abs(total_minutes)
+        hours = absolute_minutes // 60
+        minutes = absolute_minutes % 60
+        return f"utc{sign}{hours:02d}:{minutes:02d}"
+
     def get_series(
         self,
         location: Location,
@@ -101,6 +125,16 @@ class PrecipitationCDS(CDS):
         month: int,
         half_box_deg: float | None = None,
     ) -> pd.DataFrame:
+        source_mode = getattr(self, "precipitation_daily_source", "hourly")
+        if source_mode == "daily_statistics":
+            return self._get_month_daily_precipitation_data_from_daily_stats(location, year, month, half_box_deg)
+
+        if source_mode != "hourly":
+            raise ValueError(
+                f"Unsupported precipitation daily source '{source_mode}'. "
+                "Expected one of: hourly, daily_statistics"
+            )
+
         tz_local = ZoneInfo(location.tz)
         safe_name = self._safe_location_name(location)
 
@@ -124,12 +158,57 @@ class PrecipitationCDS(CDS):
             location.name,
         )
 
+    def _get_month_daily_precipitation_data_from_daily_stats(
+        self,
+        location: Location,
+        year: int,
+        month: int,
+        half_box_deg: float | None = None,
+    ) -> pd.DataFrame:
+        safe_name = self._safe_location_name(location)
+        cache_file = self.cache_dir / f"era5_tp_dailystats_{safe_name}_{year:04d}_{month:02d}.nc"
+        time_zone = self._daily_stats_time_zone_for_location(location, year, month)
+        nc_file = self._cds_retrieve_era5_daily_statistics(
+            cache_file,
+            year=year,
+            month=month,
+            loc=location,
+            variable="total_precipitation",
+            daily_statistic="daily_sum",
+            frequency="1_hourly",
+            time_zone=time_zone,
+            half_box_deg=half_box_deg,
+        )
+        ds = self._open_and_concat_for_var([nc_file], "tp")
+        ds_point = self._select_location_point(ds, location)
+
+        time_coord = "time" if "time" in ds_point.coords else "valid_time"
+        daily_dates = pd.to_datetime(ds_point[time_coord].values).date
+        precip_mm = ds_point["tp"].values.astype(float) * 1000.0
+        return pd.DataFrame({
+            "date": [d.isoformat() for d in daily_dates],
+            "precip_mm": precip_mm,
+            "grid_lat": float(ds_point["latitude"].values),
+            "grid_lon": float(ds_point["longitude"].values),
+            "place_name": location.name,
+        })
+
     def get_year_daily_precipitation_data(
         self,
         location: Location,
         year: int,
         half_box_deg: float | None = None,
     ) -> pd.DataFrame:
+        source_mode = getattr(self, "precipitation_daily_source", "hourly")
+        if source_mode == "daily_statistics":
+            return self._get_year_daily_precipitation_data_from_daily_stats(location, year, half_box_deg)
+
+        if source_mode != "hourly":
+            raise ValueError(
+                f"Unsupported precipitation daily source '{source_mode}'. "
+                "Expected one of: hourly, daily_statistics"
+            )
+
         tz_local = ZoneInfo(location.tz)
         safe_name = self._safe_location_name(location)
 
@@ -155,3 +234,37 @@ class PrecipitationCDS(CDS):
             float(ds_point["longitude"].values),
             location.name,
         )
+
+    def _get_year_daily_precipitation_data_from_daily_stats(
+        self,
+        location: Location,
+        year: int,
+        half_box_deg: float | None = None,
+    ) -> pd.DataFrame:
+        safe_name = self._safe_location_name(location)
+        cache_file = self.cache_dir / f"era5_tp_dailystats_{safe_name}_{year:04d}_daily.nc"
+        time_zone = self._daily_stats_time_zone_for_location(location, year, None)
+        nc_file = self._cds_retrieve_era5_daily_statistics(
+            cache_file,
+            year=year,
+            month=None,
+            loc=location,
+            variable="total_precipitation",
+            daily_statistic="daily_sum",
+            frequency="1_hourly",
+            time_zone=time_zone,
+            half_box_deg=half_box_deg,
+        )
+        ds = self._open_and_concat_for_var([nc_file], "tp")
+        ds_point = self._select_location_point(ds, location)
+
+        time_coord = "time" if "time" in ds_point.coords else "valid_time"
+        daily_dates = pd.to_datetime(ds_point[time_coord].values).date
+        precip_mm = ds_point["tp"].values.astype(float) * 1000.0
+        return pd.DataFrame({
+            "date": [d.isoformat() for d in daily_dates],
+            "precip_mm": precip_mm,
+            "grid_lat": float(ds_point["latitude"].values),
+            "grid_lon": float(ds_point["longitude"].values),
+            "place_name": location.name,
+        })

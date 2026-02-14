@@ -302,6 +302,31 @@ def test_load_retrieval_settings_invalid_fetch_mode_raises(tmp_path):
         load_retrieval_settings(config_file)
 
 
+def test_load_retrieval_settings_daily_source_from_config(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "retrieval:\n"
+        "  daily_source:\n"
+        "    daily_precipitation: daily_statistics\n"
+    )
+
+    settings = load_retrieval_settings(config_file)
+    assert settings["daily_source"]["daily_precipitation"] == "daily_statistics"
+    assert settings["daily_source"]["noon_temperature"] == "hourly"
+
+
+def test_load_retrieval_settings_invalid_daily_source_raises(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "retrieval:\n"
+        "  daily_source:\n"
+        "    daily_precipitation: custom_mode\n"
+    )
+
+    with pytest.raises(ValueError):
+        load_retrieval_settings(config_file)
+
+
 def test_load_retrieval_settings_legacy_fetch_mode_keys_still_work(tmp_path):
     config_file = tmp_path / "config.yaml"
     config_file.write_text(

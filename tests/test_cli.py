@@ -59,6 +59,7 @@ def test_parse_args_default():
         assert args.show is False
         assert args.measure == 'noon_temperature'
         assert args.download_by == 'config'
+        assert args.update_cache is False
 
 
 def test_parse_args_with_place():
@@ -173,6 +174,18 @@ def test_parse_args_with_download_by_compare():
     with patch('sys.argv', ['geo.py', '--download-by', 'compare']):
         args = parse_args()
         assert args.download_by == 'compare'
+
+
+def test_parse_args_with_update_cache_long_form():
+    with patch('sys.argv', ['geo.py', '--update-cache']):
+        args = parse_args()
+        assert args.update_cache is True
+
+
+def test_parse_args_with_update_cache_short_form():
+    with patch('sys.argv', ['geo.py', '-u']):
+        args = parse_args()
+        assert args.update_cache is True
 
 
 def test_parse_args_runtime_paths_from_custom_config(tmp_path):

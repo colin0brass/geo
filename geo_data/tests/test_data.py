@@ -550,8 +550,8 @@ def test_save_data_file_append_with_corrupted_file(tmp_path):
     assert df_result['temp_C'].iloc[0] == 15.0
 
 
-def test_save_data_file_merge_overwrites_existing_dates(tmp_path):
-    """Test that merging overwrites data for existing dates."""
+def test_save_data_file_merge_preserves_existing_dates_by_default(tmp_path):
+    """Test that append merge preserves existing values for conflicting dates by default."""
     loc = Location(name="Test", lat=40.0, lon=-73.0, tz="America/New_York")
 
     # Save initial data
@@ -573,7 +573,39 @@ def test_save_data_file_merge_overwrites_existing_dates(tmp_path):
     })
     cache_store.save_data_file(df_update, yaml_file, loc, append=True)
 
-    # Verify temperature was updated
+    # Verify existing value was preserved
+    df_result = cache_store.read_data_file(yaml_file)
+    assert len(df_result) == 1
+    assert df_result['temp_C'].iloc[0] == 10.0
+
+
+def test_save_data_file_merge_overwrites_existing_dates_when_enabled(tmp_path):
+    """Test that append merge can overwrite existing values when explicitly enabled."""
+    loc = Location(name="Test", lat=40.0, lon=-73.0, tz="America/New_York")
+
+    df_initial = pd.DataFrame({
+        'date': ['2024-01-01'],
+        'temp_C': [10.0],
+        'grid_lat': [40.0],
+        'grid_lon': [-73.0],
+    })
+    yaml_file = tmp_path / "test.yaml"
+    cache_store.save_data_file(df_initial, yaml_file, loc)
+
+    df_update = pd.DataFrame({
+        'date': ['2024-01-01'],
+        'temp_C': [20.0],
+        'grid_lat': [40.0],
+        'grid_lon': [-73.0],
+    })
+    cache_store.save_data_file(
+        df_update,
+        yaml_file,
+        loc,
+        append=True,
+        overwrite_existing_values=True,
+    )
+
     df_result = cache_store.read_data_file(yaml_file)
     assert len(df_result) == 1
     assert df_result['temp_C'].iloc[0] == 20.0
@@ -648,6 +680,44 @@ def test_coordinator_retrieve_uses_cached_years(tmp_path, monkeypatch):
 
     # CDS should only be called once for 2025
     mock_cds.get_noon_series.assert_called_once()
+
+
+def test_coordinator_passes_update_cache_flag_to_cache_store(tmp_path, monkeypatch):
+    """RetrievalCoordinator forwards overwrite flag to cache writes."""
+    loc = Location(name="Test", lat=40.0, lon=-73.0, tz="America/New_York")
+
+    mock_cds = MagicMock()
+    df_2024 = pd.DataFrame({
+        'date': ['2024-01-01'],
+        'temp_C': [12.0],
+        'place_name': ['Test'],
+        'grid_lat': [40.0],
+        'grid_lon': [-73.0],
+    })
+    mock_cds.get_noon_series.return_value = df_2024
+    monkeypatch.setattr(
+        'geo_data.data_retrieval.TemperatureCDS',
+        lambda cache_dir, progress_manager=None, config_path=None: mock_cds,
+    )
+
+    save_calls: list[dict] = []
+    original_save_data_file = CacheStore.save_data_file
+
+    def tracking_save_data_file(self, *args, **kwargs):
+        save_calls.append(kwargs.copy())
+        return original_save_data_file(self, *args, **kwargs)
+
+    monkeypatch.setattr(CacheStore, 'save_data_file', tracking_save_data_file)
+
+    RetrievalCoordinator(
+        cache_dir=tmp_path,
+        data_cache_dir=tmp_path / "data_cache",
+        overwrite_existing_cache_values=True,
+        status_reporter=None,
+    ).retrieve([loc], 2024, 2024)
+
+    assert save_calls
+    assert save_calls[0].get('overwrite_existing_values') is True
 
 
 def test_coordinator_retrieve_all_cached(tmp_path, monkeypatch):
@@ -1013,3 +1083,89 @@ def test_coordinator_retrieve_prints_all_cached_message(tmp_path, monkeypatch, c
 
     # Verify CDS was not called
     mock_cds.get_noon_series.assert_not_called()
+
+
+def test_coordinator_update_cache_bypasses_all_cached_check(tmp_path, monkeypatch):
+    """update-cache mode should force CDS retrieval even when all requested years are cached."""
+    loc = Location(name="Test", lat=40.0, lon=-73.0, tz="America/New_York")
+
+    # Pre-populate cache with requested year
+    df_cached_seed = pd.DataFrame({
+        'date': ['2024-01-01'],
+        'temp_C': [10.0],
+        'grid_lat': [40.0],
+        'grid_lon': [-73.0],
+    })
+    data_cache_dir = tmp_path / "data_cache"
+    data_cache_dir.mkdir()
+    yaml_file = data_cache_dir / "Test.yaml"
+    cache_store.save_data_file(df_cached_seed, yaml_file, loc)
+
+    # Mock CDS to return a new value for same date
+    mock_cds = MagicMock()
+    df_fresh = pd.DataFrame({
+        'date': ['2024-01-01'],
+        'temp_C': [22.0],
+        'place_name': ['Test'],
+        'grid_lat': [40.0],
+        'grid_lon': [-73.0],
+    })
+    mock_cds.get_noon_series.return_value = df_fresh
+    monkeypatch.setattr(
+        'geo_data.data_retrieval.TemperatureCDS',
+        lambda cache_dir, progress_manager=None, config_path=None: mock_cds,
+    )
+
+    result = RetrievalCoordinator(
+        cache_dir=tmp_path,
+        data_cache_dir=data_cache_dir,
+        overwrite_existing_cache_values=True,
+        status_reporter=None,
+    ).retrieve([loc], 2024, 2024)
+
+    # CDS should be called despite cache already containing requested year
+    mock_cds.get_noon_series.assert_called_once()
+
+    # Output should reflect fresh retrieval path (no duplicate cached rows)
+    assert len(result) == 1
+    assert result['temp_C'].iloc[0] == 22.0
+
+
+def test_coordinator_update_cache_does_not_print_all_cached_message(tmp_path, monkeypatch, capsys):
+    """update-cache mode should not emit the all-cached summary when cache is fully populated."""
+    loc = Location(name="Test", lat=40.0, lon=-73.0, tz="America/New_York")
+
+    df_cached_seed = pd.DataFrame({
+        'date': ['2024-01-01'],
+        'temp_C': [10.0],
+        'grid_lat': [40.0],
+        'grid_lon': [-73.0],
+    })
+    data_cache_dir = tmp_path / "data_cache"
+    data_cache_dir.mkdir()
+    yaml_file = data_cache_dir / "Test.yaml"
+    cache_store.save_data_file(df_cached_seed, yaml_file, loc)
+
+    mock_cds = MagicMock()
+    df_fresh = pd.DataFrame({
+        'date': ['2024-01-01'],
+        'temp_C': [11.0],
+        'place_name': ['Test'],
+        'grid_lat': [40.0],
+        'grid_lon': [-73.0],
+    })
+    mock_cds.get_noon_series.return_value = df_fresh
+    monkeypatch.setattr(
+        'geo_data.data_retrieval.TemperatureCDS',
+        lambda cache_dir, progress_manager=None, config_path=None: mock_cds,
+    )
+
+    RetrievalCoordinator(
+        cache_dir=tmp_path,
+        data_cache_dir=data_cache_dir,
+        overwrite_existing_cache_values=True,
+    ).retrieve([loc], 2024, 2024)
+
+    captured = capsys.readouterr()
+    assert "All data already cached - no CDS retrieval needed" not in captured.out
+    assert "CDS Retrieval Required: 1 place(s)" in captured.out

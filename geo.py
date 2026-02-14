@@ -94,6 +94,7 @@ def _run_compare_benchmark(args, ctx, logger) -> int:
                 data_cache_dir=temp_root_path / 'data_cache',
                 config_path=args.config,
                 fetch_mode_override=mode,
+                overwrite_existing_cache_values=args.update_cache,
                 status_reporter=None,
             )
             logger.info(
@@ -132,6 +133,7 @@ def _run_standard_pipeline(args, ctx) -> int:
         data_cache_dir=args.data_cache_dir,
         config_path=args.config,
         fetch_mode_override=fetch_mode_override,
+        overwrite_existing_cache_values=args.update_cache,
     )
     df_overall = retrieval.retrieve(
         ctx['place_list'],

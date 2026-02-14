@@ -263,6 +263,32 @@ def load_retrieval_settings(config_file: Path = Path("config.yaml")) -> dict[str
             allowed = ', '.join(sorted(valid_fetch_modes))
             raise ValueError(f"retrieval.fetch_mode.{metric_name} must be one of: {allowed}")
 
+    valid_daily_sources_by_measure = {
+        'noon_temperature': {'hourly'},
+        'daily_precipitation': {'hourly', 'daily_statistics'},
+        'daily_solar_radiation_energy': {'hourly'},
+    }
+
+    configured_daily_source = retrieval.get('daily_source')
+    if configured_daily_source is not None:
+        if not isinstance(configured_daily_source, dict):
+            raise ValueError("retrieval.daily_source must be a mapping")
+
+        merged_daily_source = settings['daily_source'].copy()
+        for metric_name in valid_daily_sources_by_measure:
+            if metric_name in configured_daily_source:
+                source_value = configured_daily_source[metric_name]
+                if not isinstance(source_value, str) or not source_value.strip():
+                    raise ValueError(f"retrieval.daily_source.{metric_name} must be a non-empty string")
+                merged_daily_source[metric_name] = source_value.strip().lower()
+        settings['daily_source'] = merged_daily_source
+
+    for metric_name, source_value in settings['daily_source'].items():
+        allowed_values = valid_daily_sources_by_measure[metric_name]
+        if source_value not in allowed_values:
+            allowed = ', '.join(sorted(allowed_values))
+            raise ValueError(f"retrieval.daily_source.{metric_name} must be one of: {allowed}")
+
     return settings
 
 

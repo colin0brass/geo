@@ -109,7 +109,12 @@ class CacheStore:
             return None
 
     @staticmethod
-    def _merge_values_by_year(existing_data: dict, cache_var: str, new_values_by_year: dict) -> dict:
+    def _merge_values_by_year(
+        existing_data: dict,
+        cache_var: str,
+        new_values_by_year: dict,
+        overwrite_existing_values: bool = False,
+    ) -> dict:
         """Merge existing nested values with new year/month/day values."""
         normalized_existing = DEFAULT_CACHE_MIGRATION.normalize_temp_map(
             existing_data[DATA_KEY].get(cache_var, {})
@@ -122,7 +127,8 @@ class CacheStore:
                 if month not in normalized_existing[year]:
                     normalized_existing[year][month] = {}
                 for day, temp in days.items():
-                    normalized_existing[year][month][day] = temp
+                    if overwrite_existing_values or day not in normalized_existing[year][month]:
+                        normalized_existing[year][month][day] = temp
 
         return normalized_existing
 
@@ -231,6 +237,7 @@ class CacheStore:
         location: Location,
         append: bool = False,
         measure: str = 'noon_temperature',
+        overwrite_existing_values: bool = False,
     ) -> None:
         """
         Save a DataFrame to a YAML file with hierarchical structure.
@@ -241,6 +248,9 @@ class CacheStore:
             location: Location object with place metadata.
             append: If True, merge with existing file; if False, overwrite.
             measure: Logical measure key (for example, 'noon_temperature').
+            overwrite_existing_values: If True (and append=True), replace existing
+                date values when new data includes the same date; if False, keep
+                existing cached values for conflicting dates.
         """
         out_file.parent.mkdir(parents=True, exist_ok=True)
         value_column = DEFAULT_MEASURE_REGISTRY.get_value_column(measure)
@@ -257,7 +267,12 @@ class CacheStore:
 
         if append and existing_data is not None:
             try:
-                values_by_year = self._merge_values_by_year(existing_data, cache_var, new_values_by_year)
+                values_by_year = self._merge_values_by_year(
+                    existing_data,
+                    cache_var,
+                    new_values_by_year,
+                    overwrite_existing_values=overwrite_existing_values,
+                )
             except Exception as e:
                 logger.warning(f"Error merging with existing cache: {e}. Overwriting.")
                 values_by_year = new_values_by_year

@@ -31,6 +31,13 @@ retrieval:
     noon_temperature: auto
     daily_precipitation: monthly
     daily_solar_radiation_energy: monthly
+  # Data source strategy for daily outputs
+  # - hourly: retrieve ERA5 hourly and aggregate to daily in-app
+  # - daily_statistics: use CDS derived daily-statistics product (currently supported for precipitation)
+  daily_source:
+    noon_temperature: hourly
+    daily_precipitation: hourly
+    daily_solar_radiation_energy: hourly
 
 # Runtime path defaults
 runtime_paths:
@@ -58,7 +65,7 @@ plotting:
       unit: "mm"
       y_value_column: "precip_mm"
       y_min: 0
-      y_step: 5
+      y_step: 10
       range_text: "{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}"
     daily_solar_radiation_energy:
       label: "Daily Solar Radiation"

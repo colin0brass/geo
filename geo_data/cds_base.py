@@ -98,6 +98,11 @@ class CDS:
         self.precipitation_fetch_mode = str(fetch_mode["daily_precipitation"])
         self.solar_fetch_mode = str(fetch_mode["daily_solar_radiation_energy"])
 
+        daily_source = retrieval_settings.get("daily_source", {})
+        self.temp_daily_source = str(daily_source.get("noon_temperature", "hourly"))
+        self.precipitation_daily_source = str(daily_source.get("daily_precipitation", "hourly"))
+        self.solar_daily_source = str(daily_source.get("daily_solar_radiation_energy", "hourly"))
+
         cdsapi_logger = logging.getLogger('cdsapi')
         cdsapi_logger.handlers.clear()
         cdsapi_logger.setLevel(logging.WARNING)
@@ -301,6 +306,56 @@ class CDS:
 
         logger.info(f"Downloading ERA5 date series to {out_nc} ...")
         self.client.retrieve("reanalysis-era5-single-levels", request, str(out_nc))
+        return out_nc
+
+    def _cds_retrieve_era5_daily_statistics(
+        self,
+        out_nc: Path,
+        year: int,
+        month: int | None,
+        loc: Location,
+        variable: str,
+        daily_statistic: str = "daily_sum",
+        frequency: str = "1_hourly",
+        time_zone: str = "utc+00:00",
+        half_box_deg: float | None = None,
+    ) -> Path:
+        """Download ERA5 derived daily statistics for a location, or use cached file if available."""
+        out_nc.parent.mkdir(parents=True, exist_ok=True)
+
+        resolved_half_box_deg = self._resolve_half_box_deg(half_box_deg)
+        north = loc.lat + resolved_half_box_deg
+        south = loc.lat - resolved_half_box_deg
+        west = loc.lon - resolved_half_box_deg
+        east = loc.lon + resolved_half_box_deg
+
+        months = [f"{month:02d}"] if month is not None else [f"{m:02d}" for m in range(1, 13)]
+        day_range = [f"{d:02d}" for d in range(1, 32)]
+
+        request = {
+            "product_type": "reanalysis",
+            "variable": [variable],
+            "year": [f"{year:04d}"],
+            "month": months,
+            "day": day_range,
+            "daily_statistic": daily_statistic,
+            "time_zone": time_zone,
+            "frequency": frequency,
+            "area": [north, west, south, east],
+            "format": "netcdf",
+        }
+
+        if out_nc.exists() and out_nc.stat().st_size > 0:
+            return out_nc
+
+        logger.info(
+            "Downloading ERA5 daily statistics for %s %04d-%s to %s ...",
+            variable,
+            year,
+            "all" if month is None else f"{month:02d}",
+            out_nc,
+        )
+        self.client.retrieve("derived-era5-single-levels-daily-statistics", request, str(out_nc))
         return out_nc
 
     def _open_and_concat_for_var(self, nc_files: list[Path], expected_var: str) -> xr.Dataset:
