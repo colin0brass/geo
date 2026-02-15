@@ -1,5 +1,5 @@
 summary_version: 1
-updated_at: '2026-02-15T08:39:42.491635Z'
+updated_at: '2026-02-15T08:57:30.928616Z'
 files:
   Amsterdam_Netherlands.yaml:
     place_name: Amsterdam, Netherlands
@@ -39,7 +39,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: ['2022']}
+      hourly_precipitation: {year_ranges: [2020-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Bangalore_India.yaml:
     place_name: Bangalore, India
@@ -47,7 +47,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: ['2025']}
+      hourly_precipitation: {year_ranges: [2020-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Bangkok_Thailand.yaml:
     place_name: Bangkok, Thailand
@@ -71,7 +71,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: ['2025']}
+      hourly_precipitation: {year_ranges: [2020-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Berlin_Germany.yaml:
     place_name: Berlin, Germany
@@ -111,7 +111,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: ['2025']}
+      hourly_precipitation: {year_ranges: [2020-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Cape_Town_South_Africa.yaml:
     place_name: Cape Town, South Africa
@@ -327,7 +327,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: ['2025']}
+      hourly_precipitation: {year_ranges: [2020-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Santiago_Chile.yaml:
     place_name: Santiago, Chile
@@ -415,7 +415,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: ['2025']}
+      hourly_precipitation: {year_ranges: [2020-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Ulaanbaatar_Mongolia.yaml:
     place_name: Ulaanbaatar, Mongolia
