@@ -1,5 +1,5 @@
 summary_version: 1
-updated_at: '2026-02-15T08:25:54.914347Z'
+updated_at: '2026-02-15T08:39:42.491635Z'
 files:
   Amsterdam_Netherlands.yaml:
     place_name: Amsterdam, Netherlands
@@ -39,7 +39,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: ['2025']}
+      hourly_precipitation: {year_ranges: ['2022']}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Bangalore_India.yaml:
     place_name: Bangalore, India
