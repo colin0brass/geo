@@ -15,8 +15,10 @@ from cli import (
     parse_args,
     parse_grid,
     parse_years,
-    get_place_list,
+    get_place_runs,
+    list_place_lists_and_exit,
     list_places_and_exit,
+    list_places_only_and_exit,
     list_cache_summary_and_exit,
     load_colormap,
     validate_measures_support,
@@ -68,13 +70,15 @@ def _resolve_run_context(args):
     colour_mode = args.colour_mode
     colormap_name = load_colormap(args.config)
     places, default_place, place_lists = load_places()
-    place_list, list_name = get_place_list(args, places, default_place, place_lists)
+    place_runs = get_place_runs(args, places, default_place, place_lists)
+    place_list, list_name = place_runs[0]
     return {
         'start_year': start_year,
         'end_year': end_year,
         'grid': grid,
         'colour_mode': colour_mode,
         'colormap_name': colormap_name,
+        'place_runs': place_runs,
         'place_list': place_list,
         'list_name': list_name,
         'measures': list(args.measures),
@@ -84,7 +88,14 @@ def _resolve_run_context(args):
 def _handle_dry_run(args, ctx, logger) -> int:
     """Render dry-run summary and exit early."""
     logger.info("DRY RUN MODE - No data will be downloaded or plots created")
-    logger.info(f"Places to process: {[loc.name for loc in ctx['place_list']]}")
+    if len(ctx['place_runs']) == 1:
+        logger.info(f"Places to process: {[loc.name for loc in ctx['place_list']]}")
+    else:
+        run_labels = [
+            f"{list_name} ({len(place_list)} places)"
+            for place_list, list_name in ctx['place_runs']
+        ]
+        logger.info(f"List runs to process ({len(ctx['place_runs'])}): {run_labels}")
     logger.info(f"Years: {ctx['start_year']}-{ctx['end_year']}")
     logger.info(f"Measures: {', '.join(ctx['measures'])}")
     logger.info(f"Grid: {ctx['grid'] if ctx['grid'] else 'auto'}")
@@ -101,80 +112,84 @@ def _handle_dry_run(args, ctx, logger) -> int:
 def _run_compare_benchmark(args, ctx, logger) -> int:
     """Benchmark month vs year download chunking for one selected year."""
     compare_year = ctx['start_year']
-    for measure in ctx['measures']:
-        benchmark_results = {}
-        for mode in ('month', 'year'):
-            with tempfile.TemporaryDirectory(prefix=f"geo_compare_{mode}_") as temp_root:
-                temp_root_path = Path(temp_root)
-                retrieval = RetrievalCoordinator(
-                    cache_dir=temp_root_path / 'era5_cache',
-                    data_cache_dir=temp_root_path / 'data_cache',
-                    config_path=args.config,
-                    fetch_mode_override=mode,
-                    overwrite_existing_cache_values=args.update_cache,
-                    status_reporter=None,
-                )
-                logger.info(
-                    "Benchmarking %s chunking for %s (%d place(s), %d)...",
-                    mode,
-                    measure,
-                    len(ctx['place_list']),
-                    compare_year,
-                )
-                start_time = time.perf_counter()
-                retrieval.retrieve(
-                    ctx['place_list'],
-                    compare_year,
-                    compare_year,
-                    measure=measure,
-                )
-                elapsed = time.perf_counter() - start_time
-                benchmark_results[mode] = elapsed
+    for place_list, list_name in ctx['place_runs']:
+        run_label = list_name or 'place'
+        for measure in ctx['measures']:
+            benchmark_results = {}
+            for mode in ('month', 'year'):
+                with tempfile.TemporaryDirectory(prefix=f"geo_compare_{mode}_") as temp_root:
+                    temp_root_path = Path(temp_root)
+                    retrieval = RetrievalCoordinator(
+                        cache_dir=temp_root_path / 'era5_cache',
+                        data_cache_dir=temp_root_path / 'data_cache',
+                        config_path=args.config,
+                        fetch_mode_override=mode,
+                        overwrite_existing_cache_values=args.update_cache,
+                        status_reporter=None,
+                    )
+                    logger.info(
+                        "Benchmarking %s chunking for %s [%s] (%d place(s), %d)...",
+                        mode,
+                        measure,
+                        run_label,
+                        len(place_list),
+                        compare_year,
+                    )
+                    start_time = time.perf_counter()
+                    retrieval.retrieve(
+                        place_list,
+                        compare_year,
+                        compare_year,
+                        measure=measure,
+                    )
+                    elapsed = time.perf_counter() - start_time
+                    benchmark_results[mode] = elapsed
 
-        month_seconds = benchmark_results['month']
-        year_seconds = benchmark_results['year']
-        faster_mode = 'month' if month_seconds < year_seconds else 'year'
-        speedup = max(month_seconds, year_seconds) / max(min(month_seconds, year_seconds), 1e-9)
-        logger.info("\nDownload benchmark for %s in %d", measure, compare_year)
-        logger.info("- month chunking: %.2fs", month_seconds)
-        logger.info("- year chunking:  %.2fs", year_seconds)
-        logger.info("=> %s is faster (%.2fx)", faster_mode, speedup)
+            month_seconds = benchmark_results['month']
+            year_seconds = benchmark_results['year']
+            faster_mode = 'month' if month_seconds < year_seconds else 'year'
+            speedup = max(month_seconds, year_seconds) / max(min(month_seconds, year_seconds), 1e-9)
+            logger.info("\nDownload benchmark for %s [%s] in %d", measure, run_label, compare_year)
+            logger.info("- month chunking: %.2fs", month_seconds)
+            logger.info("- year chunking:  %.2fs", year_seconds)
+            logger.info("=> %s is faster (%.2fx)", faster_mode, speedup)
     return 0
 
 
 def _run_standard_pipeline(args, ctx) -> int:
     """Run retrieval and plotting pipeline for non-compare execution paths."""
     fetch_mode_override = None if args.download_by == 'config' else args.download_by
-    for measure in ctx['measures']:
-        retrieval = RetrievalCoordinator(
-            cache_dir=args.cache_dir,
-            data_cache_dir=args.data_cache_dir,
-            config_path=args.config,
-            fetch_mode_override=fetch_mode_override,
-            overwrite_existing_cache_values=args.update_cache,
-        )
-        df_overall = retrieval.retrieve(
-            ctx['place_list'],
-            ctx['start_year'],
-            ctx['end_year'],
-            measure=measure,
-        )
-        plot_all(
-            df_overall,
-            ctx['place_list'],
-            ctx['start_year'],
-            ctx['end_year'],
-            args.out_dir,
-            args.config,
-            args.settings,
-            args.show,
-            args.show,
-            ctx['grid'],
-            ctx['list_name'],
-            measure,
-            ctx['colour_mode'],
-            ctx['colormap_name']
-        )
+    for place_list, list_name in ctx['place_runs']:
+        for measure in ctx['measures']:
+            retrieval = RetrievalCoordinator(
+                cache_dir=args.cache_dir,
+                data_cache_dir=args.data_cache_dir,
+                config_path=args.config,
+                fetch_mode_override=fetch_mode_override,
+                overwrite_existing_cache_values=args.update_cache,
+            )
+            df_overall = retrieval.retrieve(
+                place_list,
+                ctx['start_year'],
+                ctx['end_year'],
+                measure=measure,
+            )
+            plot_all(
+                df_overall,
+                place_list,
+                ctx['start_year'],
+                ctx['end_year'],
+                args.out_dir,
+                args.config,
+                args.settings,
+                args.show,
+                args.show,
+                ctx['grid'],
+                list_name,
+                measure,
+                ctx['colour_mode'],
+                ctx['colormap_name']
+            )
     return 0
 
 
@@ -209,9 +224,13 @@ def main() -> int:
             rebuild=bool(args.rebuild_cache_summary),
         )
 
-    # Handle --list-places flag (exits after listing)
-    if args.list_places:
+    # Handle list-report flags (exit after reporting)
+    if args.list_places_legacy:
         list_places_and_exit()
+    if args.list_places:
+        list_places_only_and_exit()
+    if args.list_lists:
+        list_place_lists_and_exit()
 
     # Handle --add-place flag (exits after adding)
     if args.add_place:

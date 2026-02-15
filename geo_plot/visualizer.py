@@ -395,6 +395,17 @@ class Visualizer:
         c = self.norm(df[self.colour_source_column])
         return self.cmap(c)
 
+    def _prepare_render_df(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Return DataFrame in plotting order for improved visibility in overlaps."""
+        if self.y_value_column == 'wet_hours_per_day' and 'precip_mm' in df.columns:
+            sort_columns = ['angle', 'precip_mm', 'wet_hours_per_day']
+            return df.sort_values(
+                by=sort_columns,
+                ascending=[True, True, True],
+                kind='mergesort',
+            )
+        return df
+
     def draw_temp_circles(self, ax: plt.Axes, num_rows: int = 1) -> None:
         """
         Draw value circles and labels at configured step boundaries on the polar plot.
@@ -446,7 +457,8 @@ class Visualizer:
             num_rows: Number of rows in subplot grid (for font scaling).
         """
         settings = SettingsManager(self.all_settings[self.layout], num_rows)
-        point_colours = self.get_point_colours(df)
+        render_df = self._prepare_render_df(df)
+        point_colours = self.get_point_colours(render_df)
 
         marker_size = settings.get('figure.marker_size')
         xtick_fontsize = settings.get('figure.xtick_fontsize')
@@ -454,10 +466,10 @@ class Visualizer:
         radial_base = self.tmin_c
         if self.plot_format in {'radial_bars', 'wedges'}:
             bar_width = (2 * np.pi / 365.0) * self.wedge_width_scale
-            values = df[self.y_value_column].to_numpy(dtype=float)
+            values = render_df[self.y_value_column].to_numpy(dtype=float)
             radial_base = min(0.0, float(np.nanmin(values)))
             heights = np.maximum(values - radial_base, 0.0)
-            theta_left = df['angle'].to_numpy(dtype=float) - (bar_width / 2.0)
+            theta_left = render_df['angle'].to_numpy(dtype=float) - (bar_width / 2.0)
             ax.bar(
                 theta_left,
                 heights,
@@ -468,7 +480,7 @@ class Visualizer:
                 align='edge',
             )
         else:
-            ax.scatter(df['angle'], df[self.y_value_column], c=point_colours, s=marker_size)
+            ax.scatter(render_df['angle'], render_df[self.y_value_column], c=point_colours, s=marker_size)
         self.draw_temp_circles(ax, num_rows)
         ax.set_theta_offset(np.pi/2)
         ax.set_theta_direction(-1)

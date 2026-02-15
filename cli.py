@@ -45,6 +45,7 @@ DEFAULT_COLOUR_MODE = VALID_COLOUR_MODES[0]
 DEFAULT_MEASURE = VALID_MEASURES[0]
 DEFAULT_COLORMAP = "turbo"
 VALID_DOWNLOAD_BY = ("config", "month", "year", "compare")
+PLACE_DEFAULT_SENTINEL = "__default_place__"
 
 
 def _resolve_runtime_path_defaults() -> tuple[Path, dict[str, str]]:
@@ -167,10 +168,14 @@ def parse_args() -> argparse.Namespace:
 Examples:
   %(prog)s --years 2024 --show                    # Default place, show all plots
   %(prog)s --place "Austin, TX" --years 2020-2025  # Specific place
+    %(prog)s --place                                # Default place
+    %(prog)s --place all --years 2024               # All configured places
   %(prog)s --lat 30.27 --lon -97.74 --years 2024  # Custom coordinates
   %(prog)s --all --years 2024                     # All configured places
-  %(prog)s --list all --years 2024                # Alias for --all
-  %(prog)s --list-places                          # List available places
+    %(prog)s --list all --years 2024                # Run all predefined place lists
+    %(prog)s -Lp / --list-places                    # List configured places only
+    %(prog)s -Ll / --list-lists                     # List predefined place lists only
+    %(prog)s -L                                     # Legacy alias: list places and lists
         """,
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -183,8 +188,13 @@ Examples:
     location_exclusive.add_argument(
         "-p", "--place",
         type=str,
+        nargs='?',
+        const=PLACE_DEFAULT_SENTINEL,
         default=None,
-        help="Name of a configured place, or custom place name with --lat/--lon"
+        help=(
+            "Name of a configured place, custom place name with --lat/--lon, "
+            "or 'all' for all places. If provided without a value, uses default place."
+        )
     )
     location_exclusive.add_argument(
         "-l", "--list",
@@ -193,7 +203,10 @@ Examples:
         nargs='?',
         const='default',
         default=None,
-        help="Name of a predefined place list (e.g., 'default', 'us_cities'). If no list name is provided, uses 'default'. Use 'all' as an alias for --all."
+        help=(
+            "Name of a predefined place list (e.g., 'default', 'us_cities'). "
+            "If no list name is provided, uses 'default'. Use 'all' to run all predefined lists."
+        )
     )
     location_exclusive.add_argument(
         "-a", "--all",
@@ -210,7 +223,20 @@ Examples:
     # Information
     info_group = parser.add_argument_group("information")
     info_group.add_argument(
-        "-L", "--list-places",
+        "-Lp", "--list-places",
+        dest="list_places",
+        action="store_true",
+        help="List all configured places, then exit"
+    )
+    info_group.add_argument(
+        "-Ll", "--list-lists",
+        dest="list_lists",
+        action="store_true",
+        help="List all predefined place lists, then exit"
+    )
+    info_group.add_argument(
+        "-L",
+        dest="list_places_legacy",
         action="store_true",
         help="List all available places and place lists, then exit"
     )
@@ -416,9 +442,12 @@ def get_place_list(args: argparse.Namespace, places: dict[str, Location], defaul
     if args.all:
         return list(places.values()), "all"
 
-    # --list all acts as an alias for --all
+    # --list all is handled by get_place_runs() before this function.
     if args.place_list == "all":
-        return list(places.values()), "all"
+        raise CLIError(
+            "'--list all' expands to multiple list runs.",
+            "Use get_place_runs() for execution planning.",
+        )
 
     # --place-list uses a named list
     if args.place_list:
@@ -437,6 +466,15 @@ def get_place_list(args: argparse.Namespace, places: dict[str, Location], defaul
 
     # --place uses a specific place
     if args.place:
+        if args.place == PLACE_DEFAULT_SENTINEL:
+            if default_place in places:
+                return [places[default_place]], None
+            raise CLIError(
+                f"Default place '{default_place}' not found in config.yaml.",
+                "Set places.default_place to a valid configured place name.",
+            )
+        if args.place == "all":
+            return list(places.values()), "all"
         if args.place in places:
             # Use configured place
             return [places[args.place]], None
@@ -466,6 +504,32 @@ def get_place_list(args: argparse.Namespace, places: dict[str, Location], defaul
             f"Default place '{default_place}' not found in config.yaml.",
             "Set places.default_place to a valid configured place name."
         )
+
+
+def get_place_runs(
+    args: argparse.Namespace,
+    places: dict[str, Location],
+    default_place: str,
+    place_lists: dict[str, list[str]],
+) -> list[tuple[list[Location], str | None]]:
+    """Return one or more place-selection runs based on CLI options."""
+    if args.place_list == "all":
+        runs: list[tuple[list[Location], str | None]] = []
+        for list_name in sorted(place_lists.keys()):
+            place_names = place_lists[list_name]
+            selected_places = [places[name] for name in place_names if name in places]
+            if selected_places:
+                runs.append((selected_places, list_name))
+
+        if not runs:
+            raise CLIError(
+                "No non-empty place lists found for '--list all'.",
+                "Run --list-lists to inspect configured lists.",
+            )
+        return runs
+
+    place_list, list_name = get_place_list(args, places, default_place, place_lists)
+    return [(place_list, list_name)]
 
 
 def parse_grid(grid_str: str | None) -> tuple[int, int] | None:
@@ -638,11 +702,57 @@ def build_places_report() -> str:
     return "\n".join(lines)
 
 
+def build_places_only_report() -> str:
+    """Build a formatted report of configured places only."""
+    places, default_place, _place_lists = load_places()
+    lines: list[str] = []
+
+    lines.append("\n=== Available Places ===")
+    lines.append(f"Default place: {default_place}\n")
+    lines.append(f"Total places: {len(places)}\n")
+
+    for place_name in sorted(places.keys()):
+        loc = places[place_name]
+        lines.append(f"  • {place_name:30s}  ({loc.lat:7.4f}, {loc.lon:8.4f})  {loc.tz}")
+
+    lines.append("")
+    return "\n".join(lines)
+
+
+def build_place_lists_report() -> str:
+    """Build a formatted report of predefined place lists only."""
+    _places, _default_place, place_lists = load_places()
+    lines: list[str] = []
+
+    lines.append("\n=== Place Lists ===")
+    lines.append(f"Total lists: {len(place_lists)}\n")
+
+    for list_name, places_in_list in sorted(place_lists.items()):
+        lines.append(f"  {list_name} ({len(places_in_list)} places):")
+        for place in places_in_list:
+            lines.append(f"    - {place}")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
 def list_places_and_exit() -> None:
     """
     Print all available places and place lists, then exit.
     """
     print(build_places_report())
+    raise SystemExit(0)
+
+
+def list_places_only_and_exit() -> None:
+    """Print configured places only, then exit."""
+    print(build_places_only_report())
+    raise SystemExit(0)
+
+
+def list_place_lists_and_exit() -> None:
+    """Print predefined place lists only, then exit."""
+    print(build_place_lists_report())
     raise SystemExit(0)
 
 

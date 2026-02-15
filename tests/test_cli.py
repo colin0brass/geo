@@ -5,7 +5,9 @@ import sys
 from unittest.mock import patch
 from cli import (
     CLIError,
+    PLACE_DEFAULT_SENTINEL,
     get_place_list,
+    get_place_runs,
     parse_args,
     parse_measure_selection,
     parse_grid,
@@ -72,6 +74,18 @@ def test_parse_args_with_place():
         assert args.all is False
 
 
+def test_parse_args_with_place_no_value_uses_sentinel():
+    with patch('sys.argv', ['geo.py', '--place']):
+        args = parse_args()
+        assert args.place == PLACE_DEFAULT_SENTINEL
+
+
+def test_parse_args_with_place_all_value():
+    with patch('sys.argv', ['geo.py', '--place', 'all']):
+        args = parse_args()
+        assert args.place == 'all'
+
+
 def test_parse_args_with_place_list():
     with patch('sys.argv', ['geo.py', '--list', 'preferred']):
         args = parse_args()
@@ -96,9 +110,33 @@ def test_parse_args_with_list_all_alias():
 
 
 def test_parse_args_with_list_places_short_option():
-    with patch('sys.argv', ['geo.py', '-L']):
+    with patch('sys.argv', ['geo.py', '-Lp']):
         args = parse_args()
         assert args.list_places is True
+
+
+def test_parse_args_with_list_places_long_option():
+    with patch('sys.argv', ['geo.py', '--list-places']):
+        args = parse_args()
+        assert args.list_places is True
+
+
+def test_parse_args_with_list_lists_short_option():
+    with patch('sys.argv', ['geo.py', '-Ll']):
+        args = parse_args()
+        assert args.list_lists is True
+
+
+def test_parse_args_with_list_lists_long_option():
+    with patch('sys.argv', ['geo.py', '--list-lists']):
+        args = parse_args()
+        assert args.list_lists is True
+
+
+def test_parse_args_with_legacy_list_places_short_option():
+    with patch('sys.argv', ['geo.py', '-L']):
+        args = parse_args()
+        assert args.list_places_legacy is True
 
 
 def test_parse_args_with_cache_summary_flag():
@@ -369,10 +407,79 @@ def test_get_place_list_all_alias_from_list():
         lon = None
         tz = None
 
+    with pytest.raises(CLIError):
+        get_place_list(Args(), places, default_place, place_lists)
+
+
+def test_get_place_runs_all_from_list_expands_to_each_list():
+    places = {
+        'Austin, TX': Location(name='Austin, TX', lat=30.27, lon=-97.74, tz='America/Chicago'),
+        'Cambridge, MA': Location(name='Cambridge, MA', lat=42.37, lon=-71.11, tz='America/New_York'),
+    }
+    default_place = 'Austin, TX'
+    place_lists = {
+        'alpha': ['Austin, TX'],
+        'beta': ['Cambridge, MA'],
+    }
+
+    class Args:
+        all = False
+        place_list = 'all'
+        place = None
+        lat = None
+        lon = None
+        tz = None
+
+    runs = get_place_runs(Args(), places, default_place, place_lists)
+    assert len(runs) == 2
+    assert runs[0][1] == 'alpha'
+    assert [p.name for p in runs[0][0]] == ['Austin, TX']
+    assert runs[1][1] == 'beta'
+    assert [p.name for p in runs[1][0]] == ['Cambridge, MA']
+
+
+def test_get_place_list_place_all_returns_all_places():
+    places = {
+        'Austin, TX': Location(name='Austin, TX', lat=30.27, lon=-97.74, tz='America/Chicago'),
+        'Cambridge, MA': Location(name='Cambridge, MA', lat=42.37, lon=-71.11, tz='America/New_York'),
+    }
+    default_place = 'Austin, TX'
+    place_lists = {}
+
+    class Args:
+        all = False
+        place_list = None
+        place = 'all'
+        lat = None
+        lon = None
+        tz = None
+
     result, list_name = get_place_list(Args(), places, default_place, place_lists)
     assert len(result) == 2
     assert set(p.name for p in result) == {'Austin, TX', 'Cambridge, MA'}
     assert list_name == 'all'
+
+
+def test_get_place_list_place_no_value_uses_default_place():
+    places = {
+        'Austin, TX': Location(name='Austin, TX', lat=30.27, lon=-97.74, tz='America/Chicago'),
+        'Cambridge, MA': Location(name='Cambridge, MA', lat=42.37, lon=-71.11, tz='America/New_York'),
+    }
+    default_place = 'Cambridge, MA'
+    place_lists = {}
+
+    class Args:
+        all = False
+        place_list = None
+        place = PLACE_DEFAULT_SENTINEL
+        lat = None
+        lon = None
+        tz = None
+
+    result, list_name = get_place_list(Args(), places, default_place, place_lists)
+    assert len(result) == 1
+    assert result[0].name == 'Cambridge, MA'
+    assert list_name is None
 
 
 def test_get_place_list_place_list():

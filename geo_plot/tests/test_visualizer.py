@@ -357,6 +357,41 @@ def test_visualizer_rejects_non_positive_wedge_width_scale():
         )
 
 
+def test_prepare_render_df_sorts_wet_hours_by_precipitation_within_angle():
+    df = pd.DataFrame({
+        'date': pd.to_datetime(['2025-01-01', '2024-01-01', '2023-01-01']),
+        'wet_hours_per_day': [6, 6, 6],
+        'precip_mm': [5.0, 1.0, 10.0],
+    })
+    vis = Visualizer(
+        df,
+        y_value_column='wet_hours_per_day',
+        colour_value_column='precip_mm',
+        colour_mode='colour_value',
+        range_text_template="{measure_label}: {min_value:.1f}-{max_value:.1f} {measure_unit}",
+        range_text_context={'measure_label': 'Wet Hours per Day', 'measure_unit': 'h'},
+    )
+
+    prepared = vis._prepare_render_df(vis.df)
+    assert prepared['precip_mm'].tolist() == [1.0, 5.0, 10.0]
+
+
+def test_prepare_render_df_noop_for_non_wet_hours_measure():
+    df = pd.DataFrame({
+        'date': pd.to_datetime(['2025-01-01', '2025-01-02']),
+        'precip_mm': [5.0, 1.0],
+    })
+    vis = Visualizer(
+        df,
+        y_value_column='precip_mm',
+        range_text_template="{measure_label}: {min_value:.1f}-{max_value:.1f} {measure_unit}",
+        range_text_context={'measure_label': 'Daily Precipitation', 'measure_unit': 'mm'},
+    )
+
+    prepared = vis._prepare_render_df(vis.df)
+    assert prepared['precip_mm'].tolist() == vis.df['precip_mm'].tolist()
+
+
 def test_visualizer_accepts_custom_y_step():
     df = pd.DataFrame({
         'date': pd.date_range('2025-01-01', periods=5),
