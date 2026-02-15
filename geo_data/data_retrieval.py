@@ -328,6 +328,9 @@ class RetrievalCoordinator:
                 overwrite_existing_values=self.overwrite_existing_cache_values,
             )
 
+            # Keep the in-place CLI progress indicator visible after cache write/log output.
+            self.progress_mgr.notify_year_start(loc.name, year, year_idx, len(missing_years))
+
             if measure == 'daily_precipitation':
                 self._update_hourly_precipitation_cache(
                     measure_cds_client,
@@ -336,6 +339,8 @@ class RetrievalCoordinator:
                     start_d,
                     end_d,
                 )
+                # Hourly cache updates can emit logs; redraw active progress line afterwards.
+                self.progress_mgr.notify_year_start(loc.name, year, year_idx, len(missing_years))
 
             df_new = pd.concat([df_new, df_year], ignore_index=True)
 
