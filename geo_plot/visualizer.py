@@ -29,6 +29,7 @@ class Visualizer:
         t_min_c: float = None,
         t_max_c: float = None,
         y_step: float | None = None,
+        max_y_steps: int | None = None,
         out_dir: str = 'output',
         settings_file: str = 'geo_plot/settings.yaml',
         y_value_column: str = 'temp_C',
@@ -66,6 +67,9 @@ class Visualizer:
         self.y_step = float(y_step) if y_step is not None else None
         if self.y_step is not None and self.y_step <= 0:
             raise ValueError("y_step must be > 0")
+        self.max_y_steps = int(max_y_steps) if max_y_steps is not None else None
+        if self.max_y_steps is not None and self.max_y_steps <= 0:
+            raise ValueError("max_y_steps must be > 0")
         self.y_value_column = y_value_column
         self.measure_unit = str((range_text_context or {}).get('measure_unit', '')).strip()
         if range_text_template is None:
@@ -322,7 +326,14 @@ class Visualizer:
         ytick_fontsize = settings.get('figure.ytick_fontsize')
         ytick_colour = settings.get('figure.ytick_colour')
 
-        for t in np.arange(np.ceil(self.tmin_c/temp_step)*temp_step, self.tmax_c+1, temp_step):
+        start_tick = np.ceil(self.tmin_c / temp_step) * temp_step
+        ticks = np.arange(start_tick, self.tmax_c + 1, temp_step)
+        if self.max_y_steps is not None and len(ticks) > self.max_y_steps:
+            step_multiplier = int(np.ceil(len(ticks) / self.max_y_steps))
+            adjusted_step = temp_step * step_multiplier
+            ticks = np.arange(start_tick, self.tmax_c + 1, adjusted_step)
+
+        for t in ticks:
             ax.plot(np.linspace(0, 2*np.pi, 361), np.full(361, t), '--', color='gray', lw=0.7, alpha=0.7)
             if self.y_value_column == 'temp_C':
                 # °C label above X-axis

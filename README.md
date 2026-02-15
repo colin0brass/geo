@@ -49,9 +49,6 @@ python geo.py -y 2024 -s
 # List available places
 python geo.py -L
 
-# List places with their cached years
-python geo.py -ly
-
 # Show help and version
 python geo.py --help
 python geo.py --version
@@ -250,9 +247,6 @@ python geo.py -L
 # Alias for --all (all configured places)
 python geo.py -l all -y 2024
 
-# List places with their cached years (from data cache)
-python geo.py -ly
-
 # Show version
 python geo.py --version
 
@@ -273,21 +267,7 @@ python geo.py --help
 | Option | Short | Description |
 |--------|-------|-------------|
 | `--list-places` | `-L` | List all available places and place lists, then exit |
-| `--list-years` | `-ly` | List all places with their cached years (condensed ranges), then exit |
 | `--add-place NAME` | | Add a new place to config (looks up coordinates online) |
-
-**Example output for `--list-years`:**
-```
-=== Cached Years by Place ===
-Data cache directory: data_cache
-
-  • Austin, TX                      Years: 1990-2025
-  • Cambridge, UK                   Years: 1990-2025
-  • London, UK                      Years: 2025
-  • Singapore                       Years: 1990-2025
-  ...
-```
-*Note: Contiguous year ranges are automatically condensed (e.g., `1990-2025` instead of listing all 36 years).*
 
 ### Custom Location
 

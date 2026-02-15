@@ -68,3 +68,15 @@ def test_console_progress_handler_combined_year_and_month_output(capsys):
     assert "Year 0/2" in captured.out
     assert "Month 1/12" in captured.out
     assert "(01)" in captured.out
+
+
+def test_console_progress_handler_renders_on_location_start(capsys):
+    """Location start should immediately render an initial progress line."""
+    handler = ConsoleProgressHandler()
+
+    handler.on_location_start("Austin, TX", 1, 3, total_years=2)
+
+    captured = capsys.readouterr()
+    assert "Place 1/3" in captured.out
+    assert "Austin, TX" in captured.out
+    assert "Year 0/2" in captured.out

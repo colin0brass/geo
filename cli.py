@@ -214,15 +214,20 @@ Examples:
         help="List all available places and place lists, then exit"
     )
     info_group.add_argument(
-        "-ly", "--list-years",
-        action="store_true",
-        help="List all places with their cached years from data cache, then exit"
-    )
-    info_group.add_argument(
         "--add-place",
         type=str,
         metavar="NAME",
         help="Add a new place to config (looks up coordinates online). Usage: --add-place 'Seattle, WA'"
+    )
+    info_group.add_argument(
+        "--cache-summary",
+        action="store_true",
+        help="Print cache summary index (places, countries, measures, year coverage), then exit"
+    )
+    info_group.add_argument(
+        "--rebuild-cache-summary",
+        action="store_true",
+        help="Rebuild cache summary index from cache files, print it, then exit"
     )
 
     # Time period
@@ -681,4 +686,83 @@ def list_years_and_exit(data_cache_dir: Path = Path("data_cache")) -> None:
         data_cache_dir: Directory containing cached YAML data files.
     """
     print(build_cached_years_report(data_cache_dir))
+    raise SystemExit(0)
+
+
+def build_cache_summary_report(
+    data_cache_dir: Path = Path("data_cache"),
+    rebuild: bool = False,
+) -> str:
+    """Build a formatted report from cache_summary.yaml index."""
+    from geo_data.cache_store import CacheStore
+
+    cache_store = CacheStore()
+    summary = cache_store.get_cache_summary(data_cache_dir, rebuild=rebuild)
+    files = summary.get('files', {}) if isinstance(summary, dict) else {}
+
+    lines: list[str] = []
+    lines.append("\n=== Data Cache Summary ===")
+    lines.append(f"Data cache directory: {data_cache_dir}")
+    lines.append(f"Summary file: {cache_store.cache_summary_path(data_cache_dir)}")
+    lines.append(f"Updated at: {summary.get('updated_at') if isinstance(summary, dict) else 'unknown'}\n")
+
+    total_files = 0
+    country_counts: dict[str, int] = {}
+    measure_place_counts: dict[str, int] = {}
+
+    for _cache_file_name, entry in sorted(files.items()):
+        if not isinstance(entry, dict):
+            continue
+        total_files += 1
+        place_name = str(entry.get('place_name', 'unknown'))
+        country = str(entry.get('country', '')).strip() or "(unknown)"
+        country_counts[country] = country_counts.get(country, 0) + 1
+
+        lines.append(f"  • {place_name} [{country}]")
+        measures = entry.get('measures', {})
+        if not isinstance(measures, dict) or not measures:
+            lines.append("      - (no measures indexed)")
+            continue
+
+        for measure_name, measure_meta in sorted(measures.items()):
+            measure_place_counts[measure_name] = measure_place_counts.get(measure_name, 0) + 1
+            if not isinstance(measure_meta, dict):
+                lines.append(f"      - {measure_name}: (invalid summary entry)")
+                continue
+
+            year_ranges = measure_meta.get('year_ranges', [])
+            if isinstance(year_ranges, list) and year_ranges:
+                year_str = ", ".join(str(item) for item in year_ranges)
+            else:
+                years = measure_meta.get('years', [])
+                if isinstance(years, list) and years:
+                    try:
+                        year_str = condense_year_ranges(sorted(int(year) for year in years))
+                    except Exception:
+                        year_str = str(years)
+                else:
+                    year_str = "(none)"
+
+            lines.append(f"      - {measure_name}: years {year_str}")
+
+    lines.append(f"\n{'='*60}")
+    lines.append(f"Indexed cache files: {total_files}")
+    if country_counts:
+        countries = ", ".join(f"{name}: {count}" for name, count in sorted(country_counts.items()))
+        lines.append(f"Countries: {countries}")
+    if measure_place_counts:
+        measures = ", ".join(
+            f"{name}: {count}" for name, count in sorted(measure_place_counts.items())
+        )
+        lines.append(f"Measures present: {measures}")
+    lines.append(f"{'='*60}\n")
+    return "\n".join(lines)
+
+
+def list_cache_summary_and_exit(
+    data_cache_dir: Path = Path("data_cache"),
+    rebuild: bool = False,
+) -> None:
+    """Print cache summary index report and exit."""
+    print(build_cache_summary_report(data_cache_dir, rebuild=rebuild))
     raise SystemExit(0)

@@ -63,14 +63,15 @@ plotting:
       y_step: 10
       range_text: "{min_temp_c:.1f}°C to {max_temp_c:.1f}°C; ({min_temp_f:.1f}°F to {max_temp_f:.1f}°F)"
     daily_precipitation:
-      label: "Daily Precipitation"
-      unit: "mm"
-      plot_format: radial_wedges
-      wedge_width_scale: 1.35
-      y_value_column: "precip_mm"
+      label: "Wet Hours per Day"
+      unit: "hours"
+      plot_format: points
+      y_value_column: "wet_hours_per_day"
       y_min: 0
-      y_step: 20
-      range_text: "{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}"
+      y_max: 24
+      y_step: 2
+      max_y_steps: 4
+      range_text: "{measure_label}: {min_value:.0f} to {max_value:.0f} {measure_unit}"
     daily_solar_radiation_energy:
       label: "Daily Solar Radiation"
       unit: "MJ/m²"

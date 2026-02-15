@@ -311,3 +311,26 @@ def test_visualizer_rejects_non_positive_y_step():
             range_text_template="{measure_label}: {min_value:.1f}-{max_value:.1f} {measure_unit}",
             range_text_context={'measure_label': 'Daily Precipitation', 'measure_unit': 'mm'},
         )
+
+
+def test_visualizer_limits_y_circles_with_max_y_steps():
+    df = pd.DataFrame({
+        'date': pd.date_range('2025-01-01', periods=30),
+        'wet_hours_per_day': [float(i % 25) for i in range(30)],
+    })
+
+    vis = Visualizer(
+        df,
+        y_value_column='wet_hours_per_day',
+        y_step=2,
+        max_y_steps=4,
+        range_text_template="{measure_label}: {min_value:.1f}-{max_value:.1f} {measure_unit}",
+        range_text_context={'measure_label': 'Wet Hours per Day', 'measure_unit': 'hours'},
+    )
+
+    fig = matplotlib.pyplot.figure()
+    ax = fig.add_subplot(111, polar=True)
+    vis.create_polar_plot(ax, vis.df)
+
+    assert len(ax.lines) <= 4
+    matplotlib.pyplot.close(fig)

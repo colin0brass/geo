@@ -119,6 +119,88 @@ class PrecipitationCDS(CDS):
             round_decimals=3,
         )
 
+    def get_hourly_precipitation_series(
+        self,
+        location: Location,
+        start_d: date,
+        end_d: date,
+        notify_progress: bool = True,
+    ) -> pd.DataFrame:
+        """Return hourly precipitation series (mm per hour) in UTC timestamps."""
+        empty_columns = [
+            "date",
+            "precip_mm",
+            "grid_lat",
+            "grid_lon",
+            "place_name",
+        ]
+
+        if start_d > end_d:
+            return self._empty_series_frame(empty_columns)
+
+        years = list(range(start_d.year, end_d.year + 1))
+        all_dfs = self._collect_period_frames(
+            location,
+            [(year, None) for year in years],
+            lambda period: self.get_year_hourly_precipitation_data(location, period[0]),
+            notify_progress,
+        )
+
+        if not all_dfs:
+            return self._empty_series_frame(empty_columns)
+
+        df_all = pd.concat(all_dfs, ignore_index=True)
+        df_all["date"] = pd.to_datetime(df_all["date"])
+        end_ts = pd.Timestamp(end_d) + pd.Timedelta(days=1)
+        mask = (df_all["date"] >= pd.Timestamp(start_d)) & (df_all["date"] < end_ts)
+        df_filtered = df_all.loc[mask].copy()
+
+        if df_filtered.empty:
+            return self._empty_series_frame(empty_columns)
+
+        df_filtered["precip_mm"] = df_filtered["precip_mm"].round(3)
+        return df_filtered.reset_index(drop=True)
+
+    def get_year_hourly_precipitation_data(
+        self,
+        location: Location,
+        year: int,
+    ) -> pd.DataFrame:
+        """Fetch one year of hourly precipitation for a location as UTC hourly rows."""
+        safe_name = self._safe_location_name(location)
+        cache_file = self.cache_dir / f"era5_tp_timeseries_hourly_{safe_name}_{year:04d}.nc"
+
+        start_d = date(year, 1, 1)
+        end_d = date(year, 12, 31)
+        nc_file = self._cds_retrieve_era5_timeseries(
+            cache_file,
+            location,
+            start_d=start_d,
+            end_d=end_d,
+            variable="total_precipitation",
+        )
+        ds = self._open_and_concat_for_var([nc_file], "tp")
+
+        ds_point, grid_lat, grid_lon = self._resolve_timeseries_point_dataset(ds, location)
+        da = ds_point["tp"]
+        if "time" not in da.coords:
+            if "valid_time" in da.coords:
+                da = da.rename({"valid_time": "time"})
+            elif "date" in da.coords:
+                da = da.rename({"date": "time"})
+            else:
+                raise KeyError("Timeseries precipitation data is missing a time coordinate")
+
+        utc_times = pd.to_datetime(da["time"].values, utc=True).tz_localize(None)
+        precip_mm = da.values.astype(float) * 1000.0
+        return pd.DataFrame({
+            "date": utc_times,
+            "precip_mm": precip_mm,
+            "grid_lat": float(grid_lat),
+            "grid_lon": float(grid_lon),
+            "place_name": location.name,
+        })
+
     def get_month_daily_precipitation_data(
         self,
         location: Location,

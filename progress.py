@@ -16,7 +16,7 @@ class ConsoleProgressHandler:
     def _render_progress_line(
         self,
         location_name: str,
-        year: int,
+        year: int | None,
         completed_years: int,
         total_years: int,
         *,
@@ -34,9 +34,10 @@ class ConsoleProgressHandler:
             place_prefix = f"Place {self._current_location_num}/{self._total_locations} "
 
         padded_name = f"{location_name:<30}"
+        year_context = f" ({year})" if year is not None else ""
         line = (
             f"\r  {place_prefix}{padded_name} - "
-            f"Year {completed_years}/{total_years} ({year}): [{year_bar}] {year_pct}%"
+            f"Year {completed_years}/{total_years}{year_context}: [{year_bar}] {year_pct}%"
         )
 
         if month is not None and completed_months is not None and total_months is not None:
@@ -56,6 +57,17 @@ class ConsoleProgressHandler:
         self._current_location_num = location_num
         self._total_locations = total_locations
         self._total_years = total_years
+        self._active_year = None
+        self._active_year_index = 1
+        self._active_total_years = total_years
+        self._active_total_months = None
+        self._active_month = None
+        self._render_progress_line(
+            location_name,
+            None,
+            0,
+            total_years,
+        )
 
     def on_year_start(self, location_name: str, year: int, current_year: int, total_years: int) -> None:
         """Display initial progress bar for the year."""

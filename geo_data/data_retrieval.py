@@ -14,7 +14,7 @@ import pandas as pd
 
 from geo_core.progress import get_progress_manager
 
-from .cds_base import CDS, Location
+from .cds_base import CDS, Location, ZoneInfo
 from .cds_precipitation import PrecipitationCDS
 from .cds_solar_radiation import SolarRadiationCDS
 from .cds_temperature import TemperatureCDS
@@ -92,6 +92,7 @@ class RetrievalCoordinator:
         self.overwrite_existing_cache_values = overwrite_existing_cache_values
         self.progress_mgr = get_progress_manager()
         self.cache_store = CacheStore()
+        self.cache_store.ensure_cache_summary(self.data_cache_dir)
 
     def _apply_fetch_mode_override(self, measure_cds_client: CDS, measure: str) -> None:
         """Apply runtime fetch chunking override to the active measure CDS client."""
@@ -121,14 +122,122 @@ class RetrievalCoordinator:
     ) -> tuple[Path, set[int], list[int]]:
         """Return cache file path, cached years, and missing years for one location."""
         yaml_file = self.cache_store.cache_yaml_path_for_place(self.data_cache_dir, loc.name)
-        cached_years = set()
+        required_measures = self._required_cache_measures_for_measure(measure)
+        cached_year_sets: list[set[int]] = []
         if yaml_file.exists():
-            cached_years = self.cache_store.get_cached_years(yaml_file, measure=measure)
+            for required_measure in required_measures:
+                cached_year_sets.append(
+                    self.cache_store.get_cached_years(yaml_file, measure=required_measure)
+                )
+
+        if cached_year_sets:
+            cached_years = set.intersection(*cached_year_sets)
+        else:
+            cached_years = set()
+
         if self.overwrite_existing_cache_values:
             missing_years = sorted(requested_years)
         else:
             missing_years = sorted(requested_years - cached_years)
         return yaml_file, cached_years, missing_years
+
+    @staticmethod
+    def _required_cache_measures_for_measure(measure: str) -> tuple[str, ...]:
+        """Return cache measures that must be present to consider a year fully cached."""
+        if measure == 'daily_precipitation':
+            return ('daily_precipitation', 'hourly_precipitation')
+        return (measure,)
+
+    @staticmethod
+    def _build_daily_wet_hours_from_hourly(
+        df_hourly: pd.DataFrame,
+        tz_name: str,
+        wet_threshold_mm: float = 1.0,
+    ) -> pd.DataFrame:
+        """Aggregate hourly precipitation rows into local-day wet-hour summaries."""
+        if df_hourly.empty:
+            return pd.DataFrame(columns=[
+                'date',
+                'wet_hours_per_day',
+                'max_hourly_precip_mm',
+                'total_precip_mm',
+                'observed_hours',
+            ])
+
+        tz_local = ZoneInfo(tz_name)
+        hourly = df_hourly.copy()
+        hourly['date'] = pd.to_datetime(hourly['date'], utc=True)
+        hourly['date_local'] = hourly['date'].dt.tz_convert(tz_local).dt.date
+
+        summary = (
+            hourly
+            .groupby('date_local', as_index=False)
+            .agg(
+                wet_hours_per_day=('precip_mm', lambda s: int((s >= wet_threshold_mm).sum())),
+                max_hourly_precip_mm=('precip_mm', 'max'),
+                total_precip_mm=('precip_mm', 'sum'),
+                observed_hours=('precip_mm', 'size'),
+            )
+            .rename(columns={'date_local': 'date'})
+        )
+        summary['date'] = pd.to_datetime(summary['date'])
+        return summary
+
+    def _enrich_precipitation_with_wet_hours(
+        self,
+        df_precip: pd.DataFrame,
+        place_list: list[Location],
+        start_year: int,
+        end_year: int,
+    ) -> pd.DataFrame:
+        """Attach wet-hours-per-day metrics derived from cached hourly precipitation data."""
+        if df_precip.empty:
+            return df_precip
+
+        daily = df_precip.copy()
+        daily['date'] = pd.to_datetime(daily['date'])
+
+        wet_daily_frames: list[pd.DataFrame] = []
+        for loc in place_list:
+            yaml_file = self.cache_store.cache_yaml_path_for_place(self.data_cache_dir, loc.name)
+            if not yaml_file.exists():
+                continue
+
+            df_hourly = self.cache_store.read_data_file(
+                yaml_file,
+                start_year,
+                end_year,
+                measure='hourly_precipitation',
+            )
+            if df_hourly.empty:
+                continue
+
+            wet_daily = self._build_daily_wet_hours_from_hourly(df_hourly, loc.tz)
+            if wet_daily.empty:
+                continue
+
+            wet_daily['place_name'] = loc.name
+            wet_daily_frames.append(wet_daily)
+
+        if wet_daily_frames:
+            wet_daily_all = pd.concat(wet_daily_frames, ignore_index=True)
+            daily = daily.merge(
+                wet_daily_all,
+                on=['place_name', 'date'],
+                how='left',
+            )
+        else:
+            daily['wet_hours_per_day'] = 0
+            daily['max_hourly_precip_mm'] = 0.0
+            daily['total_precip_mm'] = daily['precip_mm']
+            daily['observed_hours'] = 0
+
+        daily['wet_hours_per_day'] = daily['wet_hours_per_day'].fillna(0).astype(int)
+        daily['observed_hours'] = daily['observed_hours'].fillna(0).astype(int)
+        daily['max_hourly_precip_mm'] = daily['max_hourly_precip_mm'].fillna(0.0)
+        daily['total_precip_mm'] = daily['total_precip_mm'].fillna(daily['precip_mm'])
+
+        return daily
 
     def _plan_places_needing_cds(
         self,
@@ -218,12 +327,60 @@ class RetrievalCoordinator:
                 measure=measure,
                 overwrite_existing_values=self.overwrite_existing_cache_values,
             )
+
+            if measure == 'daily_precipitation':
+                self._update_hourly_precipitation_cache(
+                    measure_cds_client,
+                    loc,
+                    yaml_file,
+                    start_d,
+                    end_d,
+                )
+
             df_new = pd.concat([df_new, df_year], ignore_index=True)
 
             self.progress_mgr.notify_year_complete(loc.name, year, year_idx, len(missing_years))
 
         self.progress_mgr.notify_location_complete(loc.name)
         return df_new
+
+    def _update_hourly_precipitation_cache(
+        self,
+        measure_cds_client: CDS,
+        loc: Location,
+        yaml_file: Path,
+        start_d: date,
+        end_d: date,
+    ) -> None:
+        """Update hourly precipitation cache for a CDS-fetched daily-precipitation span."""
+        if not hasattr(measure_cds_client, 'get_hourly_precipitation_series'):
+            raise NotImplementedError(
+                "daily_precipitation client is missing method 'get_hourly_precipitation_series'"
+            )
+
+        df_hourly = measure_cds_client.get_hourly_precipitation_series(
+            loc,
+            start_d,
+            end_d,
+            notify_progress=False,
+        )
+        if df_hourly is None or df_hourly.empty:
+            logger.warning(
+                "Hourly precipitation cache update yielded no rows for %s (%s..%s)",
+                loc.name,
+                start_d.isoformat(),
+                end_d.isoformat(),
+            )
+            return
+
+        self.cache_store.save_data_file(
+            df_hourly,
+            yaml_file,
+            loc,
+            append=True,
+            measure='hourly_precipitation',
+            overwrite_existing_values=self.overwrite_existing_cache_values,
+        )
 
     def retrieve(
         self,
@@ -274,6 +431,14 @@ class RetrievalCoordinator:
                     total_cds_places,
                 )
                 df_overall = pd.concat([df_overall, df_new], ignore_index=True)
+
+        if measure == 'daily_precipitation' and not df_overall.empty:
+            df_overall = self._enrich_precipitation_with_wet_hours(
+                df_overall,
+                place_list,
+                start_year,
+                end_year,
+            )
 
         if not df_overall.empty:
             df_overall['date'] = pd.to_datetime(df_overall['date'])

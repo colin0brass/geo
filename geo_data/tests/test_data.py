@@ -201,7 +201,15 @@ def test_coordinator_retrieve_precipitation_measure(tmp_path, monkeypatch):
         'grid_lat': [40.0],
         'grid_lon': [-73.0],
     })
+    mock_hourly_df = pd.DataFrame({
+        'date': ['2024-01-01T00:00:00'],
+        'precip_mm': [0.5],
+        'place_name': ['Rain City'],
+        'grid_lat': [40.0],
+        'grid_lon': [-73.0],
+    })
     mock_cds.get_daily_precipitation_series.return_value = mock_df
+    mock_cds.get_hourly_precipitation_series.return_value = mock_hourly_df
 
     def mock_cds_init(cache_dir, progress_manager=None, config_path=None):
         return mock_cds
@@ -218,7 +226,9 @@ def test_coordinator_retrieve_precipitation_measure(tmp_path, monkeypatch):
     assert not result.empty
     assert 'precip_mm' in result.columns
     assert result['precip_mm'].iloc[0] == 2.5
+    assert result['wet_hours_per_day'].iloc[0] == 0
     mock_cds.get_daily_precipitation_series.assert_called_once()
+    mock_cds.get_hourly_precipitation_series.assert_called_once()
 
 
 def test_coordinator_retrieve_solar_radiation_measure(tmp_path, monkeypatch):
@@ -294,6 +304,13 @@ def test_coordinator_override_fetch_mode_precipitation(tmp_path, monkeypatch):
         'grid_lat': [40.0],
         'grid_lon': [-73.0],
     })
+    mock_cds.get_hourly_precipitation_series.return_value = pd.DataFrame({
+        'date': ['2024-01-01T00:00:00'],
+        'precip_mm': [0.5],
+        'place_name': ['Rain City'],
+        'grid_lat': [40.0],
+        'grid_lon': [-73.0],
+    })
 
     def mock_cds_init(cache_dir, progress_manager=None, config_path=None):
         return mock_cds
@@ -307,6 +324,111 @@ def test_coordinator_override_fetch_mode_precipitation(tmp_path, monkeypatch):
     ).retrieve([loc], 2024, 2024, measure='daily_precipitation')
 
     assert mock_cds.precipitation_fetch_mode == 'yearly'
+
+
+def test_coordinator_retrieve_precipitation_updates_hourly_cache(tmp_path, monkeypatch):
+    """Daily precipitation retrieval should also persist hourly precipitation cache values."""
+    loc = Location(name="Rain City", lat=40.0, lon=-73.0, tz="America/New_York")
+
+    mock_cds = MagicMock()
+    mock_cds.get_daily_precipitation_series.return_value = pd.DataFrame({
+        'date': ['2024-01-01'],
+        'precip_mm': [2.5],
+        'place_name': ['Rain City'],
+        'grid_lat': [40.0],
+        'grid_lon': [-73.0],
+    })
+    mock_cds.get_hourly_precipitation_series.return_value = pd.DataFrame({
+        'date': ['2024-01-01T00:00:00', '2024-01-01T01:00:00'],
+        'precip_mm': [0.5, 1.25],
+        'place_name': ['Rain City', 'Rain City'],
+        'grid_lat': [40.0, 40.0],
+        'grid_lon': [-73.0, -73.0],
+    })
+
+    def mock_cds_init(cache_dir, progress_manager=None, config_path=None):
+        return mock_cds
+
+    monkeypatch.setattr('geo_data.data_retrieval.PrecipitationCDS', mock_cds_init)
+
+    data_cache_dir = tmp_path / "data_cache"
+    coordinator = RetrievalCoordinator(cache_dir=tmp_path, data_cache_dir=data_cache_dir)
+    _ = coordinator.retrieve([loc], 2024, 2024, measure='daily_precipitation')
+
+    yaml_file = data_cache_dir / "Rain_City.yaml"
+    hourly_df = cache_store.read_data_file(yaml_file, measure='hourly_precipitation')
+    assert not hourly_df.empty
+    assert len(hourly_df) == 2
+    assert hourly_df.sort_values('date')['precip_mm'].tolist() == [0.5, 1.25]
+
+
+def test_build_daily_wet_hours_from_hourly_uses_local_timezone(tmp_path):
+    """Hourly UTC rows should aggregate to local dates with wet-hour counts."""
+    hourly_df = pd.DataFrame({
+        'date': [
+            '2024-01-01T23:00:00',
+            '2024-01-02T00:00:00',
+            '2024-01-02T01:00:00',
+        ],
+        'precip_mm': [1.2, 0.4, 2.1],
+        'place_name': ['Rain City', 'Rain City', 'Rain City'],
+        'grid_lat': [40.0, 40.0, 40.0],
+        'grid_lon': [-73.0, -73.0, -73.0],
+    })
+
+    daily = RetrievalCoordinator._build_daily_wet_hours_from_hourly(
+        hourly_df,
+        tz_name='America/New_York',
+        wet_threshold_mm=1.0,
+    )
+
+    assert len(daily) == 1
+    assert daily['wet_hours_per_day'].iloc[0] == 2
+    assert daily['observed_hours'].iloc[0] == 3
+    assert daily['max_hourly_precip_mm'].iloc[0] == pytest.approx(2.1)
+    assert daily['total_precip_mm'].iloc[0] == pytest.approx(3.7)
+
+
+def test_coordinator_retrieve_precipitation_enriches_wet_hours_from_hourly_cache(tmp_path, monkeypatch):
+    """Precipitation retrieval should include wet-hours-per-day metrics from hourly cache."""
+    loc = Location(name="Rain City", lat=40.0, lon=-73.0, tz="America/New_York")
+
+    mock_cds = MagicMock()
+    mock_cds.get_daily_precipitation_series.return_value = pd.DataFrame({
+        'date': ['2024-01-01'],
+        'precip_mm': [2.5],
+        'place_name': ['Rain City'],
+        'grid_lat': [40.0],
+        'grid_lon': [-73.0],
+    })
+    mock_cds.get_hourly_precipitation_series.return_value = pd.DataFrame({
+        'date': [
+            '2024-01-01T12:00:00',
+            '2024-01-01T13:00:00',
+            '2024-01-01T14:00:00',
+        ],
+        'precip_mm': [1.1, 0.3, 1.5],
+        'place_name': ['Rain City', 'Rain City', 'Rain City'],
+        'grid_lat': [40.0, 40.0, 40.0],
+        'grid_lon': [-73.0, -73.0, -73.0],
+    })
+
+    def mock_cds_init(cache_dir, progress_manager=None, config_path=None):
+        return mock_cds
+
+    monkeypatch.setattr('geo_data.data_retrieval.PrecipitationCDS', mock_cds_init)
+
+    result = RetrievalCoordinator(cache_dir=tmp_path, data_cache_dir=tmp_path).retrieve(
+        [loc],
+        2024,
+        2024,
+        measure='daily_precipitation',
+    )
+
+    assert result['wet_hours_per_day'].iloc[0] == 2
+    assert result['max_hourly_precip_mm'].iloc[0] == pytest.approx(1.5)
+    assert result['total_precip_mm'].iloc[0] == pytest.approx(2.9)
+    assert result['observed_hours'].iloc[0] == 3
 
 
 def test_coordinator_override_fetch_mode_solar(tmp_path, monkeypatch):
@@ -356,6 +478,255 @@ def test_read_and_save_data_file_precipitation_measure(tmp_path):
     assert 'precip_mm' in df2.columns
     assert df2['precip_mm'].tolist() == [1.0, 2.5]
     assert 'temp_F' not in df2.columns
+
+
+def test_read_and_save_data_file_hourly_precipitation_measure(tmp_path):
+    """Test hourly precipitation measure cache round-trip with hour-level granularity."""
+    loc = Location(name="Rain Hourly", lat=40.0, lon=-73.0, tz="America/New_York")
+    df = pd.DataFrame({
+        'date': [
+            '2025-01-01T00:00:00',
+            '2025-01-01T01:00:00',
+            '2025-01-02T00:00:00',
+        ],
+        'precip_mm': [0.125, 1.5, 0.0],
+        'grid_lat': [40.0, 40.0, 40.0],
+        'grid_lon': [-73.0, -73.0, -73.0],
+        'place_name': ['Rain Hourly', 'Rain Hourly', 'Rain Hourly'],
+    })
+    out_file = tmp_path / "rain_hourly.yaml"
+
+    cache_store.save_data_file(df, out_file, loc, measure='hourly_precipitation')
+    df2 = cache_store.read_data_file(out_file, measure='hourly_precipitation')
+
+    assert not df2.empty
+    assert 'precip_mm' in df2.columns
+    assert len(df2) == 3
+    assert sorted(df2['date'].dt.hour.unique().tolist()) == [0, 1]
+    assert df2.sort_values('date')['precip_mm'].tolist() == [0.125, 1.5, 0.0]
+
+
+def test_save_data_file_backfills_missing_hourly_variable_metadata(tmp_path):
+    """Appending to an existing cache should backfill hourly variable metadata when missing."""
+    loc = Location(name="Backfill City", lat=40.0, lon=-73.0, tz="America/New_York")
+    out_file = tmp_path / "backfill_city.yaml"
+
+    daily_df = pd.DataFrame({
+        'date': ['2025-01-01'],
+        'precip_mm': [2.0],
+        'grid_lat': [40.0],
+        'grid_lon': [-73.0],
+        'place_name': ['Backfill City'],
+    })
+    cache_store.save_data_file(daily_df, out_file, loc, measure='daily_precipitation')
+
+    doc = yaml.safe_load(out_file.read_text())
+    doc[DATA_KEY]['hourly_precip_mm'] = {2025: {1: {1: {0: 0.5}}}}
+    doc['variables'].pop('hourly_precip_mm', None)
+    with open(out_file, 'w') as f:
+        yaml.safe_dump(doc, f)
+
+    cache_store.save_data_file(daily_df, out_file, loc, append=True, measure='daily_precipitation')
+
+    updated = yaml.safe_load(out_file.read_text())
+    assert 'hourly_precip_mm' in updated['variables']
+    assert updated['variables']['hourly_precip_mm']['units'] == 'mm'
+
+
+def test_save_data_file_updates_cache_summary(tmp_path):
+    """Saving cache data should update cache_summary.yaml with place/measure/year coverage."""
+    loc = Location(name="Amsterdam, Netherlands", lat=52.37, lon=4.9, tz="Europe/Amsterdam")
+    out_file = tmp_path / "Amsterdam_Netherlands.yaml"
+    df = pd.DataFrame({
+        'date': ['2025-01-01', '2025-01-02'],
+        'precip_mm': [1.0, 2.0],
+        'grid_lat': [52.25, 52.25],
+        'grid_lon': [5.0, 5.0],
+        'place_name': ['Amsterdam, Netherlands', 'Amsterdam, Netherlands'],
+    })
+
+    cache_store.save_data_file(df, out_file, loc, measure='daily_precipitation')
+
+    summary_file = tmp_path / 'cache_summary.yaml'
+    assert summary_file.exists()
+    summary_text = summary_file.read_text()
+    assert "daily_precipitation: {year_ranges: ['2025']}" in summary_text
+    summary = yaml.safe_load(summary_file.read_text())
+
+    entry = summary['files']['Amsterdam_Netherlands.yaml']
+    assert entry['place_name'] == 'Amsterdam, Netherlands'
+    assert entry['country'] == 'Netherlands'
+    assert set(entry['measures'].keys()) == {
+        'noon_temperature',
+        'daily_precipitation',
+        'hourly_precipitation',
+        'daily_solar_radiation_energy',
+    }
+    assert entry['measures']['daily_precipitation']['year_ranges'] == ['2025']
+    assert entry['measures']['hourly_precipitation']['year_ranges'] == []
+    assert entry['measures']['noon_temperature']['year_ranges'] == []
+    assert entry['measures']['daily_solar_radiation_energy']['year_ranges'] == []
+    assert 'year_range' not in entry['measures']['daily_precipitation']
+    assert 'value_count' not in entry['measures']['daily_precipitation']
+    assert 'start_year' not in entry['measures']['daily_precipitation']
+    assert 'end_year' not in entry['measures']['daily_precipitation']
+
+
+def test_cache_summary_country_maps_us_state_to_usa(tmp_path):
+    """US state suffixes in place names should normalize to country 'USA' in summary."""
+    loc = Location(name="Austin, TX", lat=30.27, lon=-97.74, tz="America/Chicago")
+    out_file = tmp_path / "Austin_TX.yaml"
+    df = pd.DataFrame({
+        'date': ['2025-01-01'],
+        'precip_mm': [1.0],
+        'grid_lat': [30.25],
+        'grid_lon': [-97.75],
+        'place_name': ['Austin, TX'],
+    })
+
+    cache_store.save_data_file(df, out_file, loc, measure='daily_precipitation')
+
+    summary_file = tmp_path / 'cache_summary.yaml'
+    summary = yaml.safe_load(summary_file.read_text())
+    entry = summary['files']['Austin_TX.yaml']
+    assert entry['country'] == 'USA'
+
+
+def test_get_cached_years_uses_cache_summary_without_cache_read(tmp_path):
+    """Cached years lookup should use summary index when available."""
+    loc = Location(name="Summary City", lat=40.0, lon=-73.0, tz="America/New_York")
+    out_file = tmp_path / "Summary_City.yaml"
+    df = pd.DataFrame({
+        'date': ['2024-01-01'],
+        'precip_mm': [2.0],
+        'grid_lat': [40.0],
+        'grid_lon': [-73.0],
+        'place_name': ['Summary City'],
+    })
+
+    cache_store.save_data_file(df, out_file, loc, measure='daily_precipitation')
+
+    original_loader = cache_store.cache_codec.load_cache_data_v2
+
+    def _loader_should_not_be_called(*args, **kwargs):
+        raise AssertionError("Expected get_cached_years to use cache summary without reading YAML payload")
+
+    cache_store.cache_codec.load_cache_data_v2 = _loader_should_not_be_called
+    try:
+        years = cache_store.get_cached_years(out_file, measure='daily_precipitation')
+    finally:
+        cache_store.cache_codec.load_cache_data_v2 = original_loader
+
+    assert years == {2024}
+
+
+def test_get_cached_years_expands_compact_year_ranges(tmp_path):
+    """Cached year lookup should expand compressed range tokens from summary."""
+    loc = Location(name="Range City", lat=40.0, lon=-73.0, tz="America/New_York")
+    out_file = tmp_path / "Range_City.yaml"
+    df = pd.DataFrame({
+        'date': ['2025-01-01'],
+        'precip_mm': [2.0],
+        'grid_lat': [40.0],
+        'grid_lon': [-73.0],
+        'place_name': ['Range City'],
+    })
+    cache_store.save_data_file(df, out_file, loc, measure='daily_precipitation')
+
+    summary_file = tmp_path / 'cache_summary.yaml'
+    summary_doc = yaml.safe_load(summary_file.read_text())
+    entry = summary_doc['files']['Range_City.yaml']['measures']['daily_precipitation']
+    entry['year_ranges'] = ['2020-2022', '2024', '2025-2026']
+    with open(summary_file, 'w') as f:
+        yaml.safe_dump(summary_doc, f, sort_keys=False)
+
+    years = cache_store.get_cached_years(out_file, measure='daily_precipitation')
+    assert years == {2020, 2021, 2022, 2024, 2025, 2026}
+
+
+def test_cache_status_for_precipitation_requires_hourly_and_daily(tmp_path):
+    """Precipitation cache status should consider a year cached only when both daily and hourly data exist."""
+    loc = Location(name="Rain City", lat=40.0, lon=-73.0, tz="America/New_York")
+    data_cache_dir = tmp_path / "data_cache"
+    cache_file = data_cache_dir / "Rain_City.yaml"
+
+    daily_df = pd.DataFrame({
+        'date': ['2024-01-01'],
+        'precip_mm': [2.0],
+        'grid_lat': [40.0],
+        'grid_lon': [-73.0],
+        'place_name': ['Rain City'],
+    })
+    cache_store.save_data_file(daily_df, cache_file, loc, measure='daily_precipitation')
+
+    coordinator = RetrievalCoordinator(cache_dir=tmp_path, data_cache_dir=data_cache_dir)
+    _, cached_years, missing_years = coordinator._cache_status_for_location(
+        loc,
+        {2024},
+        'daily_precipitation',
+    )
+    assert cached_years == set()
+    assert missing_years == [2024]
+
+    hourly_df = pd.DataFrame({
+        'date': ['2024-01-01T00:00:00'],
+        'precip_mm': [0.5],
+        'grid_lat': [40.0],
+        'grid_lon': [-73.0],
+        'place_name': ['Rain City'],
+    })
+    cache_store.save_data_file(hourly_df, cache_file, loc, measure='hourly_precipitation', append=True)
+
+    _, cached_years, missing_years = coordinator._cache_status_for_location(
+        loc,
+        {2024},
+        'daily_precipitation',
+    )
+    assert cached_years == {2024}
+    assert missing_years == []
+
+
+def test_cache_status_for_precipitation_uses_summary_without_payload_read(tmp_path):
+    """Precipitation cache status should use cache summary lookups for daily+hourly checks."""
+    loc = Location(name="Summary Rain", lat=40.0, lon=-73.0, tz="America/New_York")
+    data_cache_dir = tmp_path / "data_cache"
+    cache_file = data_cache_dir / "Summary_Rain.yaml"
+
+    daily_df = pd.DataFrame({
+        'date': ['2024-01-01'],
+        'precip_mm': [2.0],
+        'grid_lat': [40.0],
+        'grid_lon': [-73.0],
+        'place_name': ['Summary Rain'],
+    })
+    hourly_df = pd.DataFrame({
+        'date': ['2024-01-01T00:00:00'],
+        'precip_mm': [0.5],
+        'grid_lat': [40.0],
+        'grid_lon': [-73.0],
+        'place_name': ['Summary Rain'],
+    })
+    cache_store.save_data_file(daily_df, cache_file, loc, measure='daily_precipitation')
+    cache_store.save_data_file(hourly_df, cache_file, loc, measure='hourly_precipitation', append=True)
+
+    coordinator = RetrievalCoordinator(cache_dir=tmp_path, data_cache_dir=data_cache_dir)
+    original_loader = coordinator.cache_store.cache_codec.load_cache_data_v2
+
+    def _loader_should_not_be_called(*args, **kwargs):
+        raise AssertionError("Expected summary-based year lookup without cache payload read")
+
+    coordinator.cache_store.cache_codec.load_cache_data_v2 = _loader_should_not_be_called
+    try:
+        _, cached_years, missing_years = coordinator._cache_status_for_location(
+            loc,
+            {2024},
+            'daily_precipitation',
+        )
+    finally:
+        coordinator.cache_store.cache_codec.load_cache_data_v2 = original_loader
+
+    assert cached_years == {2024}
+    assert missing_years == []
 
 
 def test_read_and_save_data_file_solar_radiation_measure(tmp_path):
@@ -947,6 +1318,7 @@ def test_measure_value_columns_can_be_loaded_from_schema(monkeypatch):
         'measure_value_columns': {
             'noon_temperature': 'temp_c_custom',
             'daily_precipitation': 'rain_mm_custom',
+            'hourly_precipitation': 'rain_hourly_custom',
             'daily_solar_radiation_energy': 'solar_custom',
         }
     })
@@ -955,6 +1327,7 @@ def test_measure_value_columns_can_be_loaded_from_schema(monkeypatch):
     loaded = MeasureRegistry._load_measure_to_value_column_mapping()
     assert loaded['noon_temperature'] == 'temp_c_custom'
     assert loaded['daily_precipitation'] == 'rain_mm_custom'
+    assert loaded['hourly_precipitation'] == 'rain_hourly_custom'
     assert loaded['daily_solar_radiation_energy'] == 'solar_custom'
 
 
@@ -979,11 +1352,13 @@ def test_measure_registry_builds_from_schema(monkeypatch):
             'measure_cache_vars': {
                 'noon_temperature': 'noon_temp_custom',
                 'daily_precipitation': 'daily_precip_custom',
+                'hourly_precipitation': 'hourly_precip_custom',
                 'daily_solar_radiation_energy': 'daily_solar_custom',
             },
             'measure_value_columns': {
                 'noon_temperature': 'temp_custom',
                 'daily_precipitation': 'precip_custom',
+                'hourly_precipitation': 'precip_hourly_custom',
                 'daily_solar_radiation_energy': 'solar_custom',
             },
         },

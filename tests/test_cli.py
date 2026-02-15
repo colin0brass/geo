@@ -101,6 +101,19 @@ def test_parse_args_with_list_places_short_option():
         assert args.list_places is True
 
 
+def test_parse_args_with_cache_summary_flag():
+    with patch('sys.argv', ['geo.py', '--cache-summary']):
+        args = parse_args()
+        assert args.cache_summary is True
+        assert args.rebuild_cache_summary is False
+
+
+def test_parse_args_with_rebuild_cache_summary_flag():
+    with patch('sys.argv', ['geo.py', '--rebuild-cache-summary']):
+        args = parse_args()
+        assert args.rebuild_cache_summary is True
+
+
 def test_parse_args_with_all():
     with patch('sys.argv', ['geo.py', '--all']):
         args = parse_args()
@@ -507,22 +520,15 @@ def test_parse_args_grid_default():
         assert args.grid is None
 
 
-def test_parse_args_with_list_years():
-    """Test parsing --list-years argument."""
+def test_parse_args_rejects_list_years_short_option():
+    """Removed -ly shorthand should no longer map to a list-years flag."""
     with patch('sys.argv', ['geo.py', '-ly']):
         args = parse_args()
-        assert args.list_years is True
+        assert args.place_list == 'y'
 
 
-def test_parse_args_list_years_long_form():
-    """Test parsing --list-years with long form."""
+def test_parse_args_rejects_list_years_long_option():
+    """Removed --list-years option should now raise a CLI error."""
     with patch('sys.argv', ['geo.py', '--list-years']):
-        args = parse_args()
-        assert args.list_years is True
-
-
-def test_parse_args_list_years_default():
-    """Test that list_years is False by default."""
-    with patch('sys.argv', ['geo.py']):
-        args = parse_args()
-        assert args.list_years is False
+        with pytest.raises(CLIError):
+            parse_args()

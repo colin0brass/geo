@@ -1,0 +1,443 @@
+summary_version: 1
+updated_at: '2026-02-15T08:25:54.914347Z'
+files:
+  Amsterdam_Netherlands.yaml:
+    place_name: Amsterdam, Netherlands
+    country: Netherlands
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Anchorage_AK.yaml:
+    place_name: Anchorage, AK
+    country: USA
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Athens_Greece.yaml:
+    place_name: Athens, Greece
+    country: Greece
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Auckland_New_Zealand.yaml:
+    place_name: Auckland, New Zealand
+    country: New Zealand
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Austin_TX.yaml:
+    place_name: Austin, TX
+    country: USA
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: ['2025']}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Bangalore_India.yaml:
+    place_name: Bangalore, India
+    country: India
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: ['2025']}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Bangkok_Thailand.yaml:
+    place_name: Bangkok, Thailand
+    country: Thailand
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Barcelona_Spain.yaml:
+    place_name: Barcelona, Spain
+    country: Spain
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Beijing_China.yaml:
+    place_name: Beijing, China
+    country: China
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: ['2025']}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Berlin_Germany.yaml:
+    place_name: Berlin, Germany
+    country: Germany
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Brisbane_Australia.yaml:
+    place_name: Brisbane, Australia
+    country: Australia
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Buenos_Aires_Argentina.yaml:
+    place_name: Buenos Aires, Argentina
+    country: Argentina
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Cairo_Egypt.yaml:
+    place_name: Cairo, Egypt
+    country: Egypt
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Cambridge_UK.yaml:
+    place_name: Cambridge, UK
+    country: UK
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: ['2025']}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Cape_Town_South_Africa.yaml:
+    place_name: Cape Town, South Africa
+    country: South Africa
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Copenhagen_Denmark.yaml:
+    place_name: Copenhagen, Denmark
+    country: Denmark
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Delhi_India.yaml:
+    place_name: Delhi, India
+    country: India
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Denver_CO.yaml:
+    place_name: Denver, CO
+    country: USA
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Dubai_UAE.yaml:
+    place_name: Dubai, UAE
+    country: UAE
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Hong_Kong.yaml:
+    place_name: Hong Kong
+    country: ''
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Johannesburg_South_Africa.yaml:
+    place_name: Johannesburg, South Africa
+    country: South Africa
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Lagos_Nigeria.yaml:
+    place_name: Lagos, Nigeria
+    country: Nigeria
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Lima_Peru.yaml:
+    place_name: Lima, Peru
+    country: Peru
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  London_UK.yaml:
+    place_name: London, UK
+    country: UK
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Lund_Sweden.yaml:
+    place_name: Lund, Sweden
+    country: Sweden
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Madrid_Spain.yaml:
+    place_name: Madrid, Spain
+    country: Spain
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Melbourne_Australia.yaml:
+    place_name: Melbourne, Australia
+    country: Australia
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Miami_FL.yaml:
+    place_name: Miami, FL
+    country: USA
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Montreal_Canada.yaml:
+    place_name: Montreal, Canada
+    country: Canada
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Moscow_Russia.yaml:
+    place_name: Moscow, Russia
+    country: Russia
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Mumbai_India.yaml:
+    place_name: Mumbai, India
+    country: India
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Munich_Germany.yaml:
+    place_name: Munich, Germany
+    country: Germany
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Nairobi_Kenya.yaml:
+    place_name: Nairobi, Kenya
+    country: Kenya
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Paris_France.yaml:
+    place_name: Paris, France
+    country: France
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Perth_Australia.yaml:
+    place_name: Perth, Australia
+    country: Australia
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Phoenix_AZ.yaml:
+    place_name: Phoenix, AZ
+    country: USA
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Reykjavik_Iceland.yaml:
+    place_name: Reykjavik, Iceland
+    country: Iceland
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Rio_de_Janeiro_Brazil.yaml:
+    place_name: Rio de Janeiro, Brazil
+    country: Brazil
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Rome_Italy.yaml:
+    place_name: Rome, Italy
+    country: Italy
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  San_Diego_CA.yaml:
+    place_name: San Diego, CA
+    country: USA
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  San_Jose_CA.yaml:
+    place_name: San Jose, CA
+    country: USA
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: ['2025']}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Santiago_Chile.yaml:
+    place_name: Santiago, Chile
+    country: Chile
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Seattle_WA.yaml:
+    place_name: Seattle, WA
+    country: USA
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Seoul_South_Korea.yaml:
+    place_name: Seoul, South Korea
+    country: South Korea
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Shanghai_China.yaml:
+    place_name: Shanghai, China
+    country: China
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Singapore.yaml:
+    place_name: Singapore
+    country: ''
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Stockholm_Sweden.yaml:
+    place_name: Stockholm, Sweden
+    country: Sweden
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Sydney_Australia.yaml:
+    place_name: Sydney, Australia
+    country: Australia
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  São_Paulo_Brazil.yaml:
+    place_name: São Paulo, Brazil
+    country: Brazil
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Tokyo_Japan.yaml:
+    place_name: Tokyo, Japan
+    country: Japan
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Tromsø_Norway.yaml:
+    place_name: Tromsø, Norway
+    country: Norway
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Trondheim_Norway.yaml:
+    place_name: Trondheim, Norway
+    country: Norway
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: ['2025']}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Ulaanbaatar_Mongolia.yaml:
+    place_name: Ulaanbaatar, Mongolia
+    country: Mongolia
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Vienna_Austria.yaml:
+    place_name: Vienna, Austria
+    country: Austria
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Zurich_Switzerland.yaml:
+    place_name: Zurich, Switzerland
+    country: Switzerland
+    measures:
+      noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: []}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}

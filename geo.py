@@ -11,7 +11,18 @@ import tempfile
 import time
 from pathlib import Path
 
-from cli import parse_args, parse_grid, parse_years, get_place_list, list_places_and_exit, list_years_and_exit, load_colour_mode, load_colormap, validate_measures_support, CLIError
+from cli import (
+    parse_args,
+    parse_grid,
+    parse_years,
+    get_place_list,
+    list_places_and_exit,
+    list_cache_summary_and_exit,
+    load_colour_mode,
+    load_colormap,
+    validate_measures_support,
+    CLIError,
+)
 from config_manager import load_places, add_place_to_config
 from geo_data.data_retrieval import RetrievalCoordinator
 from geo_core.progress import get_progress_manager
@@ -192,9 +203,12 @@ def main() -> int:
     # Handle verbose/quiet flags for console output
     _configure_console_logging(args, logger)
 
-    # Handle --list-years flag (exits after listing)
-    if args.list_years:
-        list_years_and_exit(args.data_cache_dir)
+    # Handle cache summary reporting flags (exits after report)
+    if args.cache_summary or args.rebuild_cache_summary:
+        list_cache_summary_and_exit(
+            args.data_cache_dir,
+            rebuild=bool(args.rebuild_cache_summary),
+        )
 
     # Handle --list-places flag (exits after listing)
     if args.list_places:

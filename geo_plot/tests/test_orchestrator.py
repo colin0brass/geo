@@ -274,6 +274,7 @@ def test_orchestrator_passes_plot_format_to_visualizer(mock_visualizer_class, tm
             "      unit: mm/day",
             "      plot_format: radial_wedges",
             "      wedge_width_scale: 1.5",
+            "      max_y_steps: 4",
             "      y_value_column: precip_mm",
             "      range_text: '{measure_label}: {min_value:.1f}-{max_value:.1f} {measure_unit}'",
         ])
@@ -308,6 +309,7 @@ def test_orchestrator_passes_plot_format_to_visualizer(mock_visualizer_class, tm
     vis_kwargs = mock_visualizer_class.call_args[1]
     assert vis_kwargs['plot_format'] == 'radial_wedges'
     assert vis_kwargs['wedge_width_scale'] == 1.5
+    assert vis_kwargs['max_y_steps'] == 4
 
 
 @patch('geo_plot.orchestrator.Visualizer')

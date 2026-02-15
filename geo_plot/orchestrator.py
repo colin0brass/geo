@@ -130,6 +130,7 @@ class PlotOrchestrator:
             t_min_c=run_ctx.t_min_c,
             t_max_c=run_ctx.t_max_c,
             y_step=self.measure_meta.get('y_step'),
+            max_y_steps=self.measure_meta.get('max_y_steps'),
             settings_file=self.settings,
             y_value_column=self.y_value_column,
             range_text_template=self.range_text_template,
