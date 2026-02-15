@@ -6,6 +6,7 @@ import logging
 from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 import yaml
@@ -53,6 +54,45 @@ class CacheStore:
 
     def __init__(self, cache_codec: CacheCodec | None = None) -> None:
         self.cache_codec = DEFAULT_CACHE_CODEC if cache_codec is None else cache_codec
+        self._document_cache: dict[Path, tuple[int, int, dict[str, Any]]] = {}
+
+    @staticmethod
+    def _file_signature(path: Path) -> tuple[int, int] | None:
+        """Return (mtime_ns, size) signature for a file, or None if unavailable."""
+        try:
+            stat = path.stat()
+        except FileNotFoundError:
+            return None
+        return stat.st_mtime_ns, stat.st_size
+
+    def _load_cache_document(self, yaml_file: Path) -> dict[str, Any]:
+        """Load cache YAML with per-process in-memory reuse when file signature matches."""
+        signature = self._file_signature(yaml_file)
+        cached_entry = self._document_cache.get(yaml_file)
+        if signature is not None and cached_entry is not None:
+            cached_mtime_ns, cached_size, cached_doc = cached_entry
+            if (cached_mtime_ns, cached_size) == signature:
+                return cached_doc
+
+        data = self.cache_codec.load_cache_data_v2(yaml_file, auto_migrate=True)
+        updated_signature = self._file_signature(yaml_file)
+        if updated_signature is not None:
+            self._document_cache[yaml_file] = (
+                updated_signature[0],
+                updated_signature[1],
+                data,
+            )
+        else:
+            self._document_cache.pop(yaml_file, None)
+        return data
+
+    def _cache_loaded_document(self, yaml_file: Path, data: dict[str, Any]) -> None:
+        """Store loaded/written cache document in in-memory cache when file exists."""
+        signature = self._file_signature(yaml_file)
+        if signature is None:
+            self._document_cache.pop(yaml_file, None)
+            return
+        self._document_cache[yaml_file] = (signature[0], signature[1], data)
 
     @staticmethod
     def _empty_result_columns(measure: str, value_column: str) -> list[str]:
@@ -194,7 +234,7 @@ class CacheStore:
         if not out_file.exists():
             return None
         try:
-            return self.cache_codec.load_cache_data_v2(out_file, auto_migrate=True)
+            return self._load_cache_document(out_file)
         except Exception as exc:
             if append:
                 logger.warning(f"Error loading existing cache for append: {exc}. Overwriting.")
@@ -489,7 +529,7 @@ class CacheStore:
             if yaml_file.name == summary_file.name:
                 continue
             try:
-                cache_data = self.cache_codec.load_cache_data_v2(yaml_file, auto_migrate=True)
+                cache_data = self._load_cache_document(yaml_file)
                 files[yaml_file.name] = self._build_summary_entry_from_payload(cache_data)
             except Exception as exc:
                 logger.warning(f"Skipping cache summary entry for {yaml_file}: {exc}")
@@ -566,7 +606,7 @@ class CacheStore:
             if years_from_summary:
                 return years_from_summary
 
-            data = self.cache_codec.load_cache_data_v2(yaml_file, auto_migrate=True)
+            data = self._load_cache_document(yaml_file)
             self._update_cache_summary_from_payload(yaml_file, data)
             value_map = data[DATA_KEY].get(DEFAULT_MEASURE_REGISTRY.get_cache_var(measure), {})
             if value_map:
@@ -594,7 +634,7 @@ class CacheStore:
         Returns:
             DataFrame with parsed dates and selected measure data.
         """
-        data = self.cache_codec.load_cache_data_v2(in_file, auto_migrate=True)
+        data = self._load_cache_document(in_file)
 
         place_info = data['place']
         cache_var = DEFAULT_MEASURE_REGISTRY.get_cache_var(measure)
@@ -697,6 +737,7 @@ class CacheStore:
 
         yaml_data = self._build_yaml_payload(location, grid_lat, grid_lon, metadata, data_section)
         self.cache_codec.write_cache_yaml_v2(yaml_data, out_file)
+        self._cache_loaded_document(out_file, yaml_data)
         self._update_cache_summary_from_payload(out_file, yaml_data)
 
         logger.info(f"Saved data to {out_file}")

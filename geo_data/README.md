@@ -34,6 +34,7 @@ Configuration parsing/validation and shared defaults live in `geo_core`.
   - retrieval orchestration class (`RetrievalCoordinator`)
 - `cache_store.py`
   - cache path/read/write class (`CacheStore`)
+  - in-process cache-document reuse keyed by file signature for faster repeated reads
 - `schema.py`
   - schema model (`Schema`) and default loaded schema (`DEFAULT_SCHEMA`)
   - schema registry loading and core schema constants
@@ -43,6 +44,7 @@ Configuration parsing/validation and shared defaults live in `geo_core`.
   - schema-version detection and migration helpers
 - `cache_codec.py`
   - YAML read/write and migration codec helpers
+  - uses fastest available safe loader path for cache YAML reads
 - `schema.yaml`
   - schema registry and migration metadata for cached YAML files
 
@@ -53,6 +55,12 @@ Configuration parsing/validation and shared defaults live in `geo_core`.
 - Primary loader entry points are `Schema.load()` and `Schema.load_registry(...)`.
 - Current schema supports `measure_cache_vars` and `measure_value_columns` mappings.
 - Supporting modules: `geo_data.measure_mapping`, `geo_data.cache_migration`, and `geo_data.cache_codec`.
+
+## Cache read performance
+
+- Cache YAML documents are read through the fastest available safe PyYAML loader.
+- `CacheStore` reuses parsed cache documents in-process while file signature is unchanged.
+- Cache entries are automatically refreshed when file content changes on disk.
 
 ## Tests
 

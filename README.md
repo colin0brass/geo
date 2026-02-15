@@ -13,6 +13,7 @@
 - 🎯 Smart grid layout with automatic batching for large datasets
 - ⚙️ Highly configurable plotting via YAML settings
 - 🚀 **Two-tier caching system**: NetCDF files (raw) and YAML data files (processed, git-friendly)
+- ⚡ Fast cache reads via C-backed YAML parsing and in-process cache-document reuse
 - 💻 User-friendly CLI with short options and argument validation
 - 🐍 Clean Python API for programmatic use
 - 📊 Real-time progress bars with place/year numbering during data downloads
@@ -181,6 +182,13 @@ df_all = coordinator.retrieve([loc], 2020, 2020, measure="noon_temperature")
   - `geo_data/cache_codec.py`: Cache read/write and migration codec helpers
   - `geo_data/schema.yaml`: Cache schema registry and migration metadata
   - `geo_data/tests/`: Data-layer tests
+
+### Cache performance notes
+
+- Cache YAML reads use the fastest safe PyYAML loader available (`CSafeLoader` when available).
+- Within a single process, parsed cache documents are reused when file signature is unchanged.
+- If a cache file changes on disk, the in-memory entry is invalidated automatically and reloaded.
+- This primarily improves repeated cache-heavy retrieval runs (for example precipitation workflows with many places).
 - `geo_plot/`: Plot-layer package (visualization, orchestration, and plot tests)
   - `geo_plot/visualizer.py`: Polar plotting (`Visualizer`)
   - `geo_plot/settings_manager.py`: Plot settings accessor with row-based scaling

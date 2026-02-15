@@ -702,6 +702,65 @@ def test_get_cached_years_uses_cache_summary_without_cache_read(tmp_path):
     assert years == {2024}
 
 
+def test_read_data_file_reuses_in_memory_yaml_document(tmp_path):
+    """Repeated reads should reuse parsed YAML document when file is unchanged."""
+    local_store = CacheStore()
+    loc = Location(name="Memo City", lat=40.0, lon=-73.0, tz="America/New_York")
+    out_file = tmp_path / "Memo_City.yaml"
+    df = pd.DataFrame({
+        'date': ['2024-01-01'],
+        'precip_mm': [2.0],
+        'grid_lat': [40.0],
+        'grid_lon': [-73.0],
+        'place_name': ['Memo City'],
+    })
+    local_store.save_data_file(df, out_file, loc, measure='daily_precipitation')
+
+    original_loader = local_store.cache_codec.load_cache_data_v2
+    call_count = 0
+
+    def _counting_loader(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        return original_loader(*args, **kwargs)
+
+    local_store.cache_codec.load_cache_data_v2 = _counting_loader
+    try:
+        local_store.read_data_file(out_file, measure='daily_precipitation')
+        local_store.read_data_file(out_file, measure='daily_precipitation')
+    finally:
+        local_store.cache_codec.load_cache_data_v2 = original_loader
+
+    assert call_count <= 1
+
+
+def test_read_data_file_reloads_after_on_disk_change(tmp_path):
+    """Document reuse should invalidate when cache file content changes on disk."""
+    local_store = CacheStore()
+    loc = Location(name="Reload City", lat=40.0, lon=-73.0, tz="America/New_York")
+    out_file = tmp_path / "Reload_City.yaml"
+    df = pd.DataFrame({
+        'date': ['2024-01-01'],
+        'precip_mm': [2.0],
+        'grid_lat': [40.0],
+        'grid_lon': [-73.0],
+        'place_name': ['Reload City'],
+    })
+    local_store.save_data_file(df, out_file, loc, measure='daily_precipitation')
+
+    first = local_store.read_data_file(out_file, measure='daily_precipitation')
+    assert len(first) == 1
+
+    doc = yaml.safe_load(out_file.read_text())
+    doc[DATA_KEY]['daily_precip_mm'][2024][1][2] = 3.5
+    with open(out_file, 'w') as f:
+        yaml.safe_dump(doc, f)
+
+    second = local_store.read_data_file(out_file, measure='daily_precipitation')
+    assert len(second) == 2
+    assert sorted(second['precip_mm'].tolist()) == [2.0, 3.5]
+
+
 def test_get_cached_years_expands_compact_year_ranges(tmp_path):
     """Cached year lookup should expand compressed range tokens from summary."""
     loc = Location(name="Range City", lat=40.0, lon=-73.0, tz="America/New_York")
