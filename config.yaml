@@ -55,7 +55,7 @@ plotting:
   # Measure display labels and units used in templated plot text
   measures:
     noon_temperature:
-      overall_title: "Temperature ({year_range})"
+      overall_title: "Noon Temperature ({year_range})"
       label: "Mid-Day Temperature"
       unit: "°C"
       colour_mode: y_value
@@ -63,7 +63,7 @@ plotting:
       y: {step: 10, max_steps: 4}
       range_text: "{min_temp_c:.1f}°C to {max_temp_c:.1f}°C; ({min_temp_f:.1f}°F to {max_temp_f:.1f}°F)"
     daily_precipitation:
-      overall_title: "Precipitation ({year_range})"
+      overall_title: "Daily Precipitation ({year_range})"
       label: "Wet Hours per Day"
       unit: "h" # Using "h" for hours to keep range text concise; can be expanded to "hours" if desired
       colour_mode: colour_value
@@ -75,7 +75,7 @@ plotting:
       colour_value_column: "max_hourly_precip_mm"
       colourbar_title: "mm/hr"
     daily_solar_radiation_energy:
-      overall_title: "Solar ({year_range})"
+      overall_title: "Daily Solar Radiation ({year_range})"
       label: "Daily Solar Radiation"
       unit: "MJ/m²"
       colour_mode: y_value
