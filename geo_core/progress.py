@@ -46,6 +46,21 @@ class ProgressHandler(Protocol):
         """Called when processing completes for a month within a year."""
         ...
 
+    def on_stage_progress(
+        self,
+        stage_label: str,
+        item_label: str,
+        current_item: int,
+        total_items: int,
+        detail: str | None = None,
+    ) -> None:
+        """Called for generic one-line progress updates (for example cache/plot phases)."""
+        ...
+
+    def on_stage_complete(self, stage_label: str) -> None:
+        """Called when a generic stage progress stream is complete."""
+        ...
+
 
 class ProgressManager:
     """Manages progress event handlers and dispatches events."""
@@ -109,6 +124,27 @@ class ProgressManager:
             month_complete = getattr(handler, "on_month_complete", None)
             if callable(month_complete):
                 month_complete(location_name, year, month, current_month, total_months)
+
+    def notify_stage_progress(
+        self,
+        stage_label: str,
+        item_label: str,
+        current_item: int,
+        total_items: int,
+        detail: str | None = None,
+    ) -> None:
+        """Notify handlers about generic one-line stage progress (if supported)."""
+        for handler in self.handlers:
+            stage_progress = getattr(handler, "on_stage_progress", None)
+            if callable(stage_progress):
+                stage_progress(stage_label, item_label, current_item, total_items, detail)
+
+    def notify_stage_complete(self, stage_label: str) -> None:
+        """Notify handlers that generic one-line stage progress is complete (if supported)."""
+        for handler in self.handlers:
+            stage_complete = getattr(handler, "on_stage_complete", None)
+            if callable(stage_complete):
+                stage_complete(stage_label)
 
 
 _progress_manager = ProgressManager()

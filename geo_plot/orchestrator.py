@@ -16,6 +16,7 @@ import pandas as pd
 from geo_data.cds_base import Location
 from geo_core.config import CoreConfigService, get_plot_text, load_measures_config, load_plot_text_config
 from geo_core.grid import calculate_grid_layout
+from geo_core.progress import get_progress_manager
 from .visualizer import Visualizer
 
 logger = logging.getLogger("geo")
@@ -47,6 +48,7 @@ class PlotOrchestrator:
         self.measure = measure
         self.colormap_name = colormap_name
         self.config_service = CoreConfigService(config)
+        self.progress_mgr = get_progress_manager()
 
         self._plot_text_config: dict | None = None
         self.measures = load_measures_config(config)
@@ -342,6 +344,14 @@ class PlotOrchestrator:
             batch_places = place_list[start_idx:end_idx]
             batch_size = len(batch_places)
 
+            self.progress_mgr.notify_stage_progress(
+                "Plot output",
+                f"batch {batch_idx + 1}",
+                batch_idx + 1,
+                num_batches,
+                detail=f"{batch_size} place(s)",
+            )
+
             batch_place_names = [p.name for p in batch_places]
             df_batch = df_overall[df_overall['place_name'].isin(batch_place_names)]
 
@@ -362,6 +372,9 @@ class PlotOrchestrator:
                 list_name=list_name,
             )
             batch_plot_files.append(plot_file)
+
+        if num_batches:
+            self.progress_mgr.notify_stage_complete("Plot output")
 
         return batch_plot_files
 
@@ -429,7 +442,15 @@ def plot_all(
             t_min_c=t_min_c,
             t_max_c=t_max_c,
         )
+        orchestrator.progress_mgr.notify_stage_progress(
+            "Plot output",
+            loc.name,
+            1,
+            1,
+            detail=measure,
+        )
         plot_file = orchestrator.create_individual_plot(loc=loc, df=df, run_ctx=run_ctx)
+        orchestrator.progress_mgr.notify_stage_complete("Plot output")
 
         # Show plot if requested
         if show_main or show_individual:

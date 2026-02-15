@@ -200,11 +200,23 @@ class RetrievalCoordinator:
         daily = df_precip.copy()
         daily['date'] = pd.to_datetime(daily['date'])
 
+        hourly_cache_locations = [
+            loc for loc in place_list
+            if self.cache_store.cache_yaml_path_for_place(self.data_cache_dir, loc.name).exists()
+        ]
+        total_hourly_cache_locations = len(hourly_cache_locations)
+
         wet_daily_frames: list[pd.DataFrame] = []
-        for loc in place_list:
+        for cache_loc_idx, loc in enumerate(hourly_cache_locations, 1):
             yaml_file = self.cache_store.cache_yaml_path_for_place(self.data_cache_dir, loc.name)
-            if not yaml_file.exists():
-                continue
+
+            self.progress_mgr.notify_stage_progress(
+                "Cache load",
+                loc.name,
+                cache_loc_idx,
+                total_hourly_cache_locations,
+                detail="hourly_precipitation",
+            )
 
             df_hourly = self.cache_store.read_data_file(
                 yaml_file,
@@ -225,6 +237,9 @@ class RetrievalCoordinator:
 
             wet_daily['place_name'] = loc.name
             wet_daily_frames.append(wet_daily)
+
+        if total_hourly_cache_locations:
+            self.progress_mgr.notify_stage_complete("Cache load")
 
         if wet_daily_frames:
             wet_daily_all = pd.concat(wet_daily_frames, ignore_index=True)
@@ -405,7 +420,20 @@ class RetrievalCoordinator:
         df_overall = pd.DataFrame()
         requested_years = set(range(start_year, end_year + 1))
 
-        places_needing_cds = self._plan_places_needing_cds(place_list, requested_years, measure)
+        location_cache_status = []
+        places_needing_cds: list[str] = []
+        total_cache_load_locations = 0
+        for loc in place_list:
+            yaml_file, cached_years, missing_years = self._cache_status_for_location(
+                loc,
+                requested_years,
+                measure,
+            )
+            location_cache_status.append((loc, yaml_file, cached_years, missing_years))
+            if missing_years:
+                places_needing_cds.append(loc.name)
+            if cached_years and not (self.overwrite_existing_cache_values and missing_years):
+                total_cache_load_locations += 1
 
         summary_text = format_retrieval_summary(places_needing_cds, measure)
         if self.status_reporter:
@@ -413,15 +441,20 @@ class RetrievalCoordinator:
 
         cds_place_num = 0
         total_cds_places = len(places_needing_cds)
+        cache_load_idx = 0
 
-        for loc in place_list:
-            yaml_file, cached_years, missing_years = self._cache_status_for_location(
-                loc,
-                requested_years,
-                measure,
-            )
+        for loc, yaml_file, cached_years, missing_years in location_cache_status:
 
             if not (self.overwrite_existing_cache_values and missing_years):
+                if cached_years:
+                    cache_load_idx += 1
+                    self.progress_mgr.notify_stage_progress(
+                        "Cache load",
+                        loc.name,
+                        cache_load_idx,
+                        total_cache_load_locations,
+                        detail=f"{measure} ({min(cached_years)}-{max(cached_years)})",
+                    )
                 df_overall = self._load_cached_location_data(
                     df_overall,
                     loc,
@@ -443,6 +476,9 @@ class RetrievalCoordinator:
                     total_cds_places,
                 )
                 df_overall = pd.concat([df_overall, df_new], ignore_index=True)
+
+        if total_cache_load_locations:
+            self.progress_mgr.notify_stage_complete("Cache load")
 
         if measure == 'daily_precipitation' and not df_overall.empty:
             df_overall = self._enrich_precipitation_with_wet_hours(

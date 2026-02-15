@@ -13,6 +13,28 @@ __all__ = ["ProgressHandler", "ProgressManager", "get_progress_manager", "Consol
 class ConsoleProgressHandler:
     """Console-based progress handler with progress bars."""
 
+    def _render_stage_progress_line(
+        self,
+        stage_label: str,
+        item_label: str,
+        current_item: int,
+        total_items: int,
+        detail: str | None = None,
+    ) -> None:
+        """Render a single-line generic stage progress bar."""
+        total = max(total_items, 1)
+        current = min(max(current_item, 0), total)
+        bar_width = 16
+        filled = int(bar_width * current / total)
+        bar = '█' * filled + '░' * (bar_width - filled)
+        pct = int(100 * current / total)
+        detail_suffix = f" | {detail}" if detail else ""
+        line = (
+            f"\r  {stage_label:<12} {current}/{total} {item_label:<30} "
+            f"[{bar}] {pct}%{detail_suffix}"
+        )
+        print(line, end='', flush=True)
+
     def _render_progress_line(
         self,
         location_name: str,
@@ -143,3 +165,24 @@ class ConsoleProgressHandler:
     def on_location_complete(self, location_name: str) -> None:
         """Location processing complete - move to next line."""
         print()  # Move to next line after location is done
+
+    def on_stage_progress(
+        self,
+        stage_label: str,
+        item_label: str,
+        current_item: int,
+        total_items: int,
+        detail: str | None = None,
+    ) -> None:
+        """Display generic single-line stage progress updates."""
+        self._render_stage_progress_line(
+            stage_label,
+            item_label,
+            current_item,
+            total_items,
+            detail,
+        )
+
+    def on_stage_complete(self, stage_label: str) -> None:
+        """Finalize generic stage progress line."""
+        print()
