@@ -1,5 +1,5 @@
 summary_version: 1
-updated_at: '2026-02-15T08:57:30.928616Z'
+updated_at: '2026-02-15T17:56:06.066979Z'
 files:
   Amsterdam_Netherlands.yaml:
     place_name: Amsterdam, Netherlands
@@ -7,7 +7,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Anchorage_AK.yaml:
     place_name: Anchorage, AK
@@ -15,7 +15,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Athens_Greece.yaml:
     place_name: Athens, Greece
@@ -23,7 +23,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Auckland_New_Zealand.yaml:
     place_name: Auckland, New Zealand
@@ -31,7 +31,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Austin_TX.yaml:
     place_name: Austin, TX
@@ -39,7 +39,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: [2020-2025]}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Bangalore_India.yaml:
     place_name: Bangalore, India
@@ -47,7 +47,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: [2020-2025]}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Bangkok_Thailand.yaml:
     place_name: Bangkok, Thailand
@@ -55,7 +55,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Barcelona_Spain.yaml:
     place_name: Barcelona, Spain
@@ -63,7 +63,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Beijing_China.yaml:
     place_name: Beijing, China
@@ -71,7 +71,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: [2020-2025]}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Berlin_Germany.yaml:
     place_name: Berlin, Germany
@@ -79,7 +79,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Brisbane_Australia.yaml:
     place_name: Brisbane, Australia
@@ -87,7 +87,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Buenos_Aires_Argentina.yaml:
     place_name: Buenos Aires, Argentina
@@ -95,7 +95,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Cairo_Egypt.yaml:
     place_name: Cairo, Egypt
@@ -103,7 +103,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Cambridge_UK.yaml:
     place_name: Cambridge, UK
@@ -111,7 +111,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: [2020-2025]}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Cape_Town_South_Africa.yaml:
     place_name: Cape Town, South Africa
@@ -119,7 +119,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Copenhagen_Denmark.yaml:
     place_name: Copenhagen, Denmark
@@ -127,7 +127,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Delhi_India.yaml:
     place_name: Delhi, India
@@ -135,7 +135,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Denver_CO.yaml:
     place_name: Denver, CO
@@ -143,7 +143,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Dubai_UAE.yaml:
     place_name: Dubai, UAE
@@ -151,7 +151,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Hong_Kong.yaml:
     place_name: Hong Kong
@@ -159,7 +159,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Johannesburg_South_Africa.yaml:
     place_name: Johannesburg, South Africa
@@ -167,7 +167,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Lagos_Nigeria.yaml:
     place_name: Lagos, Nigeria
@@ -175,7 +175,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Lima_Peru.yaml:
     place_name: Lima, Peru
@@ -183,7 +183,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   London_UK.yaml:
     place_name: London, UK
@@ -191,7 +191,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Lund_Sweden.yaml:
     place_name: Lund, Sweden
@@ -199,7 +199,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Madrid_Spain.yaml:
     place_name: Madrid, Spain
@@ -207,7 +207,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Melbourne_Australia.yaml:
     place_name: Melbourne, Australia
@@ -215,7 +215,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Miami_FL.yaml:
     place_name: Miami, FL
@@ -223,7 +223,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Montreal_Canada.yaml:
     place_name: Montreal, Canada
@@ -231,7 +231,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Moscow_Russia.yaml:
     place_name: Moscow, Russia
@@ -239,7 +239,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Mumbai_India.yaml:
     place_name: Mumbai, India
@@ -247,7 +247,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Munich_Germany.yaml:
     place_name: Munich, Germany
@@ -255,7 +255,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Nairobi_Kenya.yaml:
     place_name: Nairobi, Kenya
@@ -263,7 +263,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Paris_France.yaml:
     place_name: Paris, France
@@ -271,7 +271,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Perth_Australia.yaml:
     place_name: Perth, Australia
@@ -279,7 +279,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Phoenix_AZ.yaml:
     place_name: Phoenix, AZ
@@ -287,7 +287,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Reykjavik_Iceland.yaml:
     place_name: Reykjavik, Iceland
@@ -295,7 +295,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Rio_de_Janeiro_Brazil.yaml:
     place_name: Rio de Janeiro, Brazil
@@ -303,7 +303,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Rome_Italy.yaml:
     place_name: Rome, Italy
@@ -311,7 +311,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   San_Diego_CA.yaml:
     place_name: San Diego, CA
@@ -319,7 +319,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   San_Jose_CA.yaml:
     place_name: San Jose, CA
@@ -327,7 +327,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: [2020-2025]}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Santiago_Chile.yaml:
     place_name: Santiago, Chile
@@ -335,7 +335,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Seattle_WA.yaml:
     place_name: Seattle, WA
@@ -343,7 +343,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Seoul_South_Korea.yaml:
     place_name: Seoul, South Korea
@@ -351,7 +351,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Shanghai_China.yaml:
     place_name: Shanghai, China
@@ -359,7 +359,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Singapore.yaml:
     place_name: Singapore
@@ -367,7 +367,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Stockholm_Sweden.yaml:
     place_name: Stockholm, Sweden
@@ -375,7 +375,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Sydney_Australia.yaml:
     place_name: Sydney, Australia
@@ -383,7 +383,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   São_Paulo_Brazil.yaml:
     place_name: São Paulo, Brazil
@@ -391,7 +391,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Tokyo_Japan.yaml:
     place_name: Tokyo, Japan
@@ -399,7 +399,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Tromsø_Norway.yaml:
     place_name: Tromsø, Norway
@@ -407,7 +407,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Trondheim_Norway.yaml:
     place_name: Trondheim, Norway
@@ -415,7 +415,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: [2020-2025]}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Ulaanbaatar_Mongolia.yaml:
     place_name: Ulaanbaatar, Mongolia
@@ -423,7 +423,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Vienna_Austria.yaml:
     place_name: Vienna, Austria
@@ -431,7 +431,7 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}
   Zurich_Switzerland.yaml:
     place_name: Zurich, Switzerland
@@ -439,5 +439,5 @@ files:
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
-      hourly_precipitation: {year_ranges: []}
+      hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}

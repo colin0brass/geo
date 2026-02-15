@@ -68,7 +68,7 @@ plotting:
       y: {min: null, max: null, step: 10, max_steps: null}
       range_text: "{min_temp_c:.1f}°C to {max_temp_c:.1f}°C; ({min_temp_f:.1f}°F to {max_temp_f:.1f}°F)"
     daily_precipitation:
-      overall_title: "Daily Precipitation ({year_range})"
+      overall_title: "Daily Precipitation Hours ({year_range})"
       label: "Wet Hours per Day"
       unit: "h" # Using "h" for hours to keep range text concise; can be expanded to "hours" if desired
       colour_mode: colour_value  # y_value | colour_value | year
