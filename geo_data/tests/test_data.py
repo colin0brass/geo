@@ -1535,8 +1535,7 @@ def test_coordinator_retrieve_prints_all_cached_message(tmp_path, monkeypatch, c
     captured = capsys.readouterr()
 
     # Check for "all cached" message
-    assert "All data already cached - no CDS retrieval needed" in captured.out
-    assert "=" in captured.out  # Separator lines
+    assert "CDS retrieval: none needed (noon_temperature; all data already cached)" in captured.out
 
     # Verify CDS was not called
     mock_cds.get_noon_series.assert_not_called()
@@ -1624,5 +1623,5 @@ def test_coordinator_update_cache_does_not_print_all_cached_message(tmp_path, mo
     ).retrieve([loc], 2024, 2024)
 
     captured = capsys.readouterr()
-    assert "All data already cached - no CDS retrieval needed" not in captured.out
+    assert "CDS retrieval: none needed" not in captured.out
     assert "CDS Retrieval Required: 1 place(s)" in captured.out

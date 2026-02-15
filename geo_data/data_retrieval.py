@@ -407,7 +407,7 @@ class RetrievalCoordinator:
 
         places_needing_cds = self._plan_places_needing_cds(place_list, requested_years, measure)
 
-        summary_text = format_retrieval_summary(places_needing_cds)
+        summary_text = format_retrieval_summary(places_needing_cds, measure)
         if self.status_reporter:
             self.status_reporter(summary_text)
 
@@ -457,7 +457,7 @@ class RetrievalCoordinator:
         return df_overall
 
 
-def format_retrieval_summary(places_needing_cds: list[str]) -> str:
+def format_retrieval_summary(places_needing_cds: list[str], measure: str) -> str:
     """Build a user-facing summary for CDS retrieval requirements."""
     if places_needing_cds:
         lines = [
@@ -470,12 +470,7 @@ def format_retrieval_summary(places_needing_cds: list[str]) -> str:
         lines.append(f"{'='*60}\n")
         return "\n".join(lines)
 
-    return "\n".join([
-        "",
-        f"{'='*60}",
-        "All data already cached - no CDS retrieval needed",
-        f"{'='*60}\n",
-    ])
+    return f"CDS retrieval: none needed ({measure}; all data already cached)"
 
 
 __all__ = [

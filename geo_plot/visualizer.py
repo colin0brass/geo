@@ -668,7 +668,6 @@ class Visualizer:
         # Always use A3 landscape size (13.34" × 7.5")
         base_width = mgr.get('figure.fig_width_in')
         base_height = mgr.get('figure.fig_height_in')
-        logger.debug(f"Using A3 landscape size: {base_width:.2f}\" × {base_height:.2f}\"")
 
         fig, axs = plt.subplots(num_rows, num_cols, figsize=(base_width, base_height), subplot_kw={'polar': True})
 
@@ -680,7 +679,6 @@ class Visualizer:
         subplot_right = mgr.get('subplot.right')
         wspace = mgr.get('subplot.wspace')
 
-        logger.debug(f"Grid {num_rows}x{num_cols} spacing: hspace={adjusted_hspace}, top={adjusted_top}, bottom={adjusted_bottom}")
         plt.subplots_adjust(left=subplot_left, right=subplot_right, hspace=adjusted_hspace, wspace=wspace, top=adjusted_top, bottom=adjusted_bottom)
 
         for row in range(num_rows):
@@ -719,7 +717,6 @@ class Visualizer:
                         new_x = center_x - target_width / 2
                         new_y = center_y - target_height / 2
 
-                        logger.debug(f"Row {row}, Col {col} - Sizing: {target_width:.3f}x{target_height:.3f} at ({new_x:.3f}, {new_y:.3f})")
                         ax.set_position([new_x, new_y, target_width, target_height])
                     else:
                         # For 1-2 rows: expand from default position using scale factors
