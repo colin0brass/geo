@@ -341,8 +341,39 @@ def load_measures_config(config_path: Path = Path("config.yaml")) -> dict[str, d
                 )
             entry[field_name] = value
 
+        y_config = metadata.get('y')
+        if y_config is not None:
+            if not isinstance(y_config, dict):
+                raise ValueError(f"{section_name}.{measure_key}.y must be a mapping")
+
+            y_field_map = {
+                'min': 'y_min',
+                'max': 'y_max',
+                'step': 'y_step',
+                'max_steps': 'max_y_steps',
+            }
+            for y_key, target_key in y_field_map.items():
+                if y_key not in y_config or y_config[y_key] is None:
+                    continue
+                if target_key == 'max_y_steps':
+                    try:
+                        entry[target_key] = int(y_config[y_key])
+                    except (TypeError, ValueError) as exc:
+                        raise ValueError(
+                            f"{section_name}.{measure_key}.y.{y_key} must be an integer"
+                        ) from exc
+                else:
+                    try:
+                        entry[target_key] = float(y_config[y_key])
+                    except (TypeError, ValueError) as exc:
+                        raise ValueError(
+                            f"{section_name}.{measure_key}.y.{y_key} must be numeric"
+                        ) from exc
+
         for numeric_field in ('y_min', 'y_max', 'y_step', 'wedge_width_scale'):
             if numeric_field in metadata and metadata[numeric_field] is not None:
+                if numeric_field in entry:
+                    continue
                 try:
                     entry[numeric_field] = float(metadata[numeric_field])
                 except (TypeError, ValueError) as exc:
@@ -351,12 +382,15 @@ def load_measures_config(config_path: Path = Path("config.yaml")) -> dict[str, d
                     ) from exc
 
         if 'max_y_steps' in metadata and metadata['max_y_steps'] is not None:
-            try:
-                entry['max_y_steps'] = int(metadata['max_y_steps'])
-            except (TypeError, ValueError) as exc:
-                raise ValueError(
-                    f"{section_name}.{measure_key}.max_y_steps must be an integer"
-                ) from exc
+            if 'max_y_steps' in entry:
+                pass
+            else:
+                try:
+                    entry['max_y_steps'] = int(metadata['max_y_steps'])
+                except (TypeError, ValueError) as exc:
+                    raise ValueError(
+                        f"{section_name}.{measure_key}.max_y_steps must be an integer"
+                    ) from exc
 
         if 'plot_format' in metadata and metadata['plot_format'] is not None:
             plot_format = metadata['plot_format']

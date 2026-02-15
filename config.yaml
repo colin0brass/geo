@@ -60,7 +60,7 @@ plotting:
       unit: "°C"
       colour_mode: y_value
       y_value_column: "temp_C"
-      y_step: 10
+      y: {step: 10, max_steps: 4}
       range_text: "{min_temp_c:.1f}°C to {max_temp_c:.1f}°C; ({min_temp_f:.1f}°F to {max_temp_f:.1f}°F)"
     daily_precipitation:
       overall_title: "Precipitation ({year_range})"
@@ -70,10 +70,7 @@ plotting:
       plot_format: "wedges"  # Options: "points", "wedges"
       wedge_width_scale: 1.5  # Relative width of wedges when using "wedges" plot format
       y_value_column: "wet_hours_per_day"
-      y_min: 0
-      y_max: 24
-      y_step: 2
-      max_y_steps: 4
+      y: {min: 0, max: 24, step: 2, max_steps: 4}
       range_text: "Max daily precipitation: {max_daily_precip_mm:.1f} mm ({max_daily_precip_in:.2f} in)"
       colour_value_column: "max_hourly_precip_mm"
       colourbar_title: "mm/hr"
@@ -83,8 +80,7 @@ plotting:
       unit: "MJ/m²"
       colour_mode: y_value
       y_value_column: "solar_energy_MJ_m2"
-      y_min: 0
-      y_step: 10
+      y: {min: 0, step: 10}
       range_text: "{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}"
   # Allowed colormaps for plotting (first entry is used as default fallback)
   valid_colormaps: [turbo, viridis, plasma, inferno, magma, cividis]

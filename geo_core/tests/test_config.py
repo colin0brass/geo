@@ -501,9 +501,10 @@ def test_load_measures_config_optional_range_controls(tmp_path):
         "      label: Daily Precipitation\n"
         "      unit: mm\n"
         "      y_value_column: precip_mm\n"
-        "      y_min: 0\n"
-        "      y_max: 50\n"
-        "      y_step: 5\n"
+        "      y:\n"
+        "        min: 0\n"
+        "        max: 50\n"
+        "        step: 5\n"
         "      range_text: '{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}'\n"
     )
 
@@ -511,6 +512,27 @@ def test_load_measures_config_optional_range_controls(tmp_path):
     assert labels["daily_precipitation"]["y_min"] == 0.0
     assert labels["daily_precipitation"]["y_max"] == 50.0
     assert labels["daily_precipitation"]["y_step"] == 5.0
+
+
+def test_load_measures_config_y_allows_auto_max_when_omitted(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "plotting:\n"
+        "  measures:\n"
+        "    daily_solar_radiation_energy:\n"
+        "      label: Daily Solar Radiation\n"
+        "      unit: MJ/m²\n"
+        "      y_value_column: solar_energy_MJ_m2\n"
+        "      y:\n"
+        "        min: 0\n"
+        "        step: 10\n"
+        "      range_text: '{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}'\n"
+    )
+
+    labels = load_measures_config(config_file)
+    assert labels["daily_solar_radiation_energy"]["y_min"] == 0.0
+    assert labels["daily_solar_radiation_energy"]["y_step"] == 10.0
+    assert "y_max" not in labels["daily_solar_radiation_energy"]
 
 
 def test_load_measures_config_plot_format(tmp_path):
@@ -564,7 +586,8 @@ def test_load_measures_config_invalid_y_step_raises(tmp_path):
         "      label: Daily Precipitation\n"
         "      unit: mm\n"
         "      y_value_column: precip_mm\n"
-        "      y_step: 0\n"
+        "      y:\n"
+        "        step: 0\n"
         "      range_text: '{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}'\n"
     )
 
@@ -581,8 +604,9 @@ def test_load_measures_config_invalid_y_min_max_raises(tmp_path):
         "      label: Daily Precipitation\n"
         "      unit: mm\n"
         "      y_value_column: precip_mm\n"
-        "      y_min: 10\n"
-        "      y_max: 5\n"
+        "      y:\n"
+        "        min: 10\n"
+        "        max: 5\n"
         "      range_text: '{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}'\n"
     )
 

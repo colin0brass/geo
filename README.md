@@ -290,7 +290,7 @@ python geo.py -p "MyCity" --lat 40.7 --lon -74.0 -y 2024
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `--measure VALUE` | Select one or more measures. Use canonical values (`noon_temperature`, `daily_precipitation`, `daily_solar_radiation_energy`), aliases (`temp`, `precipitation`, `solar`), comma-separated values (`temp,solar`), or `all`. | `noon_temperature` |
+| `--measure VALUE` | Select one or more measures. Use canonical values (`noon_temperature`, `daily_precipitation`, `daily_solar_radiation_energy`), aliases (`temp`, `temperature`, `precipitation`, `solar`), comma-separated values (`temp,solar`), or `all`. | `noon_temperature` |
 
 ### Display Options
 
@@ -298,7 +298,7 @@ python geo.py -p "MyCity" --lat 40.7 --lon -74.0 -y 2024
 |--------|-------|-------------|---------|
 | `--show` | `-s` | Display plots on screen after generation | off |
 | `--grid COLSxROWS` | `-g` | Manual grid (e.g., 4x3) | auto |
-| `--colour-mode {y_value,year}` / `--color-mode {y_value,year}` | `—` | Point colouring mode (`y_value` or `year`) | from per-measure config |
+| `--colour-mode {y_value,colour_value,year}` / `--color-mode {y_value,colour_value,year}` | `—` | Point colouring mode (`y_value`, `colour_value`, or `year`) | from per-measure config |
 
 **Notes:**
 - Individual plots are only created for single places (using `--place`)
@@ -370,6 +370,7 @@ retrieval:
   half_box_deg: 0.25
   max_nearest_time_delta_minutes: 30
   month_fetch_day_span_threshold: 62
+  wet_hour_threshold_mm: 1.0
   daily_source:
     noon_temperature: timeseries
     daily_precipitation: timeseries
@@ -379,6 +380,7 @@ retrieval:
 - `half_box_deg`: geographic half-width (degrees) for ERA5 retrieval around each location.
 - `max_nearest_time_delta_minutes`: maximum tolerated offset between requested local noon and selected ERA5 time.
 - `month_fetch_day_span_threshold`: day-range threshold for monthly fetch strategy before switching to full-year fetch.
+- `wet_hour_threshold_mm`: hourly precipitation threshold (mm) used to count a wet hour in `wet_hours_per_day`.
 - `daily_source.noon_temperature`: `timeseries` (configured in bundled config, ERA5 point-location product) or `hourly` (in-app local-noon selection).
 - `daily_source.daily_precipitation`: `timeseries` (configured in bundled config, ERA5 point-location product), `hourly` (in-app aggregation), or `daily_statistics` (CDS derived daily-statistics product).
 - `daily_source.daily_solar_radiation_energy`: `timeseries` (configured in bundled config, ERA5 point-location product) or `hourly` (in-app aggregation).
@@ -406,39 +408,38 @@ plotting:
     noon_temperature:
       label: "Mid-Day Temperature"
       unit: "°C"
-      colour_mode: y_value  # y_value or year
+      colour_mode: y_value  # y_value, colour_value, or year
       y_value_column: "temp_C"
+      y: {step: 10, max_steps: 4}
       range_text: "{min_temp_c:.1f}°C to {max_temp_c:.1f}°C; ({min_temp_f:.1f}°F to {max_temp_f:.1f}°F)"
     daily_precipitation:
       label: "Wet Hours per Day"
       unit: "h"
-      colour_mode: y_value
+      colour_mode: colour_value
       y_value_column: "wet_hours_per_day"
       colour_value_column: "max_hourly_precip_mm"  # optional; colour by different column than y-axis
-      colourbar_title: "mm"                        # optional; colourbar title override
-      y_min: 0           # optional fixed lower bound
-      y_max: 24          # optional fixed upper bound
-      y_step: 2          # optional ring interval step
-      max_y_steps: 4     # optional cap on number of radial rings/labels
+      colourbar_title: "mm/hr"                     # optional; colourbar title override
+      y: {min: 0, max: 24, step: 2, max_steps: 4}
       plot_format: wedges
-      wedge_width_scale: 1.35  # optional wedge-width multiplier (>1 makes wedges wider)
-      range_text: "{measure_label}: {min_value:.0f} to {max_value:.0f} {measure_unit}"
+      wedge_width_scale: 1.5  # optional wedge-width multiplier (>1 makes wedges wider)
+      range_text: "Max daily precipitation: {max_daily_precip_mm:.1f} mm ({max_daily_precip_in:.2f} in)"
     daily_solar_radiation_energy:
       label: "Daily Solar Radiation"
       unit: "MJ/m²"
       colour_mode: y_value
       y_value_column: "solar_energy_MJ_m2"
-      y_min: 0
-      y_step: 10
+      y: {min: 0, step: 10, max_steps: 4}
       range_text: "{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}"
   valid_colormaps: [turbo, viridis, plasma, inferno, magma, cividis]  # first item is default fallback
   colormap: turbo           # must be one of valid_colormaps
 ```
 
-- `measures.*.colour_mode`: per-measure point colouring mode (`y_value` or `year`)
-- `measures.*.y_min` / `y_max`: optional fixed y-axis bounds per measure (if omitted, bounds are derived from data)
-- `measures.*.y_step`: optional per-measure radial ring interval; if omitted, an internal default is used
-- `measures.*.max_y_steps`: optional cap on radial ring/label count (auto-coarsens ring interval when exceeded)
+- `measures.*.colour_mode`: per-measure point colouring mode (`y_value`, `colour_value`, or `year`)
+- `measures.*.y`: compact y-axis configuration mapping with optional keys:
+  - `min`: optional fixed lower bound
+  - `max`: optional fixed upper bound (omit for automatic data-driven max)
+  - `step`: optional radial ring interval (default is internal)
+  - `max_steps`: optional cap on radial ring/label count (auto-coarsens interval when exceeded)
 - `measures.*.colour_value_column`: optional column used for colour mapping (defaults to `y_value_column`)
 - `measures.*.colourbar_title`: optional colourbar title override (for example `mm`)
 - `measures.*.plot_format`: `points` (default scatter) or `wedges`; `radial_bars` is accepted as an alias and normalized to `wedges`
@@ -458,6 +459,7 @@ plot_text:
   single_plot_title: "{location} {measure_label} ({year_range})"
   overall_title: "{measure_label} ({year_range})"
   overall_title_with_batch: "{measure_label} ({year_range}) - Part {batch}/{total_batches}"
+  subplot_title: "{location}"
   
   # Filename patterns (location names automatically sanitized for filenames)
   single_plot_filename: "{location}_{measure_key}_{start_year}_{end_year}.png"

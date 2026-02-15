@@ -815,9 +815,10 @@ def test_plot_all_daily_precipitation_uses_measure_column(mock_create_individual
             "      label: Daily Precipitation",
             "      unit: mm",
             "      y_value_column: precip_mm",
-            "      y_min: 0",
-            "      y_max: 10",
-            "      y_step: 2",
+            "      y:",
+            "        min: 0",
+            "        max: 10",
+            "        step: 2",
             "      range_text: '{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}'",
         ])
     )
