@@ -167,6 +167,12 @@ def test_parse_args_with_temp_alias():
         assert args.measure == 'noon_temperature'
 
 
+def test_parse_args_with_temperature_alias():
+    with patch('sys.argv', ['geo.py', '--measure', 'temperature']):
+        args = parse_args()
+        assert args.measure == 'noon_temperature'
+
+
 def test_parse_args_with_precipitation_alias():
     with patch('sys.argv', ['geo.py', '--measure', 'precipitation']):
         args = parse_args()
@@ -259,6 +265,11 @@ def test_validate_measure_support_solar_ok():
 def test_parse_measure_selection_deduplicates():
     measures = parse_measure_selection('temp,noon_temperature,solar,solar')
     assert measures == ['noon_temperature', 'daily_solar_radiation_energy']
+
+
+def test_parse_measure_selection_temperature_alias():
+    measures = parse_measure_selection('temperature')
+    assert measures == ['noon_temperature']
 
 
 def test_validate_measures_support_ok():

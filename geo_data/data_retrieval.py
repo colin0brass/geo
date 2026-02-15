@@ -13,6 +13,7 @@ from collections.abc import Callable
 import pandas as pd
 
 from geo_core.progress import get_progress_manager
+from geo_core.config import load_retrieval_settings
 
 from .cds_base import CDS, Location, ZoneInfo
 from .cds_precipitation import PrecipitationCDS
@@ -93,6 +94,8 @@ class RetrievalCoordinator:
         self.progress_mgr = get_progress_manager()
         self.cache_store = CacheStore()
         self.cache_store.ensure_cache_summary(self.data_cache_dir)
+        retrieval_settings = load_retrieval_settings(self.config_path)
+        self.wet_hour_threshold_mm = float(retrieval_settings['wet_hour_threshold_mm'])
 
     def _apply_fetch_mode_override(self, measure_cds_client: CDS, measure: str) -> None:
         """Apply runtime fetch chunking override to the active measure CDS client."""
@@ -212,7 +215,11 @@ class RetrievalCoordinator:
             if df_hourly.empty:
                 continue
 
-            wet_daily = self._build_daily_wet_hours_from_hourly(df_hourly, loc.tz)
+            wet_daily = self._build_daily_wet_hours_from_hourly(
+                df_hourly,
+                loc.tz,
+                wet_threshold_mm=self.wet_hour_threshold_mm,
+            )
             if wet_daily.empty:
                 continue
 

@@ -27,6 +27,8 @@ retrieval:
   max_nearest_time_delta_minutes: 30
   # For short date ranges (days <= threshold), fetch month chunks instead of full years
   month_fetch_day_span_threshold: 62
+  # Hourly precipitation threshold (mm) counted as a "wet" hour for wet_hours_per_day
+  wet_hour_threshold_mm: 1.0
   # Per-measure fetch chunking strategy: monthly, yearly, or auto
   fetch_mode:
     noon_temperature: auto
@@ -50,31 +52,36 @@ runtime_paths:
 
 # Plotting behaviour configuration
 plotting:
-  # Colour mapping mode for plotted points:
-  # - y_value: colour by plotted y-axis value (e.g., temperature)
-  # - year: colour by year progression (useful for trend-over-time visual comparison)
-  colour_mode: y_value
   # Measure display labels and units used in templated plot text
-  measure_labels:
+  measures:
     noon_temperature:
+      overall_title: "Temperature ({year_range})"
       label: "Mid-Day Temperature"
       unit: "°C"
+      colour_mode: y_value
       y_value_column: "temp_C"
       y_step: 10
       range_text: "{min_temp_c:.1f}°C to {max_temp_c:.1f}°C; ({min_temp_f:.1f}°F to {max_temp_f:.1f}°F)"
     daily_precipitation:
+      overall_title: "Precipitation ({year_range})"
       label: "Wet Hours per Day"
-      unit: "hours"
-      plot_format: points
+      unit: "h" # Using "h" for hours to keep range text concise; can be expanded to "hours" if desired
+      colour_mode: colour_value
+      plot_format: "wedges"  # Options: "points", "wedges"
+      wedge_width_scale: 1.5  # Relative width of wedges when using "wedges" plot format
       y_value_column: "wet_hours_per_day"
       y_min: 0
       y_max: 24
       y_step: 2
       max_y_steps: 4
-      range_text: "{measure_label}: {min_value:.0f} to {max_value:.0f} {measure_unit}"
+      range_text: "Max daily precipitation: {max_daily_precip_mm:.1f} mm ({max_daily_precip_in:.2f} in)"
+      colour_value_column: "max_hourly_precip_mm"
+      colourbar_title: "mm/hr"
     daily_solar_radiation_energy:
+      overall_title: "Solar ({year_range})"
       label: "Daily Solar Radiation"
       unit: "MJ/m²"
+      colour_mode: y_value
       y_value_column: "solar_energy_MJ_m2"
       y_min: 0
       y_step: 10
@@ -86,10 +93,11 @@ plotting:
 
 # Plot text configuration
 plot_text:
-  # Title patterns (can use {location}, {start_year}, {end_year}, {batch}, {total_batches}, {measure_label}, {measure_key}, {measure_unit})
-  single_plot_title: "{location} {measure_label} ({start_year}-{end_year})"
-  subplot_title: "{measure_label} ({start_year}-{end_year})"
-  subplot_title_with_batch: "{measure_label} ({start_year}-{end_year}) - Part {batch}/{total_batches}"
+  # Title patterns (can use {location}, {year_range}, {start_year}, {end_year}, {batch}, {total_batches}, {measure_label}, {measure_key}, {measure_unit})
+  single_plot_title: "{location} {measure_label} ({year_range})"
+  overall_title: "{measure_label}"
+  overall_title_with_batch: "{measure_label} ({year_range}) - Part {batch}/{total_batches}"
+  subplot_title: "{location}"
   # Range text shown beneath each polar plot
   # Available placeholders include:
   # {min_value}, {max_value}, {min_y_value}, {max_y_value}, {measure_label}, {measure_unit}, {min_temp_c}, {max_temp_c}, {min_temp_f}, {max_temp_f}

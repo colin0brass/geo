@@ -35,6 +35,7 @@ VALID_MEASURES = (
 )
 MEASURE_ALIASES = {
     "temp": "noon_temperature",
+    "temperature": "noon_temperature",
     "precipitation": "daily_precipitation",
     "solar": "daily_solar_radiation_energy",
 }
@@ -279,7 +280,7 @@ Examples:
         help=(
             "Data measure to use: 'noon_temperature', "
             "'daily_precipitation', 'daily_solar_radiation_energy' "
-            "(aliases: 'temp', 'precipitation', 'solar'). "
+            "(aliases: 'temp', 'temperature', 'precipitation', 'solar'). "
             "Use comma-separated values to run multiple measures, or 'all'."
         )
     )
@@ -302,7 +303,10 @@ Examples:
         dest="colour_mode",
         choices=VALID_COLOUR_MODES,
         default=None,
-        help="Colour mapping mode: 'y_value' (default) or 'year' for trend-over-time colouring"
+        help=(
+            "Colour mapping mode: 'y_value' (colour by y_value_column), "
+            "'colour_value' (colour by colour_value_column), or 'year' for trend-over-time colouring"
+        )
     )
 
     # Advanced options
@@ -532,7 +536,7 @@ def load_colour_mode(config_file: Path, cli_colour_mode: str | None = None) -> s
         cli_colour_mode: Optional CLI override value.
 
     Returns:
-        str: Resolved colour mode ('y_value' or 'year').
+        str: Resolved colour mode ('y_value', 'colour_value', or 'year').
 
     Raises:
         CLIError: If plotting.colour_mode is configured with an invalid value.

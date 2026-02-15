@@ -116,8 +116,8 @@ class CoreConfigService:
     def load_retrieval_settings(self) -> dict[str, float | int | dict[str, str]]:
         return load_retrieval_settings(self.config_file)
 
-    def load_measure_labels_config(self) -> dict[str, dict[str, object]]:
-        return load_measure_labels_config(self.config_file)
+    def load_measures_config(self) -> dict[str, dict[str, object]]:
+        return load_measures_config(self.config_file)
 
     def get_plot_text(self, key: str, **kwargs) -> str:
         return get_plot_text(self.load_plot_text_config(), key, **kwargs)
@@ -154,7 +154,17 @@ def load_plot_text_config(config_path: Path = Path("config.yaml")) -> dict:
         if not isinstance(value, str) or not value.strip():
             raise ValueError(f"plot_text.{key} must be a non-empty string")
 
-    return {key: plot_text[key] for key in REQUIRED_PLOT_TEXT_KEYS}
+    loaded = {key: plot_text[key] for key in REQUIRED_PLOT_TEXT_KEYS}
+
+    optional_text_keys = ('subplot_title',)
+    for optional_key in optional_text_keys:
+        if optional_key in plot_text:
+            value = plot_text[optional_key]
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"plot_text.{optional_key} must be a non-empty string")
+            loaded[optional_key] = value
+
+    return loaded
 
 
 def load_runtime_paths(config_file: Path = Path("config.yaml")) -> dict[str, str]:
@@ -211,6 +221,11 @@ def load_retrieval_settings(config_file: Path = Path("config.yaml")) -> dict[str
         settings['month_fetch_day_span_threshold'] = int(retrieval['month_fetch_day_span_threshold'])
     if settings['month_fetch_day_span_threshold'] <= 0:
         raise ValueError("retrieval.month_fetch_day_span_threshold must be > 0")
+
+    if 'wet_hour_threshold_mm' in retrieval:
+        settings['wet_hour_threshold_mm'] = float(retrieval['wet_hour_threshold_mm'])
+    if settings['wet_hour_threshold_mm'] <= 0:
+        raise ValueError("retrieval.wet_hour_threshold_mm must be > 0")
 
     valid_fetch_modes = {'monthly', 'yearly', 'auto'}
 
@@ -292,8 +307,11 @@ def load_retrieval_settings(config_file: Path = Path("config.yaml")) -> dict[str
     return settings
 
 
-def load_measure_labels_config(config_path: Path = Path("config.yaml")) -> dict[str, dict[str, object]]:
-    """Load and validate measure label/unit mappings from config."""
+def load_measures_config(config_path: Path = Path("config.yaml")) -> dict[str, dict[str, object]]:
+    """Load and validate per-measure plotting metadata from config.
+
+    Key: ``plotting.measures``.
+    """
     with open(config_path, 'r') as f:
         config = yaml.safe_load(f) or {}
 
@@ -301,24 +319,25 @@ def load_measure_labels_config(config_path: Path = Path("config.yaml")) -> dict[
     if not isinstance(plotting, dict):
         raise ValueError(f"Invalid plotting section in {config_path}; expected mapping.")
 
-    configured = plotting.get('measure_labels')
+    configured = plotting.get('measures')
+    section_name = 'plotting.measures'
     if not isinstance(configured, dict) or not configured:
-        raise ValueError(f"Invalid plotting.measure_labels section in {config_path}; expected non-empty mapping.")
+        raise ValueError(f"Invalid plotting.measures section in {config_path}; expected non-empty mapping.")
 
     validated: dict[str, dict[str, object]] = {}
-    valid_plot_formats = {'points', 'radial_bars', 'radial_wedges'}
+    valid_plot_formats = {'points', 'radial_bars', 'wedges'}
     for measure_key, metadata in configured.items():
         if not isinstance(measure_key, str) or not measure_key.strip():
-            raise ValueError("plotting.measure_labels keys must be non-empty strings")
+            raise ValueError(f"{section_name} keys must be non-empty strings")
         if not isinstance(metadata, dict):
-            raise ValueError(f"plotting.measure_labels.{measure_key} must be a mapping")
+            raise ValueError(f"{section_name}.{measure_key} must be a mapping")
 
         entry: dict[str, object] = {}
         for field_name in REQUIRED_MEASURE_LABEL_KEYS:
             value = metadata.get(field_name)
             if not isinstance(value, str) or not value.strip():
                 raise ValueError(
-                    f"plotting.measure_labels.{measure_key}.{field_name} must be a non-empty string"
+                    f"{section_name}.{measure_key}.{field_name} must be a non-empty string"
                 )
             entry[field_name] = value
 
@@ -328,7 +347,7 @@ def load_measure_labels_config(config_path: Path = Path("config.yaml")) -> dict[
                     entry[numeric_field] = float(metadata[numeric_field])
                 except (TypeError, ValueError) as exc:
                     raise ValueError(
-                        f"plotting.measure_labels.{measure_key}.{numeric_field} must be numeric"
+                        f"{section_name}.{measure_key}.{numeric_field} must be numeric"
                     ) from exc
 
         if 'max_y_steps' in metadata and metadata['max_y_steps'] is not None:
@@ -336,20 +355,45 @@ def load_measure_labels_config(config_path: Path = Path("config.yaml")) -> dict[
                 entry['max_y_steps'] = int(metadata['max_y_steps'])
             except (TypeError, ValueError) as exc:
                 raise ValueError(
-                    f"plotting.measure_labels.{measure_key}.max_y_steps must be an integer"
+                    f"{section_name}.{measure_key}.max_y_steps must be an integer"
                 ) from exc
 
         if 'plot_format' in metadata and metadata['plot_format'] is not None:
             plot_format = metadata['plot_format']
             if not isinstance(plot_format, str) or not plot_format.strip():
-                raise ValueError(f"plotting.measure_labels.{measure_key}.plot_format must be a non-empty string")
+                raise ValueError(f"{section_name}.{measure_key}.plot_format must be a non-empty string")
             normalized_plot_format = plot_format.strip().lower()
+            if normalized_plot_format == 'radial_bars':
+                normalized_plot_format = 'wedges'
             if normalized_plot_format not in valid_plot_formats:
                 allowed = ', '.join(sorted(valid_plot_formats))
                 raise ValueError(
-                    f"plotting.measure_labels.{measure_key}.plot_format must be one of: {allowed}"
+                    f"{section_name}.{measure_key}.plot_format must be one of: {allowed}"
                 )
             entry['plot_format'] = normalized_plot_format
+
+        for optional_text_field in ('colour_value_column', 'colourbar_title', 'overall_title'):
+            if optional_text_field in metadata and metadata[optional_text_field] is not None:
+                field_value = metadata[optional_text_field]
+                if not isinstance(field_value, str) or not field_value.strip():
+                    raise ValueError(
+                        f"{section_name}.{measure_key}.{optional_text_field} must be a non-empty string"
+                    )
+                entry[optional_text_field] = field_value.strip()
+
+        if 'colour_mode' in metadata and metadata['colour_mode'] is not None:
+            colour_mode = metadata['colour_mode']
+            if not isinstance(colour_mode, str) or not colour_mode.strip():
+                raise ValueError(
+                    f"{section_name}.{measure_key}.colour_mode must be a non-empty string"
+                )
+            normalized_colour_mode = colour_mode.strip().lower()
+            if normalized_colour_mode not in VALID_COLOUR_MODES:
+                allowed = ', '.join(VALID_COLOUR_MODES)
+                raise ValueError(
+                    f"{section_name}.{measure_key}.colour_mode must be one of: {allowed}"
+                )
+            entry['colour_mode'] = normalized_colour_mode
 
         y_min = entry.get('y_min')
         y_max = entry.get('y_max')
@@ -357,13 +401,13 @@ def load_measure_labels_config(config_path: Path = Path("config.yaml")) -> dict[
         wedge_width_scale = entry.get('wedge_width_scale')
         max_y_steps = entry.get('max_y_steps')
         if y_step is not None and y_step <= 0:
-            raise ValueError(f"plotting.measure_labels.{measure_key}.y_step must be > 0")
+            raise ValueError(f"{section_name}.{measure_key}.y_step must be > 0")
         if wedge_width_scale is not None and wedge_width_scale <= 0:
-            raise ValueError(f"plotting.measure_labels.{measure_key}.wedge_width_scale must be > 0")
+            raise ValueError(f"{section_name}.{measure_key}.wedge_width_scale must be > 0")
         if max_y_steps is not None and max_y_steps <= 0:
-            raise ValueError(f"plotting.measure_labels.{measure_key}.max_y_steps must be > 0")
+            raise ValueError(f"{section_name}.{measure_key}.max_y_steps must be > 0")
         if y_min is not None and y_max is not None and y_min >= y_max:
-            raise ValueError(f"plotting.measure_labels.{measure_key}.y_min must be < y_max")
+            raise ValueError(f"{section_name}.{measure_key}.y_min must be < y_max")
 
         validated[measure_key] = entry
 

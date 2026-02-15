@@ -22,7 +22,7 @@ def test_calculate_grid_dimensions_no_custom_grid(tmp_path):
         "  max_auto_rows: 4\n"
         "  max_auto_cols: 6\n"
         "plotting:\n"
-        "  measure_labels:\n"
+        "  measures:\n"
         "    noon_temperature:\n"
         "      label: Mid-Day Temperature\n"
         "      unit: °C\n"
@@ -58,7 +58,7 @@ def test_calculate_grid_dimensions_with_custom_grid(tmp_path):
         "  max_auto_rows: 4\n"
         "  max_auto_cols: 6\n"
         "plotting:\n"
-        "  measure_labels:\n"
+        "  measures:\n"
         "    noon_temperature:\n"
         "      label: Mid-Day Temperature\n"
         "      unit: °C\n"
@@ -86,7 +86,7 @@ def test_calculate_grid_dimensions_zero_places(tmp_path):
         "  max_auto_rows: 4\n"
         "  max_auto_cols: 6\n"
         "plotting:\n"
-        "  measure_labels:\n"
+        "  measures:\n"
         "    noon_temperature:\n"
         "      label: Mid-Day Temperature\n"
         "      unit: °C\n"
@@ -150,7 +150,7 @@ def test_create_batch_subplot_single_batch(mock_visualizer_class, tmp_path):
     assert 'range_text_context' in mock_visualizer_class.call_args[1]
     mock_vis_instance.plot_polar_subplots.assert_called_once()
     call_kwargs = mock_vis_instance.plot_polar_subplots.call_args[1]
-    assert "Mid-Day Temperature (2024-2024)" in call_kwargs['title']
+    assert call_kwargs['title'] == 'Temperature (2024)'
     assert call_kwargs['num_rows'] == 1
     assert call_kwargs['num_cols'] == 2
 
@@ -188,19 +188,20 @@ def test_create_batch_subplot_multiple_batches(mock_visualizer_class, tmp_path):
     # Should include batch suffix
     assert "_part2of3.png" in result
     call_kwargs = mock_vis_instance.plot_polar_subplots.call_args[1]
-    assert "Part 2/3" in call_kwargs['title']
+    assert call_kwargs['title'] == 'Temperature (2024)'
 
 
 @patch('geo_plot.orchestrator.Visualizer')
-def test_create_batch_subplot_uses_measure_labels_from_config(mock_visualizer_class, tmp_path):
-    """Test measure label text is loaded from plotting.measure_labels config."""
+def test_create_batch_subplot_uses_measures_from_config(mock_visualizer_class, tmp_path):
+    """Test measure label text is loaded from plotting.measures config."""
     config_file = tmp_path / "config.yaml"
     config_file.write_text(
         "\n".join([
             "plot_text:",
             "  single_plot_title: '{location} {measure_label} ({start_year}-{end_year})'",
-            "  subplot_title: '{measure_label} ({start_year}-{end_year})'",
-            "  subplot_title_with_batch: '{measure_label} ({start_year}-{end_year}) - Part {batch}/{total_batches}'",
+            "  overall_title: '{measure_label} ({start_year}-{end_year})'",
+            "  overall_title_with_batch: '{measure_label} ({start_year}-{end_year}) - Part {batch}/{total_batches}'",
+            "  subplot_title: '{location}'",
             "  single_plot_filename: '{location}_{measure_key}_{start_year}_{end_year}.png'",
             "  subplot_filename: '{list_name}_{measure_key}_{start_year}_{end_year}.png'",
             "  subplot_filename_with_batch: '{list_name}_{measure_key}_{start_year}_{end_year}_part{batch}of{total_batches}.png'",
@@ -208,9 +209,10 @@ def test_create_batch_subplot_uses_measure_labels_from_config(mock_visualizer_cl
             "  single_plot_credit: 'Analysis & visualisation by Colin Osborne'",
             "  data_source: 'Data from: ERA5 via CDS'",
             "plotting:",
-            "  measure_labels:",
+            "  measures:",
             "    daily_precipitation:",
             "      label: Rainfall",
+            "      overall_title: Precipitation ({year_range})",
             "      unit: mm/day",
             "      y_value_column: precip_mm",
             "      range_text: '{measure_label}: {min_value:.1f}-{max_value:.1f} {measure_unit}'",
@@ -246,10 +248,69 @@ def test_create_batch_subplot_uses_measure_labels_from_config(mock_visualizer_cl
     )
 
     call_kwargs = mock_vis_instance.plot_polar_subplots.call_args[1]
-    assert "Rainfall (2024-2024)" in call_kwargs['title']
+    assert call_kwargs['title'] == 'Precipitation (2024)'
+    assert call_kwargs['subplot_title_template'] == '{location}'
     vis_kwargs = mock_visualizer_class.call_args[1]
     assert vis_kwargs['y_value_column'] == 'precip_mm'
     assert vis_kwargs['range_text_template'] == '{measure_label}: {min_value:.1f}-{max_value:.1f} {measure_unit}'
+
+
+@patch('geo_plot.orchestrator.Visualizer')
+def test_create_batch_subplot_overall_title_uses_multi_year_range(mock_visualizer_class, tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "\n".join([
+            "plot_text:",
+            "  single_plot_title: '{location} {measure_label} ({start_year}-{end_year})'",
+            "  overall_title: '{measure_label} ({start_year}-{end_year})'",
+            "  overall_title_with_batch: '{measure_label} ({start_year}-{end_year}) - Part {batch}/{total_batches}'",
+            "  single_plot_filename: '{location}_{measure_key}_{start_year}_{end_year}.png'",
+            "  subplot_filename: '{list_name}_{measure_key}_{start_year}_{end_year}.png'",
+            "  subplot_filename_with_batch: '{list_name}_{measure_key}_{start_year}_{end_year}_part{batch}of{total_batches}.png'",
+            "  credit: 'Climate Data Analysis & Visualisation by Colin Osborne'",
+            "  single_plot_credit: 'Analysis & visualisation by Colin Osborne'",
+            "  data_source: 'Data from: ERA5 via CDS'",
+            "plotting:",
+            "  measures:",
+            "    daily_precipitation:",
+            "      label: Rainfall",
+            "      overall_title: Precipitation ({year_range})",
+            "      unit: mm/day",
+            "      y_value_column: precip_mm",
+            "      range_text: '{measure_label}: {min_value:.1f}-{max_value:.1f} {measure_unit}'",
+        ])
+    )
+
+    df_batch = pd.DataFrame({'place_name': ['City A'], 'temp_C': [10.0]})
+    loc = Location(name="City A", lat=40.0, lon=-73.0, tz="America/New_York")
+
+    mock_vis_instance = MagicMock()
+    mock_visualizer_class.return_value = mock_vis_instance
+    orchestrator = PlotOrchestrator(
+        config=config_file,
+        settings=Path("geo_plot/settings.yaml"),
+        measure='daily_precipitation',
+    )
+    run_ctx = PlotRunContext(
+        start_year=2020,
+        end_year=2024,
+        out_dir=tmp_path,
+        t_min_c=5.0,
+        t_max_c=20.0,
+    )
+
+    orchestrator.create_batch_subplot(
+        df_batch=df_batch,
+        batch_places=[loc],
+        batch_idx=0,
+        num_batches=1,
+        batch_rows=1,
+        batch_cols=1,
+        run_ctx=run_ctx,
+    )
+
+    call_kwargs = mock_vis_instance.plot_polar_subplots.call_args[1]
+    assert call_kwargs['title'] == 'Precipitation (2020-2024)'
 
 
 @patch('geo_plot.orchestrator.Visualizer')
@@ -259,8 +320,8 @@ def test_orchestrator_passes_plot_format_to_visualizer(mock_visualizer_class, tm
         "\n".join([
             "plot_text:",
             "  single_plot_title: '{location} {measure_label} ({start_year}-{end_year})'",
-            "  subplot_title: '{measure_label} ({start_year}-{end_year})'",
-            "  subplot_title_with_batch: '{measure_label} ({start_year}-{end_year}) - Part {batch}/{total_batches}'",
+            "  overall_title: '{measure_label} ({start_year}-{end_year})'",
+            "  overall_title_with_batch: '{measure_label} ({start_year}-{end_year}) - Part {batch}/{total_batches}'",
             "  single_plot_filename: '{location}_{measure_key}_{start_year}_{end_year}.png'",
             "  subplot_filename: '{list_name}_{measure_key}_{start_year}_{end_year}.png'",
             "  subplot_filename_with_batch: '{list_name}_{measure_key}_{start_year}_{end_year}_part{batch}of{total_batches}.png'",
@@ -268,13 +329,75 @@ def test_orchestrator_passes_plot_format_to_visualizer(mock_visualizer_class, tm
             "  single_plot_credit: 'Analysis & visualisation by Colin Osborne'",
             "  data_source: 'Data from: ERA5 via CDS'",
             "plotting:",
-            "  measure_labels:",
+            "  measures:",
             "    daily_precipitation:",
             "      label: Rainfall",
             "      unit: mm/day",
-            "      plot_format: radial_wedges",
+            "      plot_format: wedges",
             "      wedge_width_scale: 1.5",
             "      max_y_steps: 4",
+            "      y_value_column: precip_mm",
+            "      colour_value_column: max_hourly_precip_mm",
+            "      colourbar_title: mm",
+            "      range_text: '{measure_label}: {min_value:.1f}-{max_value:.1f} {measure_unit}'",
+        ])
+    )
+
+    df_batch = pd.DataFrame({'place_name': ['City A'], 'precip_mm': [5.0]})
+    loc = Location(name="City A", lat=40.0, lon=-73.0, tz="America/New_York")
+    mock_visualizer_class.return_value = MagicMock()
+    orchestrator = PlotOrchestrator(
+        config=config_file,
+        settings=Path("geo_plot/settings.yaml"),
+        measure='daily_precipitation',
+    )
+    run_ctx = PlotRunContext(
+        start_year=2024,
+        end_year=2024,
+        out_dir=tmp_path,
+        t_min_c=0.0,
+        t_max_c=20.0,
+    )
+
+    orchestrator.create_batch_subplot(
+        df_batch=df_batch,
+        batch_places=[loc],
+        batch_idx=0,
+        num_batches=1,
+        batch_rows=1,
+        batch_cols=1,
+        run_ctx=run_ctx,
+    )
+
+    vis_kwargs = mock_visualizer_class.call_args[1]
+    assert vis_kwargs['plot_format'] == 'wedges'
+    assert vis_kwargs['wedge_width_scale'] == 1.5
+    assert vis_kwargs['max_y_steps'] == 4
+    assert vis_kwargs['colour_value_column'] == 'max_hourly_precip_mm'
+    assert vis_kwargs['colourbar_title'] == 'mm'
+
+
+@patch('geo_plot.orchestrator.Visualizer')
+def test_orchestrator_prefers_measure_colour_mode(mock_visualizer_class, tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "\n".join([
+            "plot_text:",
+            "  single_plot_title: '{location} {measure_label} ({start_year}-{end_year})'",
+            "  overall_title: '{measure_label} ({start_year}-{end_year})'",
+            "  overall_title_with_batch: '{measure_label} ({start_year}-{end_year}) - Part {batch}/{total_batches}'",
+            "  single_plot_filename: '{location}_{measure_key}_{start_year}_{end_year}.png'",
+            "  subplot_filename: '{list_name}_{measure_key}_{start_year}_{end_year}.png'",
+            "  subplot_filename_with_batch: '{list_name}_{measure_key}_{start_year}_{end_year}_part{batch}of{total_batches}.png'",
+            "  credit: 'Climate Data Analysis & Visualisation by Colin Osborne'",
+            "  single_plot_credit: 'Analysis & visualisation by Colin Osborne'",
+            "  data_source: 'Data from: ERA5 via CDS'",
+            "plotting:",
+            "  measures:",
+            "    daily_precipitation:",
+            "      label: Rainfall",
+            "      unit: mm/day",
+            "      colour_mode: year",
             "      y_value_column: precip_mm",
             "      range_text: '{measure_label}: {min_value:.1f}-{max_value:.1f} {measure_unit}'",
         ])
@@ -307,9 +430,7 @@ def test_orchestrator_passes_plot_format_to_visualizer(mock_visualizer_class, tm
     )
 
     vis_kwargs = mock_visualizer_class.call_args[1]
-    assert vis_kwargs['plot_format'] == 'radial_wedges'
-    assert vis_kwargs['wedge_width_scale'] == 1.5
-    assert vis_kwargs['max_y_steps'] == 4
+    assert vis_kwargs['colour_mode'] == 'year'
 
 
 @patch('geo_plot.orchestrator.Visualizer')
@@ -380,7 +501,7 @@ def test_create_main_plots_single_batch(mock_grid_layout, mock_create_batch, tmp
         "  max_auto_rows: 4\n"
         "  max_auto_cols: 6\n"
         "plotting:\n"
-        "  measure_labels:\n"
+        "  measures:\n"
         "    noon_temperature:\n"
         "      label: Mid-Day Temperature\n"
         "      unit: °C\n"
@@ -438,7 +559,7 @@ def test_create_main_plots_multiple_batches(mock_create_batch, tmp_path):
         "  max_auto_rows: 4\n"
         "  max_auto_cols: 6\n"
         "plotting:\n"
-        "  measure_labels:\n"
+        "  measures:\n"
         "    noon_temperature:\n"
         "      label: Mid-Day Temperature\n"
         "      unit: °C\n"
@@ -491,7 +612,7 @@ def test_plot_all_no_show(mock_create_main, mock_create_individual, mock_visuali
         "  max_auto_rows: 4\n"
         "  max_auto_cols: 6\n"
         "plotting:\n"
-        "  measure_labels:\n"
+        "  measures:\n"
         "    noon_temperature:\n"
         "      label: Mid-Day Temperature\n"
         "      unit: °C\n"
@@ -543,7 +664,7 @@ def test_plot_all_show_main(mock_create_main, mock_create_individual, mock_visua
         "  max_auto_rows: 4\n"
         "  max_auto_cols: 6\n"
         "plotting:\n"
-        "  measure_labels:\n"
+        "  measures:\n"
         "    noon_temperature:\n"
         "      label: Mid-Day Temperature\n"
         "      unit: °C\n"
@@ -592,7 +713,7 @@ def test_plot_all_show_all(mock_create_main, mock_create_individual, mock_visual
         "  max_auto_rows: 4\n"
         "  max_auto_cols: 6\n"
         "plotting:\n"
-        "  measure_labels:\n"
+        "  measures:\n"
         "    noon_temperature:\n"
         "      label: Mid-Day Temperature\n"
         "      unit: °C\n"
@@ -642,7 +763,7 @@ def test_plot_all_multiple_locations(mock_create_main, mock_create_individual, m
         "  max_auto_rows: 4\n"
         "  max_auto_cols: 6\n"
         "plotting:\n"
-        "  measure_labels:\n"
+        "  measures:\n"
         "    noon_temperature:\n"
         "      label: Mid-Day Temperature\n"
         "      unit: °C\n"
@@ -680,8 +801,8 @@ def test_plot_all_daily_precipitation_uses_measure_column(mock_create_individual
         "\n".join([
             "plot_text:",
             "  single_plot_title: '{location} {measure_label} ({start_year}-{end_year})'",
-            "  subplot_title: '{measure_label} ({start_year}-{end_year})'",
-            "  subplot_title_with_batch: '{measure_label} ({start_year}-{end_year}) - Part {batch}/{total_batches}'",
+            "  overall_title: '{measure_label} ({start_year}-{end_year})'",
+            "  overall_title_with_batch: '{measure_label} ({start_year}-{end_year}) - Part {batch}/{total_batches}'",
             "  single_plot_filename: '{location}_{measure_key}_{start_year}_{end_year}.png'",
             "  subplot_filename: '{list_name}_{measure_key}_{start_year}_{end_year}.png'",
             "  subplot_filename_with_batch: '{list_name}_{measure_key}_{start_year}_{end_year}_part{batch}of{total_batches}.png'",
@@ -689,7 +810,7 @@ def test_plot_all_daily_precipitation_uses_measure_column(mock_create_individual
             "  single_plot_credit: 'Analysis & visualisation by Colin Osborne'",
             "  data_source: 'Data from: ERA5 via CDS'",
             "plotting:",
-            "  measure_labels:",
+            "  measures:",
             "    daily_precipitation:",
             "      label: Daily Precipitation",
             "      unit: mm",

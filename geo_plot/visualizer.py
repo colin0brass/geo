@@ -33,6 +33,8 @@ class Visualizer:
         out_dir: str = 'output',
         settings_file: str = 'geo_plot/settings.yaml',
         y_value_column: str = 'temp_C',
+        colour_value_column: str | None = None,
+        colourbar_title: str | None = None,
         range_text_template: str | None = None,
         range_text_context: dict[str, str] | None = None,
         colour_mode: str = 'y_value',
@@ -53,7 +55,7 @@ class Visualizer:
             y_value_column: DataFrame column used for y-value range text.
             range_text_template: Optional template used for the per-plot value range text.
             range_text_context: Optional context values used with range_text_template.
-            colour_mode: Colour mapping mode ('y_value' or 'year').
+            colour_mode: Colour mapping mode ('y_value', 'colour_value', or 'year').
             colormap_name: Matplotlib colormap name for point colouring.
         Raises:
             ValueError: If the DataFrame is empty or None.
@@ -71,6 +73,8 @@ class Visualizer:
         if self.max_y_steps is not None and self.max_y_steps <= 0:
             raise ValueError("max_y_steps must be > 0")
         self.y_value_column = y_value_column
+        self.colour_value_column = colour_value_column or y_value_column
+        self.colourbar_title = colourbar_title
         self.measure_unit = str((range_text_context or {}).get('measure_unit', '')).strip()
         if range_text_template is None:
             self.range_text_template = "{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}"
@@ -92,18 +96,25 @@ class Visualizer:
         self.df = self.add_data_fields(df)
         if self.y_value_column not in self.df.columns:
             raise KeyError(f"Missing y_value_column '{self.y_value_column}' in DataFrame")
+        if self.colour_value_column not in self.df.columns:
+            raise KeyError(f"Missing colour_value_column '{self.colour_value_column}' in DataFrame")
 
-        valid_modes = {"y_value", "year"}
+        valid_modes = {"y_value", "colour_value", "year"}
         if colour_mode not in valid_modes:
             raise ValueError(f"Invalid colour_mode '{colour_mode}'. Expected one of {sorted(valid_modes)}")
         self.colour_mode = colour_mode
+        if self.colour_mode == 'y_value':
+            self.colour_source_column = self.y_value_column
+        else:
+            self.colour_source_column = self.colour_value_column
 
-        valid_plot_formats = {"points", "radial_bars", "radial_wedges"}
-        if plot_format not in valid_plot_formats:
+        normalized_plot_format = 'wedges' if plot_format == 'radial_bars' else plot_format
+        valid_plot_formats = {"points", "radial_bars", "wedges"}
+        if normalized_plot_format not in valid_plot_formats:
             raise ValueError(
                 f"Invalid plot_format '{plot_format}'. Expected one of {sorted(valid_plot_formats)}"
             )
-        self.plot_format = plot_format
+        self.plot_format = normalized_plot_format
 
         self.wedge_width_scale = float(wedge_width_scale)
         if self.wedge_width_scale <= 0:
@@ -114,12 +125,14 @@ class Visualizer:
 
         self.tmin_c = t_min_c if t_min_c is not None else np.min(self.df[self.y_value_column])
         self.tmax_c = t_max_c if t_max_c is not None else np.max(self.df[self.y_value_column])
+        self.colour_min = float(np.min(self.df[self.colour_source_column]))
+        self.colour_max = float(np.max(self.df[self.colour_source_column]))
         try:
             self.cmap = plt.get_cmap(colormap_name)
         except Exception as e:
             raise ValueError(f"Unknown colormap '{colormap_name}': {e}") from e
         self.colormap_name = colormap_name
-        self.norm = Normalize(vmin=self.tmin_c, vmax=self.tmax_c)
+        self.norm = Normalize(vmin=self.colour_min, vmax=self.colour_max)
         if self.first_year == self.last_year:
             self.year_norm = Normalize(vmin=self.first_year - 0.5, vmax=self.first_year + 0.5)
         else:
@@ -135,9 +148,14 @@ class Visualizer:
         max_value = float(df[range_column].max())
         return min_value, max_value
 
-    def _format_range_text(self, min_value: float, max_value: float) -> str:
+    def _format_range_text(self, min_value: float, max_value: float, df: pd.DataFrame | None = None) -> str:
         """Format value-range text using configured template/context."""
         measure_unit = self.range_text_context.get('measure_unit', '')
+        if df is not None and 'precip_mm' in df.columns:
+            max_daily_precip_mm = float(df['precip_mm'].max())
+        else:
+            max_daily_precip_mm = max_value
+        max_daily_precip_in = self.mm_to_inches(max_daily_precip_mm)
         context = {
             'min_value': min_value,
             'max_value': max_value,
@@ -152,6 +170,8 @@ class Visualizer:
             'max_temp_c': max_value,
             'min_temp_f': self.temp_c_to_f(min_value),
             'max_temp_f': self.temp_c_to_f(max_value),
+            'max_daily_precip_mm': max_daily_precip_mm,
+            'max_daily_precip_in': max_daily_precip_in,
         }
         try:
             return self.range_text_template.format(**context)
@@ -198,6 +218,42 @@ class Visualizer:
             Temperature in Fahrenheit.
         """
         return temp_c * 9.0 / 5.0 + 32.0
+
+    @staticmethod
+    def mm_to_inches(mm_value: float) -> float:
+        """Convert millimeters to inches."""
+        return mm_value / 25.4
+
+    def _default_metric_colourbar_title(self) -> str:
+        """Resolve default metric colourbar title for non-year colour modes."""
+        if self.colourbar_title:
+            return self.colourbar_title
+        if self.colour_source_column != self.y_value_column:
+            return self.colour_source_column
+        return self.measure_unit if self.measure_unit else self.y_value_column
+
+    def _is_precipitation_colour_scale(self) -> bool:
+        """Detect whether the active colour scale represents precipitation values."""
+        source = self.colour_source_column.lower()
+        title = (self.colourbar_title or '').lower()
+        return (
+            'precip' in source
+            or 'rain' in source
+            or 'precip' in title
+            or 'rain' in title
+        )
+
+    @staticmethod
+    def _imperial_precip_title(metric_title: str) -> str:
+        """Map metric precipitation colourbar titles to imperial equivalents."""
+        lowered = metric_title.strip().lower()
+        if lowered == 'mm/hr' or lowered == 'mm/h':
+            return 'in/hr'
+        if lowered == 'mm/day' or lowered == 'mm/d':
+            return 'in/day'
+        if lowered == 'mm':
+            return 'in'
+        return 'in'
 
     @staticmethod
     def show_saved_plots(plot_files: list[str]) -> None:
@@ -268,15 +324,42 @@ class Visualizer:
                 cbar_year.set_ticks([self.first_year])
             return
 
-        if self.y_value_column != 'temp_C':
-            left_single = (left_c + left_f) / 2.0
-            cbar_ax = fig.add_axes([left_single, bottom, width, height], frameon=False)
-            cbar_ax.set_yticks([]), cbar_ax.set_xticks([])
-            norm = Normalize(vmin=self.tmin_c, vmax=self.tmax_c)
-            cbar = plt.colorbar(cm.ScalarMappable(norm=norm, cmap=self.cmap), ax=cbar_ax, orientation='vertical')
-            cbar_title = self.measure_unit if self.measure_unit else self.y_value_column
-            cbar.ax.set_title(cbar_title, fontsize=fontsize)
-            cbar.ax.tick_params(labelsize=fontsize-2)
+        if self.colour_mode == 'colour_value' or self.y_value_column != 'temp_C':
+            metric_title = self._default_metric_colourbar_title()
+            if self._is_precipitation_colour_scale():
+                metric_norm = Normalize(vmin=self.colour_min, vmax=self.colour_max)
+                imperial_norm = Normalize(
+                    vmin=self.mm_to_inches(self.colour_min),
+                    vmax=self.mm_to_inches(self.colour_max),
+                )
+
+                cbar_ax_metric = fig.add_axes([left_c, bottom, width, height], frameon=False)
+                cbar_ax_metric.set_yticks([]), cbar_ax_metric.set_xticks([])
+                cbar_metric = plt.colorbar(
+                    cm.ScalarMappable(norm=metric_norm, cmap=self.cmap),
+                    ax=cbar_ax_metric,
+                    orientation='vertical'
+                )
+                cbar_metric.ax.set_title(metric_title, fontsize=fontsize)
+                cbar_metric.ax.tick_params(labelsize=fontsize-2)
+
+                cbar_ax_imperial = fig.add_axes([left_f, bottom, width, height], frameon=False)
+                cbar_ax_imperial.set_yticks([]), cbar_ax_imperial.set_xticks([])
+                cbar_imperial = plt.colorbar(
+                    cm.ScalarMappable(norm=imperial_norm, cmap=self.cmap),
+                    ax=cbar_ax_imperial,
+                    orientation='vertical'
+                )
+                cbar_imperial.ax.set_title(self._imperial_precip_title(metric_title), fontsize=fontsize)
+                cbar_imperial.ax.tick_params(labelsize=fontsize-2)
+            else:
+                left_single = (left_c + left_f) / 2.0
+                cbar_ax = fig.add_axes([left_single, bottom, width, height], frameon=False)
+                cbar_ax.set_yticks([]), cbar_ax.set_xticks([])
+                norm = Normalize(vmin=self.colour_min, vmax=self.colour_max)
+                cbar = plt.colorbar(cm.ScalarMappable(norm=norm, cmap=self.cmap), ax=cbar_ax, orientation='vertical')
+                cbar.ax.set_title(metric_title, fontsize=fontsize)
+                cbar.ax.tick_params(labelsize=fontsize-2)
             return
 
         # Celsius colorbar
@@ -309,7 +392,7 @@ class Visualizer:
             years = pd.to_datetime(df['date']).dt.year.astype(float)
             return self.year_cmap(self.year_norm(years))
 
-        c = self.norm(df[self.y_value_column])
+        c = self.norm(df[self.colour_source_column])
         return self.cmap(c)
 
     def draw_temp_circles(self, ax: plt.Axes, num_rows: int = 1) -> None:
@@ -369,7 +452,7 @@ class Visualizer:
         xtick_fontsize = settings.get('figure.xtick_fontsize')
 
         radial_base = self.tmin_c
-        if self.plot_format in {'radial_bars', 'radial_wedges'}:
+        if self.plot_format in {'radial_bars', 'wedges'}:
             bar_width = (2 * np.pi / 365.0) * self.wedge_width_scale
             values = df[self.y_value_column].to_numpy(dtype=float)
             radial_base = min(0.0, float(np.nanmin(values)))
@@ -444,7 +527,7 @@ class Visualizer:
 
         # Show temp range under the subplot using the parent figure
         range_min, range_max = self._get_range_bounds(self.df)
-        temp_range_text = self._format_range_text(range_min, range_max)
+        temp_range_text = self._format_range_text(range_min, range_max, df=self.df)
 
         # Place the text just below the subplot
         bbox = ax.get_position()
@@ -520,7 +603,7 @@ class Visualizer:
 
         # Show temp range under the subplot using the parent figure
         range_min, range_max = self._get_range_bounds(df)
-        temp_range_text = self._format_range_text(range_min, range_max)
+        temp_range_text = self._format_range_text(range_min, range_max, df=df)
 
         # Place the text just below the subplot using scaled vspace
         bbox = ax.get_position()
@@ -539,6 +622,8 @@ class Visualizer:
     def plot_polar_subplots(
         self,
         subplot_field: str = "place_name",
+        subplot_title_template: str | None = None,
+        subplot_title_context: dict[str, object] | None = None,
         num_rows: int = 2,
         num_cols: int = None,
         title: str = "",
@@ -553,6 +638,8 @@ class Visualizer:
 
         Args:
             subplot_field: DataFrame column to split subplots by.
+            subplot_title_template: Optional template for each subplot title.
+            subplot_title_context: Optional context values for subplot title template.
             num_rows: Number of subplot rows (default 2).
             num_cols: Number of subplot columns (default None, auto-calculated).
             title: Overall plot title.
@@ -567,6 +654,8 @@ class Visualizer:
             settings = self.all_settings[self.layout]
         except Exception as e:
             raise RuntimeError(f"Error loading settings layout {layout}: {e}") from e
+
+        overall_title = title
 
         place_list = self.df[subplot_field].unique()
         num_plots = len(place_list)
@@ -636,18 +725,54 @@ class Visualizer:
                         # For 1-2 rows: expand from default position using scale factors
                         new_width = pos.width * width_scale
                         new_height = pos.height * height_scale
-                        logger.debug(f"Row {row}, Col {col} - Expanding: {new_width:.3f}x{new_height:.3f}")
                         ax.set_position([pos.x0, pos.y0, new_width, new_height])
 
-                    if self.first_year != self.last_year:
-                        title = f"{place} ({self.first_year}-{self.last_year})"
+                    if subplot_title_template is not None:
+                        base_context = dict(subplot_title_context or {})
+                        start_year = int(base_context.get('start_year', self.first_year))
+                        end_year = int(base_context.get('end_year', self.last_year))
+                        year_range = base_context.get('year_range')
+                        if year_range is None:
+                            year_range = str(start_year) if start_year == end_year else f"{start_year}-{end_year}"
+                        title_context = {
+                            **base_context,
+                            'location': place,
+                            'place': place,
+                            'place_name': place,
+                            'start_year': start_year,
+                            'end_year': end_year,
+                            'year_range': year_range,
+                        }
+                        try:
+                            subplot_title = str(subplot_title_template).format(**title_context)
+                        except KeyError as exc:
+                            raise ValueError(
+                                f"Missing placeholder context for subplot_title_template: {exc}"
+                            ) from exc
+                    elif self.first_year != self.last_year:
+                        subplot_title = f"{place} ({self.first_year}-{self.last_year})"
                     else:
-                        title = f"{place} ({self.first_year})"
-                    self.subplot_polar(df=df_place, ax=ax, cbar=False, title=title, num_rows=num_rows)
+                        subplot_title = f"{place} ({self.first_year})"
+                    self.subplot_polar(df=df_place, ax=ax, cbar=False, title=subplot_title, num_rows=num_rows)
                 else:
                     ax.axis('off')  # Hide unused subplots
 
         self.add_dual_colourbars(fig)
+
+        if overall_title:
+            title_fontsize = mgr.get('page.overall_title_fontsize', mgr.get('page.title_fontsize'))
+            title_colour = mgr.get('page.title_colour')
+            left_title_x = mgr.get('page.left_title_x', 0.015)
+            fig.text(
+                left_title_x,
+                0.5,
+                overall_title,
+                rotation=90,
+                va='center',
+                ha='center',
+                fontsize=title_fontsize,
+                color=title_colour,
+            )
 
         label_fontsize = mgr.get('page.label_fontsize')
         dpi = mgr.get('page.dpi')

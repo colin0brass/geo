@@ -298,7 +298,7 @@ python geo.py -p "MyCity" --lat 40.7 --lon -74.0 -y 2024
 |--------|-------|-------------|---------|
 | `--show` | `-s` | Display plots on screen after generation | off |
 | `--grid COLSxROWS` | `-g` | Manual grid (e.g., 4x3) | auto |
-| `--colour-mode {y_value,year}` / `--color-mode {y_value,year}` | `—` | Point colouring mode (`y_value` or `year`) | from `config.yaml` (`y_value`) |
+| `--colour-mode {y_value,year}` / `--color-mode {y_value,year}` | `—` | Point colouring mode (`y_value` or `year`) | from per-measure config |
 
 **Notes:**
 - Individual plots are only created for single places (using `--place`)
@@ -402,37 +402,51 @@ runtime_paths:
 
 ```yaml
 plotting:
-  colour_mode: y_value  # y_value or year
-  measure_labels:
+  measures:
     noon_temperature:
       label: "Mid-Day Temperature"
       unit: "°C"
+      colour_mode: y_value  # y_value or year
       y_value_column: "temp_C"
       range_text: "{min_temp_c:.1f}°C to {max_temp_c:.1f}°C; ({min_temp_f:.1f}°F to {max_temp_f:.1f}°F)"
     daily_precipitation:
-      label: "Daily Precipitation"
-      unit: "mm"
-      y_value_column: "precip_mm"
+      label: "Wet Hours per Day"
+      unit: "h"
+      colour_mode: y_value
+      y_value_column: "wet_hours_per_day"
+      colour_value_column: "max_hourly_precip_mm"  # optional; colour by different column than y-axis
+      colourbar_title: "mm"                        # optional; colourbar title override
       y_min: 0           # optional fixed lower bound
-      y_max: 50          # optional fixed upper bound
-      y_step: 5          # optional ring/colorbar interval step
-      plot_format: radial_wedges
+      y_max: 24          # optional fixed upper bound
+      y_step: 2          # optional ring interval step
+      max_y_steps: 4     # optional cap on number of radial rings/labels
+      plot_format: wedges
       wedge_width_scale: 1.35  # optional wedge-width multiplier (>1 makes wedges wider)
+      range_text: "{measure_label}: {min_value:.0f} to {max_value:.0f} {measure_unit}"
+    daily_solar_radiation_energy:
+      label: "Daily Solar Radiation"
+      unit: "MJ/m²"
+      colour_mode: y_value
+      y_value_column: "solar_energy_MJ_m2"
+      y_min: 0
+      y_step: 10
       range_text: "{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}"
   valid_colormaps: [turbo, viridis, plasma, inferno, magma, cividis]  # first item is default fallback
   colormap: turbo           # must be one of valid_colormaps
 ```
 
-- `y_value`: colours points by plotted y-axis value (current/default behaviour)
-- `year`: colours points by year progression to make long-term trend shifts easier to spot
-- `measure_labels.*.y_min` / `y_max`: optional fixed y-axis bounds per measure (if omitted, bounds are derived from data)
-- `measure_labels.*.y_step`: optional per-measure radial ring interval; if omitted, an internal default is used
-- `measure_labels.*.plot_format`: `points` (default scatter) or wedge formats `radial_wedges` / `radial_bars` (alias); bundled config uses `radial_wedges` for precipitation
-- `measure_labels.*.wedge_width_scale`: optional wedge-width multiplier (`> 0`); use values above `1.0` for wider wedges
+- `measures.*.colour_mode`: per-measure point colouring mode (`y_value` or `year`)
+- `measures.*.y_min` / `y_max`: optional fixed y-axis bounds per measure (if omitted, bounds are derived from data)
+- `measures.*.y_step`: optional per-measure radial ring interval; if omitted, an internal default is used
+- `measures.*.max_y_steps`: optional cap on radial ring/label count (auto-coarsens ring interval when exceeded)
+- `measures.*.colour_value_column`: optional column used for colour mapping (defaults to `y_value_column`)
+- `measures.*.colourbar_title`: optional colourbar title override (for example `mm`)
+- `measures.*.plot_format`: `points` (default scatter) or `wedges`; `radial_bars` is accepted as an alias and normalized to `wedges`
+- `measures.*.wedge_width_scale`: optional wedge-width multiplier (`> 0`); use values above `1.0` for wider wedges
 - `valid_colormaps`: controls which colormaps are allowed and sets default fallback by first item
 - `colormap`: controls the active colour palette used by both modes
 
-**Note:** The `--colour-mode` command-line option overrides this setting for a run.
+**Note:** The `--colour-mode` command-line option overrides per-measure `colour_mode` for a run.
 
 #### 6. Plot Text (Titles and Filenames)
 
@@ -440,10 +454,10 @@ Customize plot titles, filenames, and attribution text using format placeholders
 
 ```yaml
 plot_text:
-  # Title patterns (use {location}, {start_year}, {end_year}, {batch}, {total_batches}, {measure_label}, {measure_key}, {measure_unit})
-  single_plot_title: "{location} {measure_label} ({start_year}-{end_year})"
-  subplot_title: "{measure_label} ({start_year}-{end_year})"
-  subplot_title_with_batch: "{measure_label} ({start_year}-{end_year}) - Part {batch}/{total_batches}"
+  # Title patterns (use {location}, {year_range}, {start_year}, {end_year}, {batch}, {total_batches}, {measure_label}, {measure_key}, {measure_unit})
+  single_plot_title: "{location} {measure_label} ({year_range})"
+  overall_title: "{measure_label} ({year_range})"
+  overall_title_with_batch: "{measure_label} ({year_range}) - Part {batch}/{total_batches}"
   
   # Filename patterns (location names automatically sanitized for filenames)
   single_plot_filename: "{location}_{measure_key}_{start_year}_{end_year}.png"
@@ -461,6 +475,7 @@ plot_text:
 - `{list_name}` - Place list name (e.g., "default", "arctic", "all")
 - `{start_year}` - Start year of data
 - `{end_year}` - End year of data
+- `{year_range}` - Compact year span (`YYYY` when start=end, otherwise `YYYY-YYYY`)
 - `{batch}` - Current batch number (for multi-batch plots)
 - `{total_batches}` - Total number of batches
 - `{measure}` / `{measure_key}` - Measure key (for example: `noon_temperature`)
@@ -470,7 +485,7 @@ plot_text:
 **Example customizations:**
 ```yaml
 # Short titles
-subplot_title: "Noon Temps {start_year}-{end_year}"
+overall_title: "Noon Temps {year_range}"
 
 # Different filename format
 single_plot_filename: "{start_year}-{end_year}_{location}_noon.png"

@@ -18,8 +18,8 @@ Configuration parsing/validation and shared defaults live in `geo_core`.
 
 - `visualizer.py`
   - `Visualizer` class for single and multi-subplot polar charts
-  - colour modes (`y_value`, `year`) and colormap handling
-  - measure-aware plot formats (`points`, `radial_wedges`, and `radial_bars` alias)
+  - colour modes (`y_value`, `colour_value`, `year`) and colormap handling
+  - measure-aware plot formats (`points`, `wedges`, and `radial_bars` alias)
   - configurable wedge-width scaling via measure metadata
   - settings-driven rendering via `geo_plot/settings.yaml`
 - `settings_manager.py`

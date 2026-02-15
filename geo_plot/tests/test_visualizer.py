@@ -171,6 +171,26 @@ def test_visualizer_range_text_template_formatting():
     assert text == "Daily Precipitation: 1.2-4.8 mm"
 
 
+def test_visualizer_precipitation_max_daily_range_text_placeholders():
+    df = pd.DataFrame({
+        'date': ['2025-01-01', '2025-01-02'],
+        'wet_hours_per_day': [3, 8],
+        'precip_mm': [12.7, 25.4],
+    })
+    vis = Visualizer(
+        df,
+        y_value_column='wet_hours_per_day',
+        range_text_template="Max daily precipitation: {max_daily_precip_mm:.1f} mm ({max_daily_precip_in:.2f} in)",
+        range_text_context={
+            'measure_label': 'Wet Hours per Day',
+            'measure_unit': 'h',
+        }
+    )
+    min_value, max_value = vis._get_range_bounds(df)
+    text = vis._format_range_text(min_value, max_value, df=df)
+    assert text == "Max daily precipitation: 25.4 mm (1.00 in)"
+
+
 def test_visualizer_range_text_template_missing_context_raises():
     df = pd.DataFrame({'date': ['2025-01-01'], 'temp_C': [10]})
     vis = Visualizer(
@@ -180,6 +200,45 @@ def test_visualizer_range_text_template_missing_context_raises():
     )
     with pytest.raises(ValueError):
         vis._format_range_text(1.0, 2.0)
+
+
+def test_visualizer_uses_colour_value_column_for_colour_value_mode_colours():
+    df = pd.DataFrame({
+        'date': pd.date_range('2025-01-01', periods=3),
+        'wet_hours_per_day': [2.0, 2.0, 2.0],
+        'max_hourly_precip_mm': [0.1, 1.0, 5.0],
+    })
+    vis = Visualizer(
+        df,
+        y_value_column='wet_hours_per_day',
+        colour_value_column='max_hourly_precip_mm',
+        colour_mode='colour_value',
+        colourbar_title='mm',
+        range_text_template="{measure_label}: {min_value:.1f}-{max_value:.1f} {measure_unit}",
+        range_text_context={'measure_label': 'Wet Hours per Day', 'measure_unit': 'h'},
+    )
+
+    colours = vis.get_point_colours(vis.df)
+    assert len({tuple(row) for row in colours}) > 1
+
+
+def test_visualizer_y_value_mode_colours_by_y_value_column():
+    df = pd.DataFrame({
+        'date': pd.date_range('2025-01-01', periods=3),
+        'wet_hours_per_day': [2.0, 2.0, 2.0],
+        'max_hourly_precip_mm': [0.1, 1.0, 5.0],
+    })
+    vis = Visualizer(
+        df,
+        y_value_column='wet_hours_per_day',
+        colour_value_column='max_hourly_precip_mm',
+        colour_mode='y_value',
+        range_text_template="{measure_label}: {min_value:.1f}-{max_value:.1f} {measure_unit}",
+        range_text_context={'measure_label': 'Wet Hours per Day', 'measure_unit': 'h'},
+    )
+
+    colours = vis.get_point_colours(vis.df)
+    assert len({tuple(row) for row in colours}) == 1
 
 
 def test_visualizer_requires_range_text_template():
@@ -208,7 +267,7 @@ def test_plot_polar_precipitation_without_temp_column(tmp_path):
     assert output_file.exists()
 
 
-def test_create_polar_plot_radial_wedges_uses_bar(tmp_path):
+def test_create_polar_plot_wedges_uses_bar(tmp_path):
     df = pd.DataFrame({
         'date': pd.date_range('2025-01-01', periods=30),
         'precip_mm': [float(i % 7) for i in range(30)],
@@ -216,7 +275,7 @@ def test_create_polar_plot_radial_wedges_uses_bar(tmp_path):
     vis = Visualizer(
         df,
         y_value_column='precip_mm',
-        plot_format='radial_wedges',
+        plot_format='wedges',
         range_text_template="{measure_label}: {min_value:.1f}-{max_value:.1f} {measure_unit}",
         range_text_context={'measure_label': 'Daily Precipitation', 'measure_unit': 'mm'},
     )
@@ -238,7 +297,7 @@ def test_create_polar_plot_wedge_width_scale_changes_patch_width(tmp_path):
     vis_default = Visualizer(
         df,
         y_value_column='precip_mm',
-        plot_format='radial_wedges',
+        plot_format='wedges',
         wedge_width_scale=1.0,
         range_text_template="{measure_label}: {min_value:.1f}-{max_value:.1f} {measure_unit}",
         range_text_context={'measure_label': 'Daily Precipitation', 'measure_unit': 'mm'},
@@ -246,7 +305,7 @@ def test_create_polar_plot_wedge_width_scale_changes_patch_width(tmp_path):
     vis_wide = Visualizer(
         df,
         y_value_column='precip_mm',
-        plot_format='radial_wedges',
+        plot_format='wedges',
         wedge_width_scale=1.5,
         range_text_template="{measure_label}: {min_value:.1f}-{max_value:.1f} {measure_unit}",
         range_text_context={'measure_label': 'Daily Precipitation', 'measure_unit': 'mm'},
@@ -267,6 +326,21 @@ def test_create_polar_plot_wedge_width_scale_changes_patch_width(tmp_path):
     matplotlib.pyplot.close(fig_wide)
 
 
+def test_visualizer_accepts_wedges_plot_format_alias():
+    df = pd.DataFrame({
+        'date': pd.date_range('2025-01-01', periods=5),
+        'wet_hours_per_day': [1.0, 2.0, 3.0, 2.0, 1.0],
+    })
+    vis = Visualizer(
+        df,
+        y_value_column='wet_hours_per_day',
+        plot_format='wedges',
+        range_text_template="{measure_label}: {min_value:.1f}-{max_value:.1f} {measure_unit}",
+        range_text_context={'measure_label': 'Wet Hours per Day', 'measure_unit': 'hours'},
+    )
+    assert vis.plot_format == 'wedges'
+
+
 def test_visualizer_rejects_non_positive_wedge_width_scale():
     df = pd.DataFrame({
         'date': pd.date_range('2025-01-01', periods=2),
@@ -276,7 +350,7 @@ def test_visualizer_rejects_non_positive_wedge_width_scale():
         Visualizer(
             df,
             y_value_column='precip_mm',
-            plot_format='radial_wedges',
+            plot_format='wedges',
             wedge_width_scale=0,
             range_text_template="{measure_label}: {min_value:.1f}-{max_value:.1f} {measure_unit}",
             range_text_context={'measure_label': 'Daily Precipitation', 'measure_unit': 'mm'},
@@ -334,3 +408,60 @@ def test_visualizer_limits_y_circles_with_max_y_steps():
 
     assert len(ax.lines) <= 4
     matplotlib.pyplot.close(fig)
+
+
+def test_visualizer_precipitation_adds_dual_metric_and_imperial_colourbars():
+    df = pd.DataFrame({
+        'date': pd.date_range('2025-01-01', periods=3),
+        'wet_hours_per_day': [2.0, 4.0, 6.0],
+        'max_hourly_precip_mm': [0.5, 5.0, 10.0],
+    })
+
+    vis = Visualizer(
+        df,
+        y_value_column='wet_hours_per_day',
+        colour_value_column='max_hourly_precip_mm',
+        colour_mode='colour_value',
+        colourbar_title='mm/hr',
+        range_text_template="{measure_label}: {min_value:.1f}-{max_value:.1f} {measure_unit}",
+        range_text_context={'measure_label': 'Wet Hours per Day', 'measure_unit': 'h'},
+    )
+
+    fig = matplotlib.pyplot.figure()
+    vis.add_dual_colourbars(fig)
+
+    titles = [ax.get_title() for ax in fig.axes if ax.get_title()]
+    assert 'mm/hr' in titles
+    assert 'in/hr' in titles
+
+    matplotlib.pyplot.close(fig)
+
+
+def test_plot_polar_subplots_uses_subplot_title_template(tmp_path, monkeypatch):
+    df = pd.DataFrame({
+        'date': pd.date_range('2025-01-01', periods=4),
+        'temp_C': [10.0, 11.0, 12.0, 13.0],
+        'place_name': ['City A', 'City A', 'City B', 'City B'],
+    })
+    vis = Visualizer(df)
+    output_file = tmp_path / "subplot_title_template.png"
+
+    captured_titles: list[str] = []
+
+    def _capture_subplot_title(self, ax, df, cbar=False, title="", num_rows=1):
+        captured_titles.append(title)
+
+    monkeypatch.setattr(Visualizer, "subplot_polar", _capture_subplot_title)
+
+    vis.plot_polar_subplots(
+        subplot_field="place_name",
+        subplot_title_template="{location}",
+        subplot_title_context={'start_year': 2025, 'end_year': 2025, 'year_range': '2025'},
+        num_rows=1,
+        num_cols=2,
+        save_file=str(output_file),
+        show_plot=False,
+    )
+
+    assert output_file.exists()
+    assert captured_titles == ['City A', 'City B']

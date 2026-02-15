@@ -18,7 +18,6 @@ from cli import (
     get_place_list,
     list_places_and_exit,
     list_cache_summary_and_exit,
-    load_colour_mode,
     load_colormap,
     validate_measures_support,
     CLIError,
@@ -66,7 +65,7 @@ def _resolve_run_context(args):
             "--download-by compare requires exactly one year.",
             "Use --years YYYY when benchmarking month vs year download chunking.",
         )
-    colour_mode = load_colour_mode(args.config, args.colour_mode)
+    colour_mode = args.colour_mode
     colormap_name = load_colormap(args.config)
     places, default_place, place_lists = load_places()
     place_list, list_name = get_place_list(args, places, default_place, place_lists)
@@ -90,7 +89,7 @@ def _handle_dry_run(args, ctx, logger) -> int:
     logger.info(f"Measures: {', '.join(ctx['measures'])}")
     logger.info(f"Grid: {ctx['grid'] if ctx['grid'] else 'auto'}")
     logger.info(f"Download strategy: {args.download_by}")
-    logger.info(f"Colour mode: {ctx['colour_mode']}")
+    logger.info(f"Colour mode: {ctx['colour_mode'] if ctx['colour_mode'] is not None else 'per-measure config'}")
     logger.info(f"Colormap: {ctx['colormap_name']}")
     logger.info(f"Output directory: {args.out_dir}")
     logger.info(f"NetCDF cache directory: {args.cache_dir}")

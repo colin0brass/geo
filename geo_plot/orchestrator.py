@@ -14,7 +14,7 @@ from pathlib import Path
 import pandas as pd
 
 from geo_data.cds_base import Location
-from geo_core.config import CoreConfigService, get_plot_text, load_measure_labels_config, load_plot_text_config
+from geo_core.config import CoreConfigService, get_plot_text, load_measures_config, load_plot_text_config
 from geo_core.grid import calculate_grid_layout
 from .visualizer import Visualizer
 
@@ -39,28 +39,31 @@ class PlotOrchestrator:
         config: Path,
         settings: Path,
         measure: str = "noon_temperature",
-        colour_mode: str = "y_value",
+        colour_mode: str | None = None,
         colormap_name: str = "turbo",
     ) -> None:
         self.config = config
         self.settings = settings
         self.measure = measure
-        self.colour_mode = colour_mode
         self.colormap_name = colormap_name
         self.config_service = CoreConfigService(config)
 
         self._plot_text_config: dict | None = None
-        self.measure_labels = load_measure_labels_config(config)
-        self.measure_ctx = self._measure_plot_context(measure, self.measure_labels)
-        self.measure_meta = self.measure_labels.get(measure, {})
+        self.measures = load_measures_config(config)
+        self.measure_ctx = self._measure_plot_context(measure, self.measures)
+        self.measure_meta = self.measures.get(measure, {})
         self.range_text_template = self.measure_meta['range_text']
         self.y_value_column = self.measure_meta['y_value_column']
+        if colour_mode is not None:
+            self.colour_mode = str(colour_mode)
+        else:
+            self.colour_mode = str(self.measure_meta.get('colour_mode', 'y_value'))
 
     @staticmethod
-    def _measure_plot_context(measure: str, measure_labels: dict[str, dict[str, object]]) -> dict[str, str]:
+    def _measure_plot_context(measure: str, measures: dict[str, dict[str, object]]) -> dict[str, str]:
         """Build template context values for plot text based on selected measure."""
         default_label = measure.replace('_', ' ').title()
-        measure_metadata = measure_labels.get(measure, {})
+        measure_metadata = measures.get(measure, {})
         measure_label = measure_metadata.get('label', default_label)
         measure_unit = measure_metadata.get('unit', '')
         return {
@@ -95,6 +98,41 @@ class PlotOrchestrator:
         if self._plot_text_config is None:
             self._plot_text_config = load_plot_text_config(self.config)
         return self._plot_text_config
+
+    @staticmethod
+    def _format_year_range(start_year: int, end_year: int) -> str:
+        """Return compact year range text (single year when bounds are equal)."""
+        return str(start_year) if start_year == end_year else f"{start_year}-{end_year}"
+
+    def _resolve_overall_title(
+        self,
+        run_ctx: PlotRunContext,
+        fallback_title: str,
+        batch_idx: int,
+        num_batches: int,
+    ) -> str:
+        """Resolve optional per-measure overall title template for combined plots."""
+        configured_title = str(self.measure_meta.get('overall_title', '')).strip()
+        if not configured_title:
+            return fallback_title
+
+        year_range = self._format_year_range(run_ctx.start_year, run_ctx.end_year)
+        title_context = {
+            **self.measure_ctx,
+            'start_year': run_ctx.start_year,
+            'end_year': run_ctx.end_year,
+            'year_range': year_range,
+            'batch': batch_idx + 1,
+            'total_batches': num_batches,
+        }
+
+        try:
+            return configured_title.format(**title_context)
+        except KeyError as exc:
+            missing = exc.args[0]
+            raise ValueError(
+                f"Missing placeholder '{missing}' for plotting.measures.{self.measure}.overall_title"
+            ) from exc
 
     def resolve_measure_range(self, df: pd.DataFrame) -> tuple[float, float]:
         """Resolve y-axis bounds for the configured measure over a DataFrame."""
@@ -133,6 +171,8 @@ class PlotOrchestrator:
             max_y_steps=self.measure_meta.get('max_y_steps'),
             settings_file=self.settings,
             y_value_column=self.y_value_column,
+            colour_value_column=self.measure_meta.get('colour_value_column'),
+            colourbar_title=self.measure_meta.get('colourbar_title'),
             range_text_template=self.range_text_template,
             range_text_context=self.measure_ctx,
             colour_mode=self.colour_mode,
@@ -157,14 +197,16 @@ class PlotOrchestrator:
         plot_text_config = self._get_plot_text_config()
 
         run_ctx.out_dir.mkdir(parents=True, exist_ok=True)
+        year_range = self._format_year_range(run_ctx.start_year, run_ctx.end_year)
 
         if num_batches > 1:
             logger.info(f"Generating batch {batch_idx + 1}/{num_batches}: {len(batch_places)} locations")
             title = get_plot_text(
                 plot_text_config,
-                'subplot_title_with_batch',
+                'overall_title_with_batch',
                 start_year=run_ctx.start_year,
                 end_year=run_ctx.end_year,
+                year_range=year_range,
                 batch=batch_idx + 1,
                 total_batches=num_batches,
                 **self.measure_ctx,
@@ -182,9 +224,10 @@ class PlotOrchestrator:
         else:
             title = get_plot_text(
                 plot_text_config,
-                'subplot_title',
+                'overall_title',
                 start_year=run_ctx.start_year,
                 end_year=run_ctx.end_year,
+                year_range=year_range,
                 **self.measure_ctx,
             )
             filename = get_plot_text(
@@ -199,12 +242,25 @@ class PlotOrchestrator:
         plot_file = run_ctx.out_dir / filename
         credit = get_plot_text(plot_text_config, 'credit', **self.measure_ctx)
         data_source = get_plot_text(plot_text_config, 'data_source', **self.measure_ctx)
+        overall_title = self._resolve_overall_title(run_ctx, title, batch_idx, num_batches)
+        year_range = self._format_year_range(run_ctx.start_year, run_ctx.end_year)
+        subplot_title_template = str(
+            plot_text_config.get('subplot_title', '{location} ({year_range})')
+        )
+        subplot_title_context = {
+            **self.measure_ctx,
+            'start_year': run_ctx.start_year,
+            'end_year': run_ctx.end_year,
+            'year_range': year_range,
+        }
 
         vis = self._build_visualizer(df_batch, run_ctx)
 
         vis.plot_polar_subplots(
-            title=title,
+            title=overall_title,
             subplot_field="place_name",
+            subplot_title_template=subplot_title_template,
+            subplot_title_context=subplot_title_context,
             num_rows=batch_rows,
             num_cols=batch_cols,
             credit=credit,
@@ -226,6 +282,7 @@ class PlotOrchestrator:
         """Create a single location plot and return saved file path."""
         plot_text_config = self._get_plot_text_config()
         run_ctx.out_dir.mkdir(parents=True, exist_ok=True)
+        year_range = self._format_year_range(run_ctx.start_year, run_ctx.end_year)
 
         title = get_plot_text(
             plot_text_config,
@@ -233,6 +290,7 @@ class PlotOrchestrator:
             location=loc.name,
             start_year=run_ctx.start_year,
             end_year=run_ctx.end_year,
+            year_range=year_range,
             **self.measure_ctx,
         )
         filename = get_plot_text(
@@ -321,7 +379,7 @@ def plot_all(
     grid: tuple[int, int] | None = None,
     list_name: str | None = None,
     measure: str = "noon_temperature",
-    colour_mode: str = "y_value",
+    colour_mode: str | None = None,
     colormap_name: str = "turbo"
 ) -> None:
     """
@@ -340,7 +398,7 @@ def plot_all(
         grid: Optional fixed grid dimensions (rows, cols). If None, auto-calculate.
         list_name: Name of place list (e.g., "all", "arctic"). Not currently used.
         measure: Data measure key (e.g., "noon_temperature", "daily_precipitation").
-        colour_mode: Colour mapping mode ('y_value' or 'year').
+        colour_mode: Colour mapping mode ('y_value', 'colour_value', or 'year').
         colormap_name: Matplotlib colormap name.
     """
     orchestrator = PlotOrchestrator(

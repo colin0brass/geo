@@ -8,7 +8,7 @@ from geo_core.config import (
     extract_places_config,
     find_place_by_name,
     get_plot_text,
-    load_measure_labels_config,
+    load_measures_config,
     load_plot_text_config,
     load_retrieval_settings,
     load_runtime_paths,
@@ -41,9 +41,9 @@ def test_core_config_service_get_plot_text_uses_bound_config(tmp_path):
     config_file = tmp_path / "config.yaml"
     config_file.write_text(
         "plot_text:\n"
-        "  single_plot_title: '{location} ({start_year}-{end_year})'\n"
-        "  subplot_title: '{measure_label} ({start_year}-{end_year})'\n"
-        "  subplot_title_with_batch: '{measure_label} ({start_year}-{end_year}) - Part {batch}/{total_batches}'\n"
+        "  single_plot_title: '{location} ({year_range})'\n"
+        "  overall_title: '{measure_label} ({year_range})'\n"
+        "  overall_title_with_batch: '{measure_label} ({year_range}) - Part {batch}/{total_batches}'\n"
         "  single_plot_filename: '{location}_{measure_key}_{start_year}_{end_year}.png'\n"
         "  subplot_filename: '{list_name}_{measure_key}_{start_year}_{end_year}.png'\n"
         "  subplot_filename_with_batch: '{list_name}_{measure_key}_{start_year}_{end_year}_part{batch}of{total_batches}.png'\n"
@@ -58,8 +58,9 @@ def test_core_config_service_get_plot_text_uses_bound_config(tmp_path):
         location='Austin, TX',
         start_year=2024,
         end_year=2024,
+        year_range='2024',
     )
-    assert title == 'Austin, TX (2024-2024)'
+    assert title == 'Austin, TX (2024)'
 
 
 def test_load_colour_mode_from_config(tmp_path):
@@ -302,6 +303,28 @@ def test_load_retrieval_settings_invalid_fetch_mode_raises(tmp_path):
         load_retrieval_settings(config_file)
 
 
+def test_load_retrieval_settings_wet_hour_threshold_from_config(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "retrieval:\n"
+        "  wet_hour_threshold_mm: 1.25\n"
+    )
+
+    settings = load_retrieval_settings(config_file)
+    assert settings["wet_hour_threshold_mm"] == 1.25
+
+
+def test_load_retrieval_settings_invalid_wet_hour_threshold_raises(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "retrieval:\n"
+        "  wet_hour_threshold_mm: 0\n"
+    )
+
+    with pytest.raises(ValueError):
+        load_retrieval_settings(config_file)
+
+
 def test_load_retrieval_settings_daily_source_from_config(tmp_path):
     config_file = tmp_path / "config.yaml"
     config_file.write_text(
@@ -431,9 +454,9 @@ def test_load_plot_text_config_valid(tmp_path):
     config_file = tmp_path / "config.yaml"
     config_file.write_text(
         "plot_text:\n"
-        "  single_plot_title: '{location} {measure_label} ({start_year}-{end_year})'\n"
-        "  subplot_title: '{measure_label} ({start_year}-{end_year})'\n"
-        "  subplot_title_with_batch: '{measure_label} ({start_year}-{end_year}) - Part {batch}/{total_batches}'\n"
+        "  single_plot_title: '{location} {measure_label} ({year_range})'\n"
+        "  overall_title: '{measure_label} ({year_range})'\n"
+        "  overall_title_with_batch: '{measure_label} ({year_range}) - Part {batch}/{total_batches}'\n"
         "  single_plot_filename: '{location}_{measure_key}_{start_year}_{end_year}.png'\n"
         "  subplot_filename: '{list_name}_{measure_key}_{start_year}_{end_year}.png'\n"
         "  subplot_filename_with_batch: '{list_name}_{measure_key}_{start_year}_{end_year}_part{batch}of{total_batches}.png'\n"
@@ -443,22 +466,22 @@ def test_load_plot_text_config_valid(tmp_path):
     )
 
     plot_text = load_plot_text_config(config_file)
-    assert plot_text["subplot_title"] == "{measure_label} ({start_year}-{end_year})"
+    assert plot_text["overall_title"] == "{measure_label} ({year_range})"
 
 
 def test_load_plot_text_config_missing_required_key_raises(tmp_path):
     config_file = tmp_path / "config.yaml"
-    config_file.write_text("plot_text:\n  subplot_title: '{measure_label}'\n")
+    config_file.write_text("plot_text:\n  overall_title: '{measure_label}'\n")
 
     with pytest.raises(ValueError):
         load_plot_text_config(config_file)
 
 
-def test_load_measure_labels_config_missing_required_field_raises(tmp_path):
+def test_load_measures_config_missing_required_field_raises(tmp_path):
     config_file = tmp_path / "config.yaml"
     config_file.write_text(
         "plotting:\n"
-        "  measure_labels:\n"
+        "  measures:\n"
         "    noon_temperature:\n"
         "      label: Mid-Day Temperature\n"
         "      unit: °C\n"
@@ -466,14 +489,14 @@ def test_load_measure_labels_config_missing_required_field_raises(tmp_path):
     )
 
     with pytest.raises(ValueError):
-        load_measure_labels_config(config_file)
+        load_measures_config(config_file)
 
 
-def test_load_measure_labels_config_optional_range_controls(tmp_path):
+def test_load_measures_config_optional_range_controls(tmp_path):
     config_file = tmp_path / "config.yaml"
     config_file.write_text(
         "plotting:\n"
-        "  measure_labels:\n"
+        "  measures:\n"
         "    daily_precipitation:\n"
         "      label: Daily Precipitation\n"
         "      unit: mm\n"
@@ -484,36 +507,42 @@ def test_load_measure_labels_config_optional_range_controls(tmp_path):
         "      range_text: '{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}'\n"
     )
 
-    labels = load_measure_labels_config(config_file)
+    labels = load_measures_config(config_file)
     assert labels["daily_precipitation"]["y_min"] == 0.0
     assert labels["daily_precipitation"]["y_max"] == 50.0
     assert labels["daily_precipitation"]["y_step"] == 5.0
 
 
-def test_load_measure_labels_config_plot_format(tmp_path):
+def test_load_measures_config_plot_format(tmp_path):
     config_file = tmp_path / "config.yaml"
     config_file.write_text(
         "plotting:\n"
-        "  measure_labels:\n"
+        "  measures:\n"
         "    daily_precipitation:\n"
         "      label: Daily Precipitation\n"
         "      unit: mm\n"
         "      y_value_column: precip_mm\n"
-        "      plot_format: radial_wedges\n"
+        "      plot_format: wedges\n"
         "      wedge_width_scale: 1.4\n"
+        "      colour_value_column: max_hourly_precip_mm\n"
+        "      colourbar_title: mm\n"
+        "      overall_title: Precipitation\n"
         "      range_text: '{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}'\n"
     )
 
-    labels = load_measure_labels_config(config_file)
-    assert labels["daily_precipitation"]["plot_format"] == "radial_wedges"
+    labels = load_measures_config(config_file)
+    assert labels["daily_precipitation"]["plot_format"] == "wedges"
     assert labels["daily_precipitation"]["wedge_width_scale"] == 1.4
+    assert labels["daily_precipitation"]["colour_value_column"] == "max_hourly_precip_mm"
+    assert labels["daily_precipitation"]["colourbar_title"] == "mm"
+    assert labels["daily_precipitation"]["overall_title"] == "Precipitation"
 
 
-def test_load_measure_labels_config_invalid_plot_format_raises(tmp_path):
+def test_load_measures_config_invalid_plot_format_raises(tmp_path):
     config_file = tmp_path / "config.yaml"
     config_file.write_text(
         "plotting:\n"
-        "  measure_labels:\n"
+        "  measures:\n"
         "    daily_precipitation:\n"
         "      label: Daily Precipitation\n"
         "      unit: mm\n"
@@ -523,14 +552,14 @@ def test_load_measure_labels_config_invalid_plot_format_raises(tmp_path):
     )
 
     with pytest.raises(ValueError):
-        load_measure_labels_config(config_file)
+        load_measures_config(config_file)
 
 
-def test_load_measure_labels_config_invalid_y_step_raises(tmp_path):
+def test_load_measures_config_invalid_y_step_raises(tmp_path):
     config_file = tmp_path / "config.yaml"
     config_file.write_text(
         "plotting:\n"
-        "  measure_labels:\n"
+        "  measures:\n"
         "    daily_precipitation:\n"
         "      label: Daily Precipitation\n"
         "      unit: mm\n"
@@ -540,14 +569,14 @@ def test_load_measure_labels_config_invalid_y_step_raises(tmp_path):
     )
 
     with pytest.raises(ValueError):
-        load_measure_labels_config(config_file)
+        load_measures_config(config_file)
 
 
-def test_load_measure_labels_config_invalid_y_min_max_raises(tmp_path):
+def test_load_measures_config_invalid_y_min_max_raises(tmp_path):
     config_file = tmp_path / "config.yaml"
     config_file.write_text(
         "plotting:\n"
-        "  measure_labels:\n"
+        "  measures:\n"
         "    daily_precipitation:\n"
         "      label: Daily Precipitation\n"
         "      unit: mm\n"
@@ -558,31 +587,110 @@ def test_load_measure_labels_config_invalid_y_min_max_raises(tmp_path):
     )
 
     with pytest.raises(ValueError):
-        load_measure_labels_config(config_file)
+        load_measures_config(config_file)
 
 
-def test_load_measure_labels_config_invalid_wedge_width_scale_raises(tmp_path):
+def test_load_measures_config_invalid_wedge_width_scale_raises(tmp_path):
     config_file = tmp_path / "config.yaml"
     config_file.write_text(
         "plotting:\n"
-        "  measure_labels:\n"
+        "  measures:\n"
         "    daily_precipitation:\n"
         "      label: Daily Precipitation\n"
         "      unit: mm\n"
         "      y_value_column: precip_mm\n"
-        "      plot_format: radial_wedges\n"
+        "      plot_format: wedges\n"
         "      wedge_width_scale: 0\n"
         "      range_text: '{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}'\n"
     )
 
     with pytest.raises(ValueError):
-        load_measure_labels_config(config_file)
+        load_measures_config(config_file)
+
+
+def test_load_measures_config_colour_mode(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "plotting:\n"
+        "  measures:\n"
+        "    daily_precipitation:\n"
+        "      label: Daily Precipitation\n"
+        "      unit: mm\n"
+        "      y_value_column: precip_mm\n"
+        "      colour_mode: year\n"
+        "      range_text: '{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}'\n"
+    )
+
+    labels = load_measures_config(config_file)
+    assert labels["daily_precipitation"]["colour_mode"] == "year"
+
+
+def test_load_measures_config_colour_value_mode(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "plotting:\n"
+        "  measures:\n"
+        "    daily_precipitation:\n"
+        "      label: Daily Precipitation\n"
+        "      unit: mm\n"
+        "      y_value_column: precip_mm\n"
+        "      colour_mode: colour_value\n"
+        "      range_text: '{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}'\n"
+    )
+
+    labels = load_measures_config(config_file)
+    assert labels["daily_precipitation"]["colour_mode"] == "colour_value"
+
+
+def test_load_measures_config_invalid_colour_mode_raises(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "plotting:\n"
+        "  measures:\n"
+        "    daily_precipitation:\n"
+        "      label: Daily Precipitation\n"
+        "      unit: mm\n"
+        "      y_value_column: precip_mm\n"
+        "      colour_mode: invalid\n"
+        "      range_text: '{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}'\n"
+    )
+
+    with pytest.raises(ValueError):
+        load_measures_config(config_file)
+
+
+def test_load_measures_config_canonical_key(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "plotting:\n"
+        "  measures:\n"
+        "    daily_precipitation:\n"
+        "      label: Daily Precipitation\n"
+        "      unit: mm\n"
+        "      y_value_column: precip_mm\n"
+        "      colour_mode: year\n"
+        "      range_text: '{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}'\n"
+    )
+
+    measures = load_measures_config(config_file)
+    assert measures["daily_precipitation"]["colour_mode"] == "year"
+
+
+def test_load_measures_config_rejects_missing_measures_section(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "plotting:\n"
+        "  colour_mode: y_value\n"
+    )
+
+    with pytest.raises(ValueError):
+        load_measures_config(config_file)
 
 
 def test_get_plot_text_missing_placeholder_raises():
     config = {
-        "subplot_title": "{measure_label} ({start_year}-{end_year})",
+        "overall_title": "{measure_label} ({start_year}-{end_year})",
     }
 
     with pytest.raises(ValueError):
-        get_plot_text(config, "subplot_title", measure_label="Temp", start_year=2020)
+        get_plot_text(config, "overall_title", measure_label="Temp", start_year=2020)

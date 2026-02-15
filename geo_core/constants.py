@@ -1,6 +1,6 @@
 """Core constants shared across configuration helpers."""
 
-VALID_COLOUR_MODES = ("y_value", "year")
+VALID_COLOUR_MODES = ("y_value", "colour_value", "year")
 DEFAULT_COLOUR_MODE = VALID_COLOUR_MODES[0]
 DEFAULT_COLORMAP = "turbo"
 DEFAULT_RUNTIME_PATHS = {
@@ -13,6 +13,7 @@ DEFAULT_RETRIEVAL_SETTINGS = {
     "half_box_deg": 0.25,
     "max_nearest_time_delta_minutes": 30,
     "month_fetch_day_span_threshold": 62,
+    "wet_hour_threshold_mm": 1.0,
     "fetch_mode": {
         "noon_temperature": "auto",
         "daily_precipitation": "monthly",
@@ -26,8 +27,8 @@ DEFAULT_RETRIEVAL_SETTINGS = {
 }
 REQUIRED_PLOT_TEXT_KEYS = (
     'single_plot_title',
-    'subplot_title',
-    'subplot_title_with_batch',
+    'overall_title',
+    'overall_title_with_batch',
     'single_plot_filename',
     'subplot_filename',
     'subplot_filename_with_batch',

@@ -431,6 +431,55 @@ def test_coordinator_retrieve_precipitation_enriches_wet_hours_from_hourly_cache
     assert result['observed_hours'].iloc[0] == 3
 
 
+def test_coordinator_retrieve_precipitation_uses_config_wet_hour_threshold(tmp_path, monkeypatch):
+    """Wet-hour count should respect retrieval.wet_hour_threshold_mm from config."""
+    loc = Location(name="Rain City", lat=40.0, lon=-73.0, tz="America/New_York")
+
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "retrieval:\n"
+        "  wet_hour_threshold_mm: 1.3\n"
+    )
+
+    mock_cds = MagicMock()
+    mock_cds.get_daily_precipitation_series.return_value = pd.DataFrame({
+        'date': ['2024-01-01'],
+        'precip_mm': [2.5],
+        'place_name': ['Rain City'],
+        'grid_lat': [40.0],
+        'grid_lon': [-73.0],
+    })
+    mock_cds.get_hourly_precipitation_series.return_value = pd.DataFrame({
+        'date': [
+            '2024-01-01T12:00:00',
+            '2024-01-01T13:00:00',
+            '2024-01-01T14:00:00',
+        ],
+        'precip_mm': [1.1, 1.5, 0.2],
+        'place_name': ['Rain City', 'Rain City', 'Rain City'],
+        'grid_lat': [40.0, 40.0, 40.0],
+        'grid_lon': [-73.0, -73.0, -73.0],
+    })
+
+    def mock_cds_init(cache_dir, progress_manager=None, config_path=None):
+        return mock_cds
+
+    monkeypatch.setattr('geo_data.data_retrieval.PrecipitationCDS', mock_cds_init)
+
+    result = RetrievalCoordinator(
+        cache_dir=tmp_path,
+        data_cache_dir=tmp_path,
+        config_path=config_file,
+    ).retrieve(
+        [loc],
+        2024,
+        2024,
+        measure='daily_precipitation',
+    )
+
+    assert result['wet_hours_per_day'].iloc[0] == 1
+
+
 def test_coordinator_override_fetch_mode_solar(tmp_path, monkeypatch):
     """RetrievalCoordinator applies runtime month override for solar."""
     loc = Location(name="Solar City", lat=40.0, lon=-73.0, tz="America/New_York")

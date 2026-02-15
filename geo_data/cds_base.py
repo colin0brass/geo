@@ -57,7 +57,6 @@ class Location:
                 detected_tz = _tf.timezone_at(lat=self.lat, lng=self.lon)
                 if detected_tz:
                     object.__setattr__(self, 'tz', detected_tz)
-                    logger.debug(f"Auto-detected timezone for {self.name}: {detected_tz}")
                 else:
                     logger.error(f"Could not determine timezone for {self.name} at ({self.lat}, {self.lon})")
                     raise ValueError(f"Unable to determine timezone for coordinates ({self.lat}, {self.lon})")

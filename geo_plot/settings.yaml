@@ -48,7 +48,9 @@ polar_subplot:
     width_cm: 33.87
     height_cm: 19.05
     title_fontsize: {default: 12, 3: 9, 4: 7}  # Auto-scaled based on grid rows
+    overall_title_fontsize: {default: 18, 3: 14, 4: 11}  # Left-side vertical overall title
     title_colour: blue
+    left_title_x: 0.015  # X-position for left-side vertical overall title
     label_fontsize: 10
     label_left: 0.05
     label_right: 0.93
