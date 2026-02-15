@@ -11,7 +11,6 @@ import pandas as pd
 import yaml
 
 from .cds_base import Location
-from .cache_migration import DEFAULT_CACHE_MIGRATION
 from .measure_mapping import (
     DEFAULT_MEASURE_REGISTRY,
 )
@@ -106,6 +105,48 @@ class CacheStore:
         return rows
 
     @staticmethod
+    def _normalize_value_map_for_measure(measure: str, value_map: dict) -> dict:
+        """Normalize cached value map keys/types for a measure, handling legacy nested payloads."""
+        normalized: dict[int, dict[int, dict[int, float | dict[int, float]]]] = {}
+        is_hourly_precip = measure == 'hourly_precipitation'
+
+        for year_key, months in value_map.items():
+            year_int = int(year_key)
+            if year_int not in normalized:
+                normalized[year_int] = {}
+
+            for month_key, days in months.items():
+                month_int = int(month_key)
+                if month_int not in normalized[year_int]:
+                    normalized[year_int][month_int] = {}
+
+                for day_key, raw_payload in days.items():
+                    day_int = int(day_key)
+
+                    if is_hourly_precip:
+                        if isinstance(raw_payload, dict):
+                            normalized[year_int][month_int][day_int] = {
+                                int(hour_key): float(hour_value)
+                                for hour_key, hour_value in raw_payload.items()
+                            }
+                        else:
+                            normalized[year_int][month_int][day_int] = {0: float(raw_payload)}
+                        continue
+
+                    if isinstance(raw_payload, dict):
+                        numeric_values = [float(value) for value in raw_payload.values()]
+                        if not numeric_values:
+                            continue
+                        if measure in ('daily_precipitation', 'daily_solar_radiation_energy'):
+                            normalized[year_int][month_int][day_int] = float(sum(numeric_values))
+                        else:
+                            normalized[year_int][month_int][day_int] = float(numeric_values[0])
+                    else:
+                        normalized[year_int][month_int][day_int] = float(raw_payload)
+
+        return normalized
+
+    @staticmethod
     def _build_new_values_by_year(
         df: pd.DataFrame,
         value_column: str,
@@ -152,11 +193,13 @@ class CacheStore:
         existing_data: dict,
         cache_var: str,
         new_values_by_year: dict,
+        measure: str,
         overwrite_existing_values: bool = False,
     ) -> dict:
         """Merge existing nested values with new year/month/day values."""
-        normalized_existing = DEFAULT_CACHE_MIGRATION.normalize_temp_map(
-            existing_data[DATA_KEY].get(cache_var, {})
+        normalized_existing = CacheStore._normalize_value_map_for_measure(
+            measure,
+            existing_data[DATA_KEY].get(cache_var, {}),
         )
 
         for year, months in new_values_by_year.items():
@@ -610,6 +653,7 @@ class CacheStore:
                     existing_data,
                     cache_var,
                     new_values_by_year,
+                    measure,
                     overwrite_existing_values=overwrite_existing_values,
                 )
             except Exception as e:

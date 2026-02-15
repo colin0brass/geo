@@ -528,6 +528,39 @@ def test_save_data_file_backfills_missing_hourly_variable_metadata(tmp_path):
 
     cache_store.save_data_file(daily_df, out_file, loc, append=True, measure='daily_precipitation')
 
+
+def test_save_data_file_append_daily_precipitation_handles_nested_legacy_day_payload(tmp_path):
+    """Append merge should normalize legacy nested day payloads for daily precipitation."""
+    loc = Location(name="Legacy Rain", lat=40.0, lon=-73.0, tz="America/New_York")
+    out_file = tmp_path / "legacy_rain.yaml"
+
+    seed_df = pd.DataFrame({
+        'date': ['2024-01-01'],
+        'precip_mm': [1.0],
+        'grid_lat': [40.0],
+        'grid_lon': [-73.0],
+        'place_name': ['Legacy Rain'],
+    })
+    cache_store.save_data_file(seed_df, out_file, loc, measure='daily_precipitation')
+
+    doc = yaml.safe_load(out_file.read_text())
+    doc[DATA_KEY]['daily_precip_mm'][2024][1][1] = {0: 0.25, 1: 0.75}
+    with open(out_file, 'w') as f:
+        yaml.safe_dump(doc, f)
+
+    append_df = pd.DataFrame({
+        'date': ['2024-01-02'],
+        'precip_mm': [2.5],
+        'grid_lat': [40.0],
+        'grid_lon': [-73.0],
+        'place_name': ['Legacy Rain'],
+    })
+    cache_store.save_data_file(append_df, out_file, loc, append=True, measure='daily_precipitation')
+
+    df_loaded = cache_store.read_data_file(out_file, measure='daily_precipitation').sort_values('date')
+    assert len(df_loaded) == 2
+    assert df_loaded['precip_mm'].tolist() == pytest.approx([1.0, 2.5])
+
     updated = yaml.safe_load(out_file.read_text())
     assert 'hourly_precip_mm' in updated['variables']
     assert updated['variables']['hourly_precip_mm']['units'] == 'mm'
