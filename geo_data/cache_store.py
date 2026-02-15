@@ -26,6 +26,18 @@ from .cache_codec import (
 
 logger = logging.getLogger("geo")
 
+
+try:
+    _SAFE_LOADER = yaml.CSafeLoader
+except AttributeError:
+    _SAFE_LOADER = yaml.SafeLoader
+
+
+def _yaml_safe_load(stream):
+    """Load YAML using fastest available safe loader."""
+    return yaml.load(stream, Loader=_SAFE_LOADER) or {}
+
+
 US_STATE_CODES = {
     'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
     'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
@@ -267,7 +279,7 @@ class CacheStore:
 
         try:
             with open(summary_file, 'r') as f:
-                summary = yaml.safe_load(f) or {}
+                summary = _yaml_safe_load(f)
         except Exception as exc:
             logger.warning(f"Failed to read cache summary '{summary_file}': {exc}")
             return self._empty_cache_summary()

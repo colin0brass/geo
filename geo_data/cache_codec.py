@@ -15,6 +15,17 @@ from .schema import DEFAULT_SCHEMA
 logger = logging.getLogger("geo")
 
 
+try:
+    _SAFE_LOADER = yaml.CSafeLoader
+except AttributeError:
+    _SAFE_LOADER = yaml.SafeLoader
+
+
+def _yaml_safe_load(stream) -> dict[str, Any]:
+    """Load YAML using fastest available safe loader."""
+    return yaml.load(stream, Loader=_SAFE_LOADER) or {}
+
+
 class CacheCodec:
     """Class-based codec for cache YAML read/write and schema migration."""
 
@@ -65,7 +76,7 @@ class CacheCodec:
             bool: True if migration occurred, False if already v2.
         """
         with open(yaml_file, 'r') as f:
-            data = yaml.safe_load(f) or {}
+            data = _yaml_safe_load(f)
 
         if self.cache_migration.is_v2_schema(data):
             return False
@@ -106,7 +117,7 @@ class CacheCodec:
     def load_cache_data_v2(self, yaml_file: Path, auto_migrate: bool = True) -> dict[str, Any]:
         """Load cache file and ensure it is schema v2 (optionally auto-migrating)."""
         with open(yaml_file, 'r') as f:
-            data = yaml.safe_load(f) or {}
+            data = _yaml_safe_load(f)
 
         if self.cache_migration.is_v2_schema(data):
             return data
@@ -127,7 +138,7 @@ class CacheCodec:
             migrated = self.migrate_cache_file_to_v2(yaml_file)
             if migrated:
                 with open(yaml_file, 'r') as f:
-                    data = yaml.safe_load(f) or {}
+                    data = _yaml_safe_load(f)
                 if self.cache_migration.is_v2_schema(data):
                     return data
 
