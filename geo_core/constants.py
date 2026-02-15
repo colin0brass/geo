@@ -16,8 +16,8 @@ DEFAULT_RETRIEVAL_SETTINGS = {
     "wet_hour_threshold_mm": 1.0,
     "fetch_mode": {
         "noon_temperature": "auto",
-        "daily_precipitation": "monthly",
-        "daily_solar_radiation_energy": "monthly",
+        "daily_precipitation": "auto",
+        "daily_solar_radiation_energy": "auto",
     },
     "daily_source": {
         "noon_temperature": "timeseries",

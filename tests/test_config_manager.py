@@ -272,3 +272,23 @@ places:
     # Timezone should be ignored during loading (auto-detected at Location creation)
     # But the place should load successfully
     assert "TestPlace" in places
+
+
+def test_load_places_from_external_places_file(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    places_file = tmp_path / "places.yaml"
+
+    config_file.write_text("places_file: places.yaml\n")
+    places_file.write_text(
+        "default_place: External City\n"
+        "all_places:\n"
+        "  - {name: \"External City\", lat: 1.23, lon: 4.56}\n"
+        "place_lists:\n"
+        "  sample:\n"
+        "    - External City\n"
+    )
+
+    places, default_place, place_lists = load_places(config_file)
+    assert default_place == "External City"
+    assert "External City" in places
+    assert place_lists["sample"] == ["External City"]

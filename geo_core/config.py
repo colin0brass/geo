@@ -228,6 +228,16 @@ def load_retrieval_settings(config_file: Path = Path("config.yaml")) -> dict[str
         raise ValueError("retrieval.wet_hour_threshold_mm must be > 0")
 
     valid_fetch_modes = {'monthly', 'yearly', 'auto'}
+    canonical_measures = (
+        'noon_temperature',
+        'daily_precipitation',
+        'daily_solar_radiation_energy',
+    )
+    nested_legacy_key_map = {
+        'temp': 'noon_temperature',
+        'precipitation': 'daily_precipitation',
+        'solar': 'daily_solar_radiation_energy',
+    }
 
     configured_fetch_mode = retrieval.get('fetch_mode')
     if configured_fetch_mode is not None:
@@ -235,11 +245,6 @@ def load_retrieval_settings(config_file: Path = Path("config.yaml")) -> dict[str
             raise ValueError("retrieval.fetch_mode must be a mapping")
 
         merged_fetch_mode = settings['fetch_mode'].copy()
-        canonical_measures = (
-            'noon_temperature',
-            'daily_precipitation',
-            'daily_solar_radiation_energy',
-        )
         for metric_name in canonical_measures:
             if metric_name in configured_fetch_mode:
                 mode_value = configured_fetch_mode[metric_name]
@@ -247,11 +252,6 @@ def load_retrieval_settings(config_file: Path = Path("config.yaml")) -> dict[str
                     raise ValueError(f"retrieval.fetch_mode.{metric_name} must be a non-empty string")
                 merged_fetch_mode[metric_name] = mode_value.strip().lower()
 
-        nested_legacy_key_map = {
-            'temp': 'noon_temperature',
-            'precipitation': 'daily_precipitation',
-            'solar': 'daily_solar_radiation_energy',
-        }
         for legacy_key, canonical_key in nested_legacy_key_map.items():
             if legacy_key in configured_fetch_mode:
                 mode_value = configured_fetch_mode[legacy_key]
@@ -260,6 +260,26 @@ def load_retrieval_settings(config_file: Path = Path("config.yaml")) -> dict[str
                 merged_fetch_mode[canonical_key] = mode_value.strip().lower()
 
         settings['fetch_mode'] = merged_fetch_mode
+
+    configured_measures = retrieval.get('measures')
+    if configured_measures is not None:
+        if not isinstance(configured_measures, dict):
+            raise ValueError("retrieval.measures must be a mapping")
+
+        for measure_key, measure_settings in configured_measures.items():
+            canonical_measure = nested_legacy_key_map.get(measure_key, measure_key)
+            if canonical_measure not in canonical_measures:
+                continue
+            if not isinstance(measure_settings, dict):
+                raise ValueError(f"retrieval.measures.{measure_key} must be a mapping")
+
+            fetch_value = measure_settings.get('fetch_mode')
+            if fetch_value is not None:
+                if not isinstance(fetch_value, str) or not fetch_value.strip():
+                    raise ValueError(
+                        f"retrieval.measures.{measure_key}.fetch_mode must be a non-empty string"
+                    )
+                settings['fetch_mode'][canonical_measure] = fetch_value.strip().lower()
 
     legacy_fetch_mode_map = {
         'temp_fetch_mode': 'noon_temperature',
@@ -297,6 +317,22 @@ def load_retrieval_settings(config_file: Path = Path("config.yaml")) -> dict[str
                     raise ValueError(f"retrieval.daily_source.{metric_name} must be a non-empty string")
                 merged_daily_source[metric_name] = source_value.strip().lower()
         settings['daily_source'] = merged_daily_source
+
+    if isinstance(configured_measures, dict):
+        for measure_key, measure_settings in configured_measures.items():
+            canonical_measure = nested_legacy_key_map.get(measure_key, measure_key)
+            if canonical_measure not in valid_daily_sources_by_measure:
+                continue
+            if not isinstance(measure_settings, dict):
+                raise ValueError(f"retrieval.measures.{measure_key} must be a mapping")
+
+            source_value = measure_settings.get('daily_source')
+            if source_value is not None:
+                if not isinstance(source_value, str) or not source_value.strip():
+                    raise ValueError(
+                        f"retrieval.measures.{measure_key}.daily_source must be a non-empty string"
+                    )
+                settings['daily_source'][canonical_measure] = source_value.strip().lower()
 
     for metric_name, source_value in settings['daily_source'].items():
         allowed_values = valid_daily_sources_by_measure[metric_name]
@@ -473,7 +509,12 @@ def extract_places_config(config: dict) -> tuple[list[dict], str, dict]:
     Returns:
         tuple[list[dict], str, dict]: (all_places, default_place, place_lists)
     """
-    places_config = config.get('places', {}) if isinstance(config, dict) else {}
+    if isinstance(config, dict) and isinstance(config.get('places'), dict):
+        places_config = config.get('places', {})
+    elif isinstance(config, dict):
+        places_config = config
+    else:
+        places_config = {}
     all_places = places_config.get('all_places', []) if isinstance(places_config, dict) else []
     place_lists = places_config.get('place_lists', {}) if isinstance(places_config, dict) else {}
 
@@ -571,10 +612,14 @@ def render_config_yaml(config: dict) -> str:
     for section_name, section_data in config.items():
         if section_name not in handled_sections:
             lines.append(f"# {section_name.replace('_', ' ').title()} section")
-            lines.append(f"{section_name}:")
-            section_yaml = yaml.dump(section_data, default_flow_style=False, sort_keys=False)
+            section_yaml = yaml.safe_dump(
+                {section_name: section_data},
+                default_flow_style=False,
+                sort_keys=False,
+                allow_unicode=True,
+            )
             for line in section_yaml.rstrip().split('\n'):
-                lines.append(f"  {line}")
+                lines.append(line)
             lines.append("")
 
     output = "\n".join(lines)

@@ -342,6 +342,8 @@ Stores application configuration with seven main sections:
 
 #### 1. Logging
 ```yaml
+schema_version: 1
+
 logging:
   log_file: geo.log
   console_level: WARNING  # DEBUG, INFO, WARNING, ERROR, CRITICAL
@@ -371,19 +373,26 @@ retrieval:
   max_nearest_time_delta_minutes: 30
   month_fetch_day_span_threshold: 62
   wet_hour_threshold_mm: 1.0
-  daily_source:
-    noon_temperature: timeseries
-    daily_precipitation: timeseries
-    daily_solar_radiation_energy: timeseries
+  measures:
+    noon_temperature:
+      fetch_mode: auto
+      daily_source: timeseries
+    daily_precipitation:
+      fetch_mode: auto
+      daily_source: timeseries
+    daily_solar_radiation_energy:
+      fetch_mode: auto
+      daily_source: timeseries
 ```
 
 - `half_box_deg`: geographic half-width (degrees) for ERA5 retrieval around each location.
 - `max_nearest_time_delta_minutes`: maximum tolerated offset between requested local noon and selected ERA5 time.
 - `month_fetch_day_span_threshold`: day-range threshold for monthly fetch strategy before switching to full-year fetch.
 - `wet_hour_threshold_mm`: hourly precipitation threshold (mm) used to count a wet hour in `wet_hours_per_day`.
-- `daily_source.noon_temperature`: `timeseries` (configured in bundled config, ERA5 point-location product) or `hourly` (in-app local-noon selection).
-- `daily_source.daily_precipitation`: `timeseries` (configured in bundled config, ERA5 point-location product), `hourly` (in-app aggregation), or `daily_statistics` (CDS derived daily-statistics product).
-- `daily_source.daily_solar_radiation_energy`: `timeseries` (configured in bundled config, ERA5 point-location product) or `hourly` (in-app aggregation).
+- `measures.<measure>.fetch_mode`: `auto`, `monthly`, or `yearly` retrieval chunking.
+- `measures.noon_temperature.daily_source`: `timeseries` or `hourly`.
+- `measures.daily_precipitation.daily_source`: `timeseries`, `hourly`, or `daily_statistics`.
+- `measures.daily_solar_radiation_energy.daily_source`: `timeseries` or `hourly`.
 
 #### 4. Runtime Paths
 
@@ -393,12 +402,15 @@ runtime_paths:
   data_cache_dir: data_cache
   out_dir: output
   settings_file: geo_plot/settings.yaml
+
+places_file: places.yaml
 ```
 
 - `cache_dir`: default NetCDF cache directory for ERA5 files.
 - `data_cache_dir`: default YAML cache directory.
 - `out_dir`: default plot output directory.
 - `settings_file`: default plot settings YAML file.
+- `places_file`: path to external places configuration file.
 
 #### 5. Plotting
 
@@ -410,7 +422,7 @@ plotting:
       unit: "°C"
       colour_mode: y_value  # y_value, colour_value, or year
       y_value_column: "temp_C"
-      y: {step: 10, max_steps: 4}
+      y: {min: null, max: null, step: 10, max_steps: 4}
       range_text: "{min_temp_c:.1f}°C to {max_temp_c:.1f}°C; ({min_temp_f:.1f}°F to {max_temp_f:.1f}°F)"
     daily_precipitation:
       label: "Wet Hours per Day"
@@ -428,7 +440,7 @@ plotting:
       unit: "MJ/m²"
       colour_mode: y_value
       y_value_column: "solar_energy_MJ_m2"
-      y: {min: 0, step: 10, max_steps: 4}
+      y: {min: 0, max: null, step: 10, max_steps: 4}
       range_text: "{measure_label}: {min_value:.1f} to {max_value:.1f} {measure_unit}"
   valid_colormaps: [turbo, viridis, plasma, inferno, magma, cividis]  # first item is default fallback
   colormap: turbo           # must be one of valid_colormaps
@@ -497,20 +509,24 @@ credit: "Analyse et visualisation par Colin Osborne"
 data_source: "Données de: ERA5 via CDS"
 ```
 
-#### 7. Places
+#### 7. Places (External File)
+
+Large places data is split into a separate file (default `places.yaml`) referenced from `config.yaml`:
+
+```yaml
+places_file: places.yaml
+```
 
 **default_place:** Used when no location is specified
 ```yaml
-places:
-  default_place: Cambridge, UK
+default_place: Cambridge, UK
 ```
 
 **all_places:** All available locations (compact format)
 ```yaml
-places:
-  all_places:
-    - {name: "Austin, TX", lat: 30.2672, lon: -97.7431}
-    - {name: "Cambridge, UK", lat: 52.2053, lon: 0.1218}
+all_places:
+  - {name: "Austin, TX", lat: 30.2672, lon: -97.7431}
+  - {name: "Cambridge, UK", lat: 52.2053, lon: 0.1218}
     # Add more places...
 ```
 
@@ -518,24 +534,23 @@ places:
 
 **place_lists:** Named groups for convenience
 ```yaml
-places:
-  place_lists:
-    default:  # Used when calling -l without argument
-      - Austin, TX
-      - Cambridge, UK
-      - San Jose, CA
-      - Bangalore, India
-      - Trondheim, Norway
-      - Beijing, China
-    extreme_range:  # High annual temperature variation
-      - Ulaanbaatar, Mongolia
-      - Moscow, Russia
-      - Montreal, Canada
-    minimal_range:  # Stable equatorial climates
-      - Singapore
-      - Mumbai, India
-      - Lima, Peru
-    # ... plus 10 more thematic lists (55 places total)
+place_lists:
+  default:  # Used when calling -l without argument
+    - Austin, TX
+    - Cambridge, UK
+    - San Jose, CA
+    - Bangalore, India
+    - Trondheim, Norway
+    - Beijing, China
+  extreme_range:  # High annual temperature variation
+    - Ulaanbaatar, Mongolia
+    - Moscow, Russia
+    - Montreal, Canada
+  minimal_range:  # Stable equatorial climates
+    - Singapore
+    - Mumbai, India
+    - Lima, Peru
+  # ... plus additional thematic lists
 ```
 
 **Available place lists:**

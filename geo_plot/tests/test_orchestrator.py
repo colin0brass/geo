@@ -150,7 +150,7 @@ def test_create_batch_subplot_single_batch(mock_visualizer_class, tmp_path):
     assert 'range_text_context' in mock_visualizer_class.call_args[1]
     mock_vis_instance.plot_polar_subplots.assert_called_once()
     call_kwargs = mock_vis_instance.plot_polar_subplots.call_args[1]
-    assert call_kwargs['title'] == 'Temperature (2024)'
+    assert call_kwargs['title'] == 'Noon Temperature (2024)'
     assert call_kwargs['num_rows'] == 1
     assert call_kwargs['num_cols'] == 2
 
@@ -188,7 +188,7 @@ def test_create_batch_subplot_multiple_batches(mock_visualizer_class, tmp_path):
     # Should include batch suffix
     assert "_part2of3.png" in result
     call_kwargs = mock_vis_instance.plot_polar_subplots.call_args[1]
-    assert call_kwargs['title'] == 'Temperature (2024)'
+    assert call_kwargs['title'] == 'Noon Temperature (2024)'
 
 
 @patch('geo_plot.orchestrator.Visualizer')

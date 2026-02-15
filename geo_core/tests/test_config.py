@@ -417,6 +417,45 @@ def test_load_retrieval_settings_nested_short_fetch_mode_keys_still_work(tmp_pat
     assert settings["fetch_mode"]["daily_solar_radiation_energy"] == "yearly"
 
 
+def test_load_retrieval_settings_grouped_measures_block(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "retrieval:\n"
+        "  measures:\n"
+        "    noon_temperature:\n"
+        "      fetch_mode: yearly\n"
+        "      daily_source: hourly\n"
+        "    daily_precipitation:\n"
+        "      fetch_mode: auto\n"
+        "      daily_source: daily_statistics\n"
+    )
+
+    settings = load_retrieval_settings(config_file)
+    assert settings["fetch_mode"]["noon_temperature"] == "yearly"
+    assert settings["daily_source"]["noon_temperature"] == "hourly"
+    assert settings["fetch_mode"]["daily_precipitation"] == "auto"
+    assert settings["daily_source"]["daily_precipitation"] == "daily_statistics"
+
+
+def test_load_retrieval_settings_grouped_measures_override_parallel_maps(tmp_path):
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        "retrieval:\n"
+        "  fetch_mode:\n"
+        "    daily_precipitation: monthly\n"
+        "  daily_source:\n"
+        "    daily_precipitation: hourly\n"
+        "  measures:\n"
+        "    daily_precipitation:\n"
+        "      fetch_mode: yearly\n"
+        "      daily_source: timeseries\n"
+    )
+
+    settings = load_retrieval_settings(config_file)
+    assert settings["fetch_mode"]["daily_precipitation"] == "yearly"
+    assert settings["daily_source"]["daily_precipitation"] == "timeseries"
+
+
 def test_load_runtime_paths_defaults_when_section_missing(tmp_path):
     config_file = tmp_path / "config.yaml"
     config_file.write_text("logging:\n  console_level: WARNING\n")
