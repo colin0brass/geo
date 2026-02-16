@@ -77,8 +77,8 @@ plotting:
       y_value_column: "wet_hours_per_day"
       y: {min: 0, max: 24, step: 2, max_steps: 4}
       range_text: "Max daily precipitation: {max_daily_precip_mm:.1f} mm ({max_daily_precip_in:.2f} in)"
-      colour_value_column: "max_hourly_precip_mm"
-      colourbar_title: "mm/hr"
+      colour_value_column: "total_precip_mm"
+      colourbar_title: "mm/day"
     daily_solar_radiation_energy:
       overall_title: "Daily Solar Radiation ({year_range})"
       label: "Daily Solar Radiation"

@@ -437,8 +437,8 @@ plotting:
       unit: "h"
       colour_mode: colour_value
       y_value_column: "wet_hours_per_day"
-      colour_value_column: "max_hourly_precip_mm"  # optional; colour by different column than y-axis
-      colourbar_title: "mm/hr"                     # optional; colourbar title override
+      colour_value_column: "total_precip_mm"       # optional; colour by different column than y-axis
+      colourbar_title: "mm/day"                    # optional; colourbar title override
       y: {min: 0, max: 24, step: 2, max_steps: 4}
       plot_format: wedges
       wedge_width_scale: 1.5  # optional wedge-width multiplier (>1 makes wedges wider)

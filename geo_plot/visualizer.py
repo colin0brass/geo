@@ -327,6 +327,7 @@ class Visualizer:
         if self.colour_mode == 'colour_value' or self.y_value_column != 'temp_C':
             metric_title = self._default_metric_colourbar_title()
             if self._is_precipitation_colour_scale():
+                precip_title_fontsize = max(fontsize - 2, 1)
                 metric_norm = Normalize(vmin=self.colour_min, vmax=self.colour_max)
                 imperial_norm = Normalize(
                     vmin=self.mm_to_inches(self.colour_min),
@@ -340,7 +341,7 @@ class Visualizer:
                     ax=cbar_ax_metric,
                     orientation='vertical'
                 )
-                cbar_metric.ax.set_title(metric_title, fontsize=fontsize)
+                cbar_metric.ax.set_title(metric_title, fontsize=precip_title_fontsize)
                 cbar_metric.ax.tick_params(labelsize=fontsize-2)
 
                 cbar_ax_imperial = fig.add_axes([left_f, bottom, width, height], frameon=False)
@@ -350,7 +351,10 @@ class Visualizer:
                     ax=cbar_ax_imperial,
                     orientation='vertical'
                 )
-                cbar_imperial.ax.set_title(self._imperial_precip_title(metric_title), fontsize=fontsize)
+                cbar_imperial.ax.set_title(
+                    self._imperial_precip_title(metric_title),
+                    fontsize=precip_title_fontsize,
+                )
                 cbar_imperial.ax.tick_params(labelsize=fontsize-2)
             else:
                 left_single = (left_c + left_f) / 2.0
