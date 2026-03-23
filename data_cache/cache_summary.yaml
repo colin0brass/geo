@@ -1,5 +1,5 @@
 summary_version: 1
-updated_at: '2026-02-15T17:56:06.066979Z'
+updated_at: '2026-02-17T07:49:48.054393Z'
 files:
   Amsterdam_Netherlands.yaml:
     place_name: Amsterdam, Netherlands
@@ -438,6 +438,30 @@ files:
     country: Switzerland
     measures:
       noon_temperature: {year_ranges: [1970-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: [2000-2025]}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Valencia_Spain.yaml:
+    place_name: Valencia, Spain
+    country: Spain
+    measures:
+      noon_temperature: {year_ranges: [2000-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: [2000-2025]}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Marseille_France.yaml:
+    place_name: Marseille, France
+    country: France
+    measures:
+      noon_temperature: {year_ranges: [2000-2025]}
+      daily_precipitation: {year_ranges: [2000-2025]}
+      hourly_precipitation: {year_ranges: [2000-2025]}
+      daily_solar_radiation_energy: {year_ranges: [2000-2025]}
+  Naples_Italy.yaml:
+    place_name: Naples, Italy
+    country: Italy
+    measures:
+      noon_temperature: {year_ranges: [2000-2025]}
       daily_precipitation: {year_ranges: [2000-2025]}
       hourly_precipitation: {year_ranges: [2000-2025]}
       daily_solar_radiation_energy: {year_ranges: [2000-2025]}

@@ -28,7 +28,10 @@ all_places:
   - {name: "Paris, France", lat: 48.86, lon: 2.35}
   - {name: "Madrid, Spain", lat: 40.42, lon: -3.7}
   - {name: "Barcelona, Spain", lat: 41.39, lon: 2.16}
+  - {name: "Valencia, Spain", lat: 39.47, lon: -0.38}
+  - {name: "Marseille, France", lat: 43.3, lon: 5.37}
   - {name: "Rome, Italy", lat: 41.9, lon: 12.5}
+  - {name: "Naples, Italy", lat: 40.85, lon: 14.27}
   - {name: "Athens, Greece", lat: 37.98, lon: 23.73}
   - {name: "Vienna, Austria", lat: 48.21, lon: 16.37}
   - {name: "Amsterdam, Netherlands", lat: 52.37, lon: 4.9}
@@ -131,7 +134,9 @@ place_lists:
     - Barcelona, Spain
     - Athens, Greece
     - Rome, Italy
-    - Perth, Australia
+    - Valencia, Spain
+    - Marseille, France
+    - Naples, Italy
 
   southern_hemisphere:
     - Sydney, Australia

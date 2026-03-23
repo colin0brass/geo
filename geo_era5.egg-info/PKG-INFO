@@ -1,3 +1,25 @@
+Metadata-Version: 2.4
+Name: geo-era5
+Version: 1.0.0
+Summary: ERA5 climate data download, caching, and visualization tools
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: cdsapi
+Requires-Dist: matplotlib
+Requires-Dist: numpy
+Requires-Dist: pandas
+Requires-Dist: pyyaml
+Requires-Dist: xarray
+Requires-Dist: netcdf4
+Requires-Dist: dask
+Requires-Dist: timezonefinder
+Requires-Dist: geopy
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
+Requires-Dist: pytest-cov; extra == "dev"
+Requires-Dist: pytest-flake8; extra == "dev"
+Requires-Dist: flake8; extra == "dev"
+
 
 # geo
 

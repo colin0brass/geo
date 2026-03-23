@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "geo-era5"
+version = "1.0.0"
+description = "ERA5 climate data download, caching, and visualization tools"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+  "cdsapi",
+  "matplotlib",
+  "numpy",
+  "pandas",
+  "pyyaml",
+  "xarray",
+  "netcdf4",
+  "dask",
+  "timezonefinder",
+  "geopy",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "pytest-cov",
+  "pytest-flake8",
+  "flake8",
+]
+
+[project.scripts]
+geo = "geo:main"
+
+[tool.setuptools]
+py-modules = [
+  "geo",
+  "cli",
+  "config_manager",
+  "logging_config",
+  "progress",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["geo_core*", "geo_data*", "geo_plot*"]
+
+[tool.setuptools.package-data]
+geo_data = ["*.yaml"]
+geo_plot = ["*.yaml"]

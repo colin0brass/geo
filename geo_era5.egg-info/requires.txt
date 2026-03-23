@@ -1,0 +1,16 @@
+cdsapi
+matplotlib
+numpy
+pandas
+pyyaml
+xarray
+netcdf4
+dask
+timezonefinder
+geopy
+
+[dev]
+pytest
+pytest-cov
+pytest-flake8
+flake8
